@@ -29,6 +29,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  typescript: {
+    tsconfigPath: "tsconfig.build.json",
+  },
   outputFileTracingExcludes: {
     "*": [
       ".env*",
