@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Cartiva",
+  "version": "0.6.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArvkp3YpSbmb99loZ0Ln7pjWhZU5+XhaCyHpwqeZ0PozFT4KJrSx/SZ/5rayfllmCSVXEQtoSI072NOKBh76aLFiZWAddcrpYdGm4KE6qiqpGXAmW4HaBweER1gtKVDWZC7CjW4in/hx1+klkupOQCT3N8vkI7Sn/KzNskyZWoMUpTm1bG7Wfn2VATASa+xFZL0KyTeQan8UZeLuKG6IPcyA/ME2sb1cFpoRh8B/TjtMLTAgMBR8KGY+dEMe9DHzE3bkwh55A3thGDZPHLoJtlnPk2oMlEPdXDX1cJTjrRiniqmcMB4O1Lpymb3XpgiHkhwc/iD4yYrb8m0rwyebC2wIDAQAB",
+  "description": "Compare trustworthy Walmart, Target, and Kroger-family baskets, then build one retailer cart.",
+  "permissions": ["sidePanel", "storage"],
+  "host_permissions": [
+    "https://www.walmart.com/*",
+    "https://www.target.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://[::1]/*"
+  ],
+  "background": {
+    "service_worker": "js/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Open Cartiva"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.walmart.com/*"],
+      "js": ["js/walmart-control-policy.js", "js/walmart-content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.target.com/*"],
+      "js": ["js/target-control-policy.js", "js/target-content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

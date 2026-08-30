@@ -1,0 +1,11 @@
+{
+  "name": "cartiva-chrome-extension",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/clean.mjs && node ../node_modules/typescript/bin/tsc -p tsconfig.json && node scripts/build.mjs",
+    "test": "node ../node_modules/vitest/vitest.mjs run --config vitest.config.ts",
+    "typecheck": "node ../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit"
+  }
+}

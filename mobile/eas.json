@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "CARTIVA_REQUIRE_HTTPS_API": "true"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "CARTIVA_REQUIRE_HTTPS_API": "true"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "environment": "production",
+      "env": {
+        "CARTIVA_REQUIRE_HTTPS_API": "true"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

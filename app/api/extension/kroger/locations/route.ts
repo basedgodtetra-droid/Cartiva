@@ -1,0 +1,40 @@
+import { GET as getLocations, POST as postLocations } from "@/app/api/kroger/locations/route";
+import {
+  krogerExtensionOptions,
+  rejectedKrogerExtensionOrigin,
+  requiresJson,
+  withKrogerExtensionCors,
+} from "@/lib/kroger-route-utils";
+import { isAllowedExtensionOrigin } from "@/lib/extension-cors";
+import { trustValidatedExtensionRequest } from "@/lib/api-security";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export function OPTIONS(request: Request) {
+  return krogerExtensionOptions(request, ["GET", "POST"]);
+}
+
+export async function GET(request: Request) {
+  const origin = request.headers.get("Origin");
+  if (!isAllowedExtensionOrigin(origin)) return rejectedKrogerExtensionOrigin();
+  return withKrogerExtensionCors(
+    await getLocations(trustValidatedExtensionRequest(request)),
+    origin!,
+  );
+}
+
+export async function POST(request: Request) {
+  const origin = request.headers.get("Origin");
+  if (!isAllowedExtensionOrigin(origin)) return rejectedKrogerExtensionOrigin();
+  if (!requiresJson(request)) {
+    return withKrogerExtensionCors(
+      Response.json({ error: "Send the extension request as JSON." }, { status: 415 }),
+      origin!,
+    );
+  }
+  return withKrogerExtensionCors(
+    await postLocations(trustValidatedExtensionRequest(request)),
+    origin!,
+  );
+}

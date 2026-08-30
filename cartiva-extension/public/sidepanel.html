@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Cartiva</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to shopping list</a>
+
+    <header class="app-header">
+      <div class="brand-lockup" aria-label="Cartiva">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M5 9h14l-1.3 9H6.3L5 9Z" />
+            <path d="m8 9 2.3-4M16 9l-2.3-4M9 13v2M12 13v2M15 13v2" />
+          </svg>
+          <span class="brand-dot"></span>
+        </span>
+        <span>
+          <strong>Cartiva</strong>
+          <small>Say your list. Get your best cart.</small>
+        </span>
+      </div>
+      <span id="data-status" class="data-badge" data-mode="idle" aria-live="polite">Not checked</span>
+    </header>
+
+    <main id="main-content" class="app-shell">
+      <ol class="flow-progress" aria-label="Cartiva shopping progress">
+        <li id="flow-location-indicator" class="flow-progress-step" data-state="current" aria-current="step">
+          <span aria-hidden="true">1</span>
+          <strong id="flow-location-label">Store</strong>
+        </li>
+        <li id="flow-list-indicator" class="flow-progress-step" data-state="upcoming">
+          <span aria-hidden="true">2</span>
+          <strong>List</strong>
+        </li>
+        <li id="flow-results-indicator" class="flow-progress-step" data-state="upcoming">
+          <span aria-hidden="true">3</span>
+          <strong id="flow-results-label">Cart</strong>
+        </li>
+      </ol>
+
+      <section id="location-step" class="context-card flow-panel" aria-labelledby="location-step-heading">
+        <div id="comparison-setup" class="comparison-setup" hidden>
+          <div class="flow-card-heading">
+            <span class="flow-step-number" aria-hidden="true">1</span>
+            <div>
+              <p class="eyebrow">Set your area once</p>
+              <h1>Enter your ZIP</h1>
+              <p>Cartiva automatically selects store contexts for your ZIP and compares the same delivery list.</p>
+            </div>
+          </div>
+
+          <div class="comparison-zip-row">
+            <label class="field" for="comparison-zip">
+              <span>Home ZIP code</span>
+              <input id="comparison-zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" placeholder="75216" aria-describedby="comparison-lookup-status" />
+            </label>
+          </div>
+          <div class="comparison-lookup-feedback">
+            <p id="comparison-lookup-status" class="help-copy" role="status" aria-live="polite">Enter one ZIP. Cartiva automatically selects store contexts for you.</p>
+            <button id="comparison-retry-lookup" class="text-button" type="button" hidden>Retry store lookup</button>
+          </div>
+
+          <div class="comparison-store-grid">
+            <div class="comparison-store-card" data-compare-retailer="walmart">
+              <span class="comparison-store-heading"><strong>Walmart</strong><small id="comparison-walmart-status">Unavailable</small></span>
+              <small id="comparison-walmart-detail">Waiting for Walmart's automatically selected location.</small>
+            </div>
+            <div class="comparison-store-card" data-compare-retailer="target">
+              <span class="comparison-store-heading"><strong>Target</strong><small id="comparison-target-status">Unavailable</small></span>
+              <small id="comparison-target-detail">Target participates with a clearly labeled ZIP estimate.</small>
+            </div>
+            <div class="comparison-store-card" data-compare-retailer="kroger">
+              <span class="comparison-store-heading"><strong>Kroger family</strong><small id="comparison-kroger-status">Unavailable</small></span>
+              <small id="comparison-kroger-detail">Waiting for Kroger's automatically selected location.</small>
+            </div>
+          </div>
+          <div class="comparison-ready-bar">
+            <div>
+              <strong id="comparison-ready-heading">Enter a ZIP to start</strong>
+              <p id="comparison-ready-copy">Cartiva compares delivery baskets using the same list and package sizes.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-card-heading">
+          <span class="flow-step-number" aria-hidden="true">1</span>
+          <div>
+            <p class="eyebrow">Start here</p>
+            <h1 id="location-step-heading">Choose your pickup Walmart</h1>
+            <p id="location-step-copy">Cartiva uses this store's products and pickup prices.</p>
+          </div>
+        </div>
+
+        <div class="section-heading-row">
+          <div class="location-heading">
+            <span class="location-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg>
+            </span>
+            <div>
+              <p class="eyebrow" id="location-heading">Walmart location</p>
+              <h2 id="location-name">Checking current page…</h2>
+              <p id="location-detail" class="muted-copy">Cartiva will use the location selected at Walmart.</p>
+            </div>
+          </div>
+          <button id="refresh-context" class="icon-button" type="button" aria-label="Refresh Walmart location" title="Refresh Walmart location">
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
+          </button>
+        </div>
+
+        <div class="context-pills" aria-label="Current shopping context">
+          <span id="page-status-pill" class="pill">Checking page</span>
+          <span id="fulfillment-pill" class="pill pill-green">Fulfillment unknown</span>
+        </div>
+
+        <div id="off-walmart-notice" class="notice notice-neutral" hidden>
+          <div>
+            <strong>Prepare your list anywhere.</strong>
+            <p>Cartiva will open Walmart when you are ready to build the cart.</p>
+          </div>
+          <button id="open-walmart" class="text-button" type="button">Open Walmart</button>
+        </div>
+
+        <div id="kroger-connection" class="notice notice-kroger" hidden>
+          <div>
+            <strong id="kroger-connection-heading">Connect your Kroger account once</strong>
+            <p id="kroger-connection-copy">Required only to add official product matches to your Kroger-family cart.</p>
+          </div>
+          <button id="connect-kroger" class="text-button" type="button">Connect Kroger</button>
+        </div>
+
+        <details id="store-picker" class="store-picker" aria-labelledby="store-picker-heading" open>
+          <summary class="store-picker-summary">
+            <strong id="store-picker-heading">Find a store by ZIP</strong>
+            <span class="store-picker-action">Change store</span>
+          </summary>
+          <div class="store-picker-body">
+            <div class="store-picker-copy">
+              <p id="store-picker-description">Enter your ZIP and choose a store by address. Cartiva handles the store number privately.</p>
+            </div>
+            <div class="zip-search-row">
+              <label class="field" for="pickup-zip">
+                <span>ZIP code</span>
+                <input id="pickup-zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" placeholder="75216" aria-describedby="store-lookup-status" />
+              </label>
+              <button id="find-stores" class="secondary-button compact-button" type="button">Find stores</button>
+            </div>
+            <p id="store-lookup-status" class="help-copy" role="status" aria-live="polite">No store search yet.</p>
+            <div id="store-options" class="store-options" role="radiogroup" aria-label="Pickup Walmarts in this ZIP" hidden></div>
+          </div>
+        </details>
+
+        <details class="context-details">
+          <summary id="fulfillment-summary">Delivery or other fulfillment options</summary>
+          <div class="field-grid">
+            <label class="field">
+              <span>Fulfillment</span>
+              <select id="fulfillment-mode">
+                <option value="">Use Walmart selection</option>
+                <option value="pickup">Pickup</option>
+                <option value="delivery">Delivery</option>
+                <option value="shipping">Shipping — planning only</option>
+              </select>
+              <small id="fulfillment-help">Choosing a pickup store above automatically selects Pickup.</small>
+            </label>
+            <label id="target-store-field" class="field" for="target-store-id" hidden>
+              <span>Target store ID <small>(optional pilot setting)</small></span>
+              <input id="target-store-id" inputmode="numeric" maxlength="4" pattern="[0-9]{3,4}" placeholder="1234" autocomplete="off" />
+              <small>Only needed for pickup. Delivery and shipping use your ZIP.</small>
+            </label>
+          </div>
+          <button id="apply-context" class="secondary-button compact-button" type="button">Apply fulfillment</button>
+        </details>
+      </section>
+
+      <section id="list-step" class="entry-card flow-panel" aria-labelledby="list-heading" hidden>
+        <div class="flow-card-heading flow-card-heading-list">
+          <span class="flow-step-number" aria-hidden="true">2</span>
+          <div class="section-copy">
+            <p class="eyebrow">Your grocery list</p>
+            <h1 id="list-heading">What do you need?</h1>
+            <p id="list-step-copy">Type naturally. Cartiva will find exact products at your selected Walmart.</p>
+          </div>
+        </div>
+
+        <label class="sr-only" for="shopping-list">Shopping list</label>
+        <div class="textarea-wrap">
+          <textarea id="shopping-list" role="combobox" rows="5" placeholder="eggs&#10;Takis&#10;Coke Zero 24 pack&#10;chicken breast 3 lb" autocomplete="off" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="grocery-suggestions" aria-expanded="false" aria-describedby="list-help parse-summary"></textarea>
+          <button id="voice-input" class="voice-button" type="button" aria-label="Add grocery items by voice" title="Add grocery items by voice">
+            <svg viewBox="0 0 24 24" focusable="false"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" /></svg>
+          </button>
+          <div id="grocery-suggestions" class="grocery-suggestions" role="listbox" aria-label="Walmart products" hidden></div>
+        </div>
+        <p id="list-help" class="help-copy">After a short pause, Cartiva shows exact products and localized pickup prices from your selected Walmart. Product identity is checked before adding.</p>
+
+        <div id="parse-preview" class="parse-preview" hidden>
+          <div class="preview-heading">
+            <strong id="parse-summary">0 items recognized</strong>
+            <span>Parsed locally</span>
+          </div>
+          <ul id="parse-preview-list"></ul>
+        </div>
+
+        <p id="entry-error" class="form-error" role="alert" hidden></p>
+        <button id="prepare-list" class="primary-button build-list-button" type="button" hidden>
+          <span class="button-label">Build my Walmart cart</span>
+          <svg viewBox="0 0 24 24" focusable="false"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
+        </button>
+      </section>
+
+      <section id="results-section" class="results-section flow-panel" aria-labelledby="results-heading" hidden>
+        <div class="results-heading-row">
+          <div>
+            <p id="results-eyebrow" class="eyebrow">Step 3 &middot; Walmart cart</p>
+            <h2 id="results-heading" tabindex="-1">Finding your best cart</h2>
+          </div>
+          <button id="prepare-again" class="text-button" type="button">Find again &amp; rebuild</button>
+        </div>
+
+        <div class="summary-card">
+          <div class="subtotal-block">
+            <span id="subtotal-label">Walmart subtotal</span>
+            <strong id="verified-subtotal">$0.00</strong>
+            <p id="subtotal-note">Only reliable live Walmart matches are included. Walmart checkout is final.</p>
+          </div>
+          <dl class="summary-counts">
+            <div><dt>Requested</dt><dd id="requested-count">0</dd></div>
+            <div><dt>Matched</dt><dd id="matched-count">0</dd></div>
+            <div><dt>Not added</dt><dd id="review-count">0</dd></div>
+          </dl>
+        </div>
+
+        <div id="search-progress" class="search-progress" role="status" aria-live="polite" hidden>
+          <div>
+            <span class="spinner" aria-hidden="true"></span>
+            <strong id="search-progress-label">Searching Walmart…</strong>
+          </div>
+          <span id="search-progress-count">0 of 0</span>
+        </div>
+
+        <div id="result-list" class="result-list" role="region" tabindex="0" aria-label="Walmart product matches. Scroll inside this list to inspect every item." aria-live="polite" aria-busy="false"></div>
+
+        <div class="build-cta-card">
+          <div>
+            <h3 id="build-eligibility-heading">Reliable matches add automatically</h3>
+            <p id="build-eligibility-note">Cartiva adds reliable matches automatically. Anything it cannot confirm stays on this list and is not added.</p>
+          </div>
+          <button id="build-cart" class="accent-button" type="button" disabled hidden>Retry cart build</button>
+        </div>
+      </section>
+
+      <section id="comparison-results-section" class="comparison-results-section flow-panel" aria-labelledby="comparison-results-heading" hidden>
+        <div class="results-heading-row">
+          <div>
+            <p class="eyebrow">Step 3 &middot; Price comparison</p>
+            <h2 id="comparison-results-heading" tabindex="-1">Comparing complete baskets</h2>
+          </div>
+        </div>
+        <div id="comparison-progress" class="search-progress" role="status" aria-live="polite" hidden>
+          <div><span class="spinner" aria-hidden="true"></span><strong id="comparison-progress-label">Checking retailers&hellip;</strong></div>
+          <span id="comparison-progress-count">0 of 3</span>
+        </div>
+        <div id="comparison-baskets" class="comparison-baskets" aria-live="polite"></div>
+        <div class="comparison-trust-note">
+          <strong id="comparison-outcome-heading">Fair basket comparison</strong>
+          <p id="comparison-outcome-copy">A retailer can be called lowest only when every requested item has a reliable, equivalent-size price. Product subtotal excludes taxes, fees, tips, deposits, and memberships.</p>
+        </div>
+        <button id="comparison-edit-stores" class="secondary-button" type="button">Change ZIP</button>
+      </section>
+
+      <section id="cart-progress-section" class="cart-progress-card" aria-labelledby="cart-progress-heading" hidden>
+        <div class="results-heading-row">
+          <div>
+            <p class="eyebrow">Guided cart build</p>
+            <h2 id="cart-progress-heading">Adding to Walmart</h2>
+          </div>
+          <span id="cart-build-status" class="status-badge">Ready</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><span id="cart-progress-bar"></span></div>
+        <p id="cart-progress-text" class="progress-copy" role="status" aria-live="polite">Waiting to begin.</p>
+        <div id="cart-pause-notice" class="notice notice-warning" hidden>
+          <div>
+            <strong id="cart-pause-heading">Walmart needs your attention.</strong>
+            <p id="cart-pause-reason">Complete the required choice on Walmart, then continue.</p>
+          </div>
+        </div>
+        <ol id="cart-progress-list" class="cart-progress-list"></ol>
+        <div class="button-row">
+          <button id="resume-cart" class="primary-button compact-button" type="button" hidden>I finished the choice — continue</button>
+          <button id="cancel-cart" class="secondary-button compact-button" type="button" hidden>Stop after current item</button>
+          <button id="review-cart" class="accent-button compact-button" type="button" hidden>Open Walmart cart</button>
+        </div>
+      </section>
+
+      <details class="settings-card">
+        <summary>Cartiva backend settings</summary>
+        <div class="field">
+          <label for="backend-url">Backend base URL</label>
+          <input id="backend-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://127.0.0.1:8088" />
+          <small>Use only the Cartiva loopback address on this computer. Never paste a retailer data API key here.</small>
+        </div>
+        <p id="settings-error" class="form-error" role="alert" hidden></p>
+        <button id="save-settings" class="secondary-button compact-button" type="button">Save backend URL</button>
+      </details>
+
+      <p class="independence-note"><span id="extension-build"></span> · Cartiva is independent and is not affiliated with or endorsed by Walmart, Target, or Kroger. Retailer checkout pricing is final.</p>
+    </main>
+
+    <dialog id="cart-confirmation" class="confirmation-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-description">
+      <div class="dialog-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M5 9h14l-1.3 9H6.3L5 9Z" /><path d="m8 9 2.3-4M16 9l-2.3-4" /></svg>
+      </div>
+      <h2 id="confirm-title">Add these reliable matches to your Walmart cart?</h2>
+      <p id="confirm-description">Cartiva will add products one at a time and wait for Walmart to confirm each addition.</p>
+      <div class="confirm-summary">
+        <strong id="confirm-item-count">0 reliable matches</strong>
+        <span id="confirm-subtotal">$0.00 estimated subtotal</span>
+      </div>
+      <p class="dialog-trust-copy">Cartiva will not place an order, choose substitutions, enter payment details, or complete checkout.</p>
+      <div class="dialog-actions">
+        <button id="cancel-confirmation" class="secondary-button" type="button">Not yet</button>
+        <button id="confirm-cart-build" class="accent-button" type="button">Yes, build my cart</button>
+      </div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="js/sidepanel.js"></script>
+  </body>
+</html>

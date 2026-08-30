@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Cartiva",
+    "slug": "cartiva-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "cartiva",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "deploymentTarget": "17.4",
+      "bundleIdentifier": "com.cartiva.mobile",
+      "buildNumber": "1",
+      "associatedDomains": [
+        "applinks:api.example.com"
+      ],
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "Cartiva connects to your development computer while you test retailer comparisons.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.cartiva.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#063E2C"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 132,
+          "resizeMode": "contain",
+          "backgroundColor": "#FBF8EF"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
