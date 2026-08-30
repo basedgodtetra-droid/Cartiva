@@ -42,6 +42,9 @@ const nextConfig: NextConfig = {
       "qa_week5_selection*/**/*",
     ],
   },
+  outputFileTracingIncludes: {
+    "/*": ["node_modules/next/dist/lib/framework/boundary-constants.js"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
