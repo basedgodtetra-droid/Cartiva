@@ -183,7 +183,7 @@ export async function POST(request: Request) {
         request,
         (auth) => writeCart(operationId, locationId, fulfillmentMode, items, auth),
       );
-      written.result.headers.append("Set-Cookie", written.setCookie);
+      for (const cookie of written.setCookies) written.result.headers.append("Set-Cookie", cookie);
       return written.result;
     } catch (error) {
       return cartErrorResponse(error);

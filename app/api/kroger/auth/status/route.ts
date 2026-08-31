@@ -36,7 +36,7 @@ export async function GET(request: Request) {
         { ...checked.result, configured: true },
         { headers: { "Cache-Control": "no-store" } },
       );
-      response.headers.append("Set-Cookie", checked.setCookie);
+      for (const cookie of checked.setCookies) response.headers.append("Set-Cookie", cookie);
       return response;
     }
     return Response.json(

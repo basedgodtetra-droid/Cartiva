@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return { connected: false as const };
     });
     const response = Response.json(disconnected.result, { headers: { "Cache-Control": "no-store" } });
-    response.headers.append("Set-Cookie", disconnected.setCookie);
+    for (const cookie of disconnected.setCookies) response.headers.append("Set-Cookie", cookie);
     return response;
   }
   await getKrogerAuthClient().disconnect();

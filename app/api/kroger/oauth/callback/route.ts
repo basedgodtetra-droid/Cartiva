@@ -60,14 +60,14 @@ export async function GET(request: Request) {
     );
   }
   try {
-    let sessionCookie: string | undefined;
+    let sessionCookies: string[] | undefined;
     if (usesServerlessKrogerWebSession()) {
       validateServerlessKrogerAuthorization(request, state);
       const completed = await withServerlessKrogerWebSession(
         request,
         (client) => client.exchangeAuthorizationCodeAfterExternalStateValidation(code),
       );
-      sessionCookie = completed.setCookie;
+      sessionCookies = completed.setCookies;
     } else {
       await getKrogerAuthClient().exchangeAuthorizationCode(code, state);
     }
@@ -76,7 +76,9 @@ export async function GET(request: Request) {
       "Cartiva can now add verified products to your Kroger-family cart. You can close this tab and return to Cartiva.",
       true,
     );
-    if (sessionCookie) response.headers.append("Set-Cookie", sessionCookie);
+    if (sessionCookies) {
+      for (const cookie of sessionCookies) response.headers.append("Set-Cookie", cookie);
+    }
     if (usesServerlessKrogerWebSession()) {
       response.headers.append("Set-Cookie", clearServerlessKrogerAuthorizationCookie());
     }

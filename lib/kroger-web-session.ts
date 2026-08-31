@@ -14,11 +14,20 @@ import {
 } from "./kroger-auth";
 import "./server-only-guard";
 
-const SESSION_COOKIE = "__Host-cartiva-kroger-session";
+const LEGACY_SESSION_COOKIE = "__Host-cartiva-kroger-session";
+const SESSION_COOKIE_PREFIX = "__Host-cartiva-kroger-session-";
 const STATE_COOKIE = "__Host-cartiva-kroger-oauth-state";
 const OAUTH_STATE_TTL_SECONDS = 10 * 60;
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const MAX_SESSION_COOKIE_LENGTH = 12_000;
+// Chromium limits an individual cookie (name, value, and attributes together)
+// to roughly 4 KiB. Kroger's encrypted access and refresh tokens can exceed
+// that limit, so keep every value comfortably below it and reassemble the
+// authenticated envelope on the server.
+const SESSION_COOKIE_CHUNK_SIZE = 3_000;
+const MAX_SESSION_COOKIE_CHUNKS = Math.ceil(
+  MAX_SESSION_COOKIE_LENGTH / SESSION_COOKIE_CHUNK_SIZE,
+);
 const MAX_SESSION_FILE_BYTES = 8_192;
 
 function cookieValue(request: Request, name: string) {
@@ -79,12 +88,43 @@ function decodeSessionCookie(value: string | undefined) {
   }
 }
 
-function sessionCookie(serialized: Buffer | null) {
-  return secureCookie(
-    SESSION_COOKIE,
-    serialized?.toString("base64url") ?? "",
-    serialized ? SESSION_TTL_SECONDS : 0,
-  );
+function sessionCookieValue(request: Request) {
+  const chunks: string[] = [];
+  for (let index = 0; index < MAX_SESSION_COOKIE_CHUNKS; index += 1) {
+    const chunk = cookieValue(request, `${SESSION_COOKIE_PREFIX}${index}`);
+    if (chunk === undefined) {
+      if (index === 0) return cookieValue(request, LEGACY_SESSION_COOKIE);
+      break;
+    }
+    chunks.push(chunk);
+  }
+  return chunks.join("");
+}
+
+function sessionCookies(serialized: Buffer | null) {
+  const value = serialized?.toString("base64url") ?? "";
+  if (value.length > MAX_SESSION_COOKIE_LENGTH) {
+    throw new KrogerAuthError("The saved Kroger connection is too large.", "storage", 503);
+  }
+  const chunks = serialized
+    ? Array.from(
+      { length: Math.ceil(value.length / SESSION_COOKIE_CHUNK_SIZE) },
+      (_, index) => value.slice(
+        index * SESSION_COOKIE_CHUNK_SIZE,
+        (index + 1) * SESSION_COOKIE_CHUNK_SIZE,
+      ),
+    )
+    : [];
+  return [
+    // Remove the pre-chunking cookie during the transition so a stale legacy
+    // session can never shadow an intentionally cleared connection.
+    secureCookie(LEGACY_SESSION_COOKIE, "", 0),
+    ...Array.from({ length: MAX_SESSION_COOKIE_CHUNKS }, (_, index) => secureCookie(
+      `${SESSION_COOKIE_PREFIX}${index}`,
+      chunks[index] ?? "",
+      chunks[index] ? SESSION_TTL_SECONDS : 0,
+    )),
+  ];
 }
 
 export function usesServerlessKrogerWebSession(request?: Request) {
@@ -109,7 +149,7 @@ export async function withServerlessKrogerWebSession<T>(
   const directory = await mkdtemp(path.join(os.tmpdir(), "cartiva-kroger-web-"));
   const sessionFile = path.join(directory, "session.json");
   try {
-    const existing = decodeSessionCookie(cookieValue(request, SESSION_COOKIE));
+    const existing = decodeSessionCookie(sessionCookieValue(request));
     if (existing) await writeFile(sessionFile, existing, { mode: 0o600, flag: "wx" });
     const result = await operation(createKrogerAuthClientForSessionFile(sessionFile));
     let serialized: Buffer | null = null;
@@ -121,7 +161,7 @@ export async function withServerlessKrogerWebSession<T>(
     } catch (error) {
       if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) throw error;
     }
-    return { result, setCookie: sessionCookie(serialized) };
+    return { result, setCookies: sessionCookies(serialized) };
   } finally {
     await rm(directory, { recursive: true, force: true }).catch(() => undefined);
   }
