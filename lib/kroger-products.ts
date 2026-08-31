@@ -108,11 +108,10 @@ export function rankKrogerProducts(
   constraints: ProductConstraint[] = [],
   preferredIdentity?: { productId?: string; title?: string },
 ): KrogerMatchResult {
-  // Product matching and cart mutation are separate decisions. Kroger may
+  // Product matching and cart mutation remain separate decisions. Kroger may
   // provide an exact-store price and selected-fulfillment listing while
-  // omitting an inventory level. That is a truthful likely-available match,
-  // but it remains ineligible for automatic cart mutation until stock is
-  // explicitly confirmed.
+  // omitting an inventory level. That is truthfully labeled likely available;
+  // the Cart API still accepts its verified UPC, quantity, and modality.
   const eligible = products.filter(hasMatchEligibleStoreEvidence);
   const originals = new Map(eligible.map((product) => [product.id, product]));
   const projections = eligible.map(rankingProjection);

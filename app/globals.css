@@ -2033,17 +2033,17 @@ summary {
 
 .cartiva-footer {
   border-top: 1px solid #dce3de;
-  background: #f5f6f3;
+  background: #f6faf7;
   color: #26332c;
 }
 
 .cartiva-footer__main {
   display: grid;
-  width: min(1180px, calc(100% - 48px));
+  width: min(1280px, calc(100% - 48px));
   margin: 0 auto;
   grid-template-columns: minmax(220px, 1.3fr) minmax(430px, 1fr);
-  gap: 56px;
-  padding: 38px 0 30px;
+  gap: 42px;
+  padding: 28px 0 22px;
 }
 
 .cartiva-footer__brand > a {
@@ -2116,13 +2116,13 @@ summary {
 
 .cartiva-footer__fineprint {
   display: flex;
-  width: min(1180px, calc(100% - 48px));
+  width: min(1280px, calc(100% - 48px));
   align-items: flex-start;
   justify-content: space-between;
   gap: 32px;
   border-top: 1px solid #dce3de;
   margin: 0 auto;
-  padding: 18px 0 24px;
+  padding: 14px 0 18px;
   color: #78827c;
   font-size: 11px;
   line-height: 1.5;

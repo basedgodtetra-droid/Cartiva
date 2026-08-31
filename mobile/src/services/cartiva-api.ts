@@ -498,7 +498,10 @@ function decodeRankedKrogerProduct(
       && !boundedStringArray(product.verificationIssues, 20, 300)
     )
     || typeof product.cartEligible !== "boolean"
-    || (product.cartEligible && !product.inStock)
+    || (
+      product.cartEligible
+      && !["in_stock", "likely_available"].includes(String(product.availabilityStatus))
+    )
     || product.dataSource !== "kroger_public_api"
     || product.identityVerified !== true
     || !["high", "medium", "low"].includes(String(product.confidence))

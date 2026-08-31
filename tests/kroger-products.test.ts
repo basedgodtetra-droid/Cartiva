@@ -72,7 +72,7 @@ describe("Kroger product ranking", () => {
     expect(result.status).toBe("matched");
   });
 
-  it("accepts exact-store likely availability without claiming cart eligibility", () => {
+  it("keeps likely availability truthful while preserving the verified UPC for cart handoff", () => {
     const likely = krogerProduct({
       id: "0004900002890",
       productId: "0004900002890",
@@ -84,7 +84,7 @@ describe("Kroger product ranking", () => {
       priceCents: 1199,
       inStock: false,
       availabilityStatus: "likely_available",
-      cartEligible: false,
+      cartEligible: true,
       size: undefined,
     });
     const constraints = analyzeProductFacets("coke").constraints;
@@ -96,7 +96,7 @@ describe("Kroger product ranking", () => {
       productId: likely.productId,
       availabilityStatus: "likely_available",
       inStock: false,
-      cartEligible: false,
+      cartEligible: true,
     });
     expect(result.recommended?.reasons).toContain(
       "listed for the selected fulfillment method; inventory level was not reported",

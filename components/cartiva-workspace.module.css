@@ -1,8 +1,8 @@
 .app {
-  --cartiva-green: #087f60;
-  --cartiva-green-hover: #087456;
-  --cartiva-mint: #e5f4ee;
-  --cartiva-background: #f7f7f2;
+  --cartiva-green: #118a6a;
+  --cartiva-green-hover: #0e765b;
+  --cartiva-mint: #dff2e9;
+  --cartiva-background: #eaf4ee;
   --cartiva-surface: #ffffff;
   --cartiva-border: #dde4df;
   --cartiva-border-soft: #e9edea;
@@ -55,7 +55,7 @@
   z-index: 20;
   inset: 0 auto 0 0;
   display: flex;
-  width: 220px;
+  width: 200px;
   flex-direction: column;
   border-right: 1px solid var(--cartiva-border);
   padding: 28px 16px 22px;
@@ -187,7 +187,7 @@
 
 .page {
   min-height: 100vh;
-  margin-left: 220px;
+  margin-left: 200px;
 }
 
 .header {
@@ -290,14 +290,14 @@
 
 .workspace {
   width: 100%;
-  max-width: 1234px;
+  max-width: 1340px;
   margin: 0 auto;
-  padding: 46px clamp(28px, 5.4vw, 66px) 40px;
+  padding: 40px clamp(22px, 3vw, 40px) 44px;
 }
 
 .pageIntro {
   margin: 0 auto 28px;
-  max-width: 1102px;
+  max-width: 1120px;
 }
 
 .pageIntro h2 {
@@ -315,11 +315,11 @@
 
 .workspaceGrid {
   display: grid;
-  max-width: 1102px;
+  max-width: 1120px;
   margin: 0 auto;
-  grid-template-columns: minmax(360px, 420px) minmax(500px, 654px);
+  grid-template-columns: minmax(420px, 460px) minmax(520px, 1fr);
   align-items: start;
-  gap: 28px;
+  gap: 26px;
 }
 
 .listCard,
@@ -327,11 +327,12 @@
   border: 1px solid #e0e6e2;
   border-radius: 18px;
   background: var(--cartiva-surface);
+  box-shadow: 0 10px 28px rgba(39, 79, 58, 0.045);
 }
 
 .listCard {
   overflow: hidden;
-  padding: 26px 25px 24px;
+  padding: 28px 28px 26px;
 }
 
 .cardHeading,
@@ -491,8 +492,8 @@
 .listContent {
   display: grid;
   gap: 10px;
-  min-height: 348px;
-  max-height: 540px;
+  min-height: 500px;
+  max-height: 720px;
   overflow-y: auto;
   margin: 2px -10px 0;
   padding: 0 10px 12px;
@@ -554,12 +555,12 @@
 
 .groceryItem {
   display: grid;
-  min-height: 66px;
+  min-height: 72px;
   grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   border-bottom: 1px solid #ecefeb;
-  padding: 9px 0;
+  padding: 11px 0;
 }
 
 .groceryItem[data-needs-detail="true"] {
@@ -646,13 +647,13 @@
 .itemActions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .quantityControl {
   display: grid;
-  min-height: 32px;
-  grid-template-columns: 28px 24px 28px;
+  min-height: 40px;
+  grid-template-columns: 40px 28px 40px;
   align-items: center;
   border-radius: 9px;
   background: #f6f7f4;
@@ -661,8 +662,8 @@
 .quantityControl button,
 .rowIconButton {
   display: grid;
-  width: 30px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border: 0;
   border-radius: 8px;
@@ -1202,6 +1203,38 @@
   line-height: 1.45;
 }
 
+.cartNoticeCopy {
+  display: grid;
+  gap: 3px;
+}
+
+.cartNoticeCopy > strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cartNoticeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.cartNoticeActions button,
+.cartNoticeActions a {
+  min-height: 32px;
+  border: 1px solid currentColor;
+  border-radius: 16px;
+  padding: 7px 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
 .cartNotice[data-tone="error"] {
   border-color: #e5c5c0;
   background: #fff4f2;
@@ -1277,10 +1310,10 @@
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1240px) {
   .workspaceGrid {
-    grid-template-columns: minmax(330px, 0.82fr) minmax(450px, 1.18fr);
-    gap: 22px;
+    grid-template-columns: minmax(380px, 0.82fr) minmax(460px, 1.18fr);
+    gap: 20px;
   }
 
   .header {
@@ -1304,15 +1337,7 @@
   }
 }
 
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 200px;
-  }
-
-  .page {
-    margin-left: 200px;
-  }
-
+@media (max-width: 1140px) {
   .header {
     position: relative;
     align-items: flex-start;
@@ -1345,8 +1370,8 @@
   }
 
   .listContent {
-    min-height: 260px;
-    max-height: 450px;
+    min-height: 420px;
+    max-height: 620px;
   }
 }
 
@@ -1434,7 +1459,7 @@
 
 @media (max-width: 640px) {
   .app {
-    background: #f4f6f3;
+    background: var(--cartiva-background);
   }
 
   .addForm {
@@ -1817,15 +1842,15 @@
 
 .utilityRail > h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 
 .utilitySection {
   border-top: 1px solid var(--cartiva-border);
-  margin-top: 22px;
-  padding-top: 18px;
+  margin-top: 18px;
+  padding-top: 15px;
 }
 
 .utilitySectionHeading {
@@ -2346,25 +2371,25 @@
 @media (min-width: 1480px) {
   .workspace {
     max-width: 1280px;
-    padding-inline: 30px;
+    padding-inline: 20px;
   }
 
   .workspaceLayout {
     display: grid;
-    grid-template-columns: minmax(0, 950px) minmax(220px, 230px);
+    grid-template-columns: minmax(0, 1000px) minmax(210px, 220px);
     align-items: start;
     justify-content: center;
-    gap: 24px;
+    gap: 20px;
   }
 
   .pageIntro,
   .workspaceGrid {
-    max-width: 950px;
+    max-width: 1000px;
     margin-inline: 0;
   }
 
   .workspaceGrid {
-    grid-template-columns: minmax(330px, 360px) minmax(500px, 566px);
+    grid-template-columns: minmax(420px, 440px) minmax(0, 536px);
     gap: 24px;
   }
 
@@ -2380,20 +2405,21 @@
 
 @media (min-width: 1660px) {
   .workspace {
-    max-width: 1488px;
+    max-width: 1360px;
   }
 
   .workspaceLayout {
-    grid-template-columns: minmax(0, 1102px) minmax(220px, 230px);
+    grid-template-columns: minmax(0, 1068px) minmax(220px, 228px);
+    gap: 24px;
   }
 
   .pageIntro,
   .workspaceGrid {
-    max-width: 1102px;
+    max-width: 1068px;
   }
 
   .workspaceGrid {
-    grid-template-columns: minmax(360px, 420px) minmax(500px, 654px);
+    grid-template-columns: minmax(440px, 460px) minmax(0, 580px);
     gap: 28px;
   }
 }

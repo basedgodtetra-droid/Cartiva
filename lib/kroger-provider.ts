@@ -350,8 +350,13 @@ function normalizeKrogerProduct(
     checkedAt: context.checkedAt,
     verification: "verified",
     verificationIssues: [],
-    cartEligible: availabilityStatus === "in_stock"
-      && supportsRequestedFulfillment,
+    // Kroger's public Cart API accepts UPC, quantity, and modality. The
+    // Products API sometimes omits stockLevel while still listing the item for
+    // the selected fulfillment method. Keep that distinction in
+    // availabilityStatus/inStock, but do not turn missing inventory metadata
+    // into a false cart-ineligible state for an otherwise verified UPC.
+    cartEligible: supportsRequestedFulfillment
+      && availabilityStatus !== "out_of_stock",
     dataSource: "kroger_public_api",
     identityVerified: true,
     priceProvenance: {

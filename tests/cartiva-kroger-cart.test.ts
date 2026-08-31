@@ -1,0 +1,253 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildKrogerCartLines,
+  blockPendingKrogerCart,
+  createPendingKrogerCart,
+  getKrogerCartReadiness,
+  markPendingKrogerCartRetryable,
+  markPendingKrogerCartSubmitting,
+  parsePendingKrogerCart,
+  pendingKrogerCartMatches,
+} from "@/lib/cartiva-kroger-cart";
+import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
+import type { KrogerMatchResult, KrogerProduct } from "@/lib/types";
+
+function item(id: string): GroceryNotepadItem {
+  return {
+    id,
+    raw: id,
+    name: id,
+    canonicalText: id,
+    status: "ready",
+  };
+}
+
+function result(upc: string, cartEligible = true): KrogerMatchResult {
+  const product = {
+    retailer: "kroger",
+    id: upc,
+    productId: upc,
+    upc,
+    title: `Kroger product ${upc}`,
+    price: 3.49,
+    priceCents: 349,
+    link: `https://www.kroger.com/p/product/${upc}`,
+    linkType: "product",
+    seller: "Kroger",
+    inStock: true,
+    availabilityStatus: "in_stock",
+    sponsored: false,
+    checkedAt: "2026-08-31T20:00:00.000Z",
+    verification: "verified",
+    verificationIssues: [],
+    cartEligible,
+    dataSource: "kroger_public_api",
+    identityVerified: true,
+    priceProvenance: {
+      retailer: "kroger",
+      priceSource: "kroger_location_product",
+      priceScope: "exact_store",
+      priceReliability: "verified",
+      exactStoreVerified: true,
+      locationId: "01400912",
+      location: {
+        requestedStoreId: "01400912",
+        observedStoreId: "01400912",
+        responseProvesLocation: true,
+        storeMatched: true,
+      },
+      fulfillment: ["pickup"],
+      checkedAt: "2026-08-31T20:00:00.000Z",
+    },
+    score: 100,
+    confidence: "high",
+    comparablePrice: 3.49,
+    matchedTerms: [],
+    reasons: [],
+  } satisfies KrogerProduct & {
+    score: number;
+    confidence: "high";
+    comparablePrice: number;
+    matchedTerms: string[];
+    reasons: string[];
+  };
+  return {
+    retailer: "kroger",
+    requestedItem: product.title,
+    recommended: product,
+    alternatives: [],
+    confidence: "high",
+    status: "matched",
+    explanation: "Verified exact-store match.",
+  };
+}
+
+const items = [item("eggs"), item("milk"), item("bread"), item("soda"), item("yogurt")];
+const results = [
+  result("0001111011111"),
+  result("0001111022222"),
+  result("0001111033333"),
+  result("0001111044444"),
+  result("0001111055555"),
+];
+
+describe("Cartiva Kroger cart readiness", () => {
+  it("enables a complete five-line basket without requiring a prior customer connection", () => {
+    expect(getKrogerCartReadiness({
+      items,
+      results,
+      quantities: Object.fromEntries(items.map((entry) => [entry.id, 1])),
+      comparisonComplete: true,
+      customerConnected: false,
+      cartCapability: true,
+    })).toMatchObject({
+      basketComplete: true,
+      acceptedLineCount: 5,
+      cartEligibleLineCount: 5,
+      upcLineCount: 5,
+      quantitiesValid: true,
+      customerConnected: false,
+      canAddToKroger: true,
+    });
+  });
+
+  it("explains a missing cart UPC without logging or inventing one", () => {
+    const missingUpc = result("0001111055555");
+    missingUpc.recommended!.upc = "";
+    const readiness = getKrogerCartReadiness({
+      items,
+      results: [...results.slice(0, 4), missingUpc],
+      quantities: Object.fromEntries(items.map((entry) => [entry.id, 1])),
+      comparisonComplete: true,
+    });
+    expect(readiness).toMatchObject({ upcLineCount: 4, canAddToKroger: false });
+    expect(readiness.reason).toMatch(/missing its cart UPC/i);
+  });
+
+  it("preserves exact UPC strings and aggregates duplicate product quantities", () => {
+    const duplicate = result("0001111011111");
+    expect(buildKrogerCartLines(
+      items,
+      [results[0], duplicate, ...results.slice(2)],
+      { eggs: 2, milk: 3, bread: 1, soda: 2, yogurt: 1 },
+    )).toEqual([
+      { upc: "0001111011111", quantity: 5 },
+      { upc: "0001111033333", quantity: 1 },
+      { upc: "0001111044444", quantity: 2 },
+      { upc: "0001111055555", quantity: 1 },
+    ]);
+  });
+
+  it("fails closed when duplicate UPC quantities aggregate past Kroger's limit", () => {
+    const duplicate = result("0001111011111");
+    const overflowResults = [results[0], duplicate, ...results.slice(2)];
+    const overflowQuantities = { eggs: 60, milk: 40, bread: 1, soda: 1, yogurt: 1 };
+
+    expect(getKrogerCartReadiness({
+      items,
+      results: overflowResults,
+      quantities: overflowQuantities,
+      comparisonComplete: true,
+    })).toMatchObject({ quantitiesValid: false, canAddToKroger: false });
+    expect(buildKrogerCartLines(items, overflowResults, overflowQuantities)).toEqual([]);
+  });
+
+  it("accepts an aggregated UPC quantity at the exact limit", () => {
+    const duplicate = result("0001111011111");
+    expect(buildKrogerCartLines(
+      [item("first"), item("second")],
+      [results[0], duplicate],
+      { first: 49, second: 50 },
+    )).toEqual([{ upc: "0001111011111", quantity: 99 }]);
+  });
+});
+
+describe("pending Kroger basket", () => {
+  it("round-trips the exact basket that must continue after OAuth", () => {
+    const pending = createPendingKrogerCart({
+      operationId: "cartiva_1234567890abcdef",
+      locationId: "01400912",
+      fulfillmentMode: "pickup",
+      items: buildKrogerCartLines(
+        items,
+        results,
+        Object.fromEntries(items.map((entry) => [entry.id, 1])),
+      ),
+      itemCount: 5,
+      comparisonId: "comparison_123",
+      createdAt: 1_000_000,
+    });
+    expect(parsePendingKrogerCart(JSON.stringify(pending), 1_000_001)).toEqual(pending);
+  });
+
+  it("rejects expired, malformed, or duplicate-UPC pending payloads", () => {
+    const pending = createPendingKrogerCart({
+      operationId: "cartiva_1234567890abcdef",
+      locationId: "01400912",
+      fulfillmentMode: "pickup",
+      items: [{ upc: "0001111011111", quantity: 1 }],
+      itemCount: 1,
+      createdAt: 1_000_000,
+    });
+    expect(parsePendingKrogerCart(JSON.stringify(pending), 2_000_000)).toBeNull();
+    expect(parsePendingKrogerCart(JSON.stringify({
+      ...pending,
+      items: [...pending.items, ...pending.items],
+    }), 1_000_001)).toBeNull();
+    expect(parsePendingKrogerCart(JSON.stringify({
+      ...pending,
+      items: [{ upc: "0001111011111", quantity: 100 }],
+    }), 1_000_001)).toBeNull();
+    expect(parsePendingKrogerCart("not-json", 1_000_001)).toBeNull();
+  });
+
+  it("reuses an operation only when its exact frozen basket still matches", () => {
+    const pending = createPendingKrogerCart({
+      operationId: "cartiva_1234567890abcdef",
+      locationId: "01400912",
+      fulfillmentMode: "pickup",
+      items: [{ upc: "0001111011111", quantity: 2 }],
+      itemCount: 1,
+      createdAt: 1_000_000,
+    });
+    expect(pendingKrogerCartMatches(pending, {
+      locationId: "01400912",
+      fulfillmentMode: "pickup",
+      items: [{ upc: "0001111011111", quantity: 2 }],
+      itemCount: 1,
+    })).toBe(true);
+    expect(pendingKrogerCartMatches(pending, {
+      locationId: "01400912",
+      fulfillmentMode: "pickup",
+      items: [{ upc: "0001111011111", quantity: 3 }],
+      itemCount: 1,
+    })).toBe(false);
+  });
+
+  it("persists an uncertain outcome as a blocked operation across reloads", () => {
+    const pending = createPendingKrogerCart({
+      operationId: "cartiva_1234567890abcdef",
+      locationId: "01400912",
+      fulfillmentMode: "pickup",
+      items: [{ upc: "0001111011111", quantity: 1 }],
+      itemCount: 1,
+      createdAt: 1_000_000,
+    });
+    const submitting = markPendingKrogerCartSubmitting(pending, 1_000_050);
+    const blocked = blockPendingKrogerCart(
+      submitting,
+      "Check the retailer cart before trying again.",
+      1_000_100,
+    );
+    expect(parsePendingKrogerCart(JSON.stringify(blocked), 1_000_101)).toEqual(blocked);
+    expect(blocked.operationId).toBe(pending.operationId);
+    expect(blocked.submittedAt).toBe(1_000_050);
+    expect(blocked.blocked).toMatchObject({ code: "outcome_unknown" });
+    expect(parsePendingKrogerCart(JSON.stringify(blocked), 9_000_000)).toEqual(blocked);
+    expect(markPendingKrogerCartRetryable(submitting)).toMatchObject({
+      operationId: pending.operationId,
+      submittedAt: undefined,
+      blocked: undefined,
+    });
+  });
+});

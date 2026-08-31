@@ -81,6 +81,7 @@ describe("API route tamper resistance", () => {
       ],
     }));
     expect(duplicate.status).toBe(400);
+    expect(await duplicate.json()).toMatchObject({ retrySafe: true });
 
     const tampered = await krogerCart(request("/api/kroger/cart", {
       operationId: "secure_cart_build_0002",
@@ -89,5 +90,6 @@ describe("API route tamper resistance", () => {
       items: [{ upc: "0001111012345", quantity: 1, price: 0.01 }],
     }));
     expect(tampered.status).toBe(400);
+    expect(await tampered.json()).toMatchObject({ retrySafe: true });
   });
 });

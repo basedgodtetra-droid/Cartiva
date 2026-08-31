@@ -28,4 +28,7 @@ export interface CartState {
   phase: CartPhase;
   message?: string;
   cartUrl?: string;
+  itemCount?: number;
+  retrySafe?: boolean;
+  code?: string;
 }

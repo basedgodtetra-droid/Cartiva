@@ -103,7 +103,7 @@ describe("Kroger provider normalization", () => {
     expect(result.products[1]).toMatchObject({
       availabilityStatus: "likely_available",
       inStock: false,
-      cartEligible: false,
+      cartEligible: true,
       priceProvenance: { fulfillment: ["pickup"] },
     });
     expect(result.products[2]).toMatchObject({

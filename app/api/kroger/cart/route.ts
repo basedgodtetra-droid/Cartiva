@@ -78,6 +78,17 @@ function cartErrorResponse(error: unknown) {
   );
 }
 
+async function preWriteErrorResponse(response: Response) {
+  const body = await response.json().catch(() => ({})) as { error?: unknown };
+  return Response.json(
+    {
+      error: typeof body.error === "string" ? body.error : "Kroger cart request was rejected before any items were sent.",
+      retrySafe: true,
+    },
+    { status: response.status, headers: new Headers(response.headers) },
+  );
+}
+
 async function writeCart(
   operationId: string,
   locationId: string,
@@ -142,37 +153,37 @@ async function writeCart(
 
 export async function POST(request: Request) {
   const limited = enforceRateLimit(request, "kroger-cart", { limit: 12, windowMs: 60_000 });
-  if (limited) return limited;
+  if (limited) return preWriteErrorResponse(limited);
   const parsed = await readValidatedJson<unknown>(request);
-  if (!parsed.ok) return parsed.response;
+  if (!parsed.ok) return preWriteErrorResponse(parsed.response);
   if (!isRecord(parsed.value) || !hasOnlyKeys(
     parsed.value,
     ["operationId", "locationId", "fulfillmentMode", "items"],
   )) {
-    return Response.json({ error: "The Kroger cart request contains unsupported fields." }, { status: 400 });
+    return Response.json({ error: "The Kroger cart request contains unsupported fields.", retrySafe: true }, { status: 400 });
   }
   const body = parsed.value as CartRequest;
   const locationId = typeof body.locationId === "string" ? body.locationId.trim() : "";
   if (!isValidKrogerLocationId(locationId)) {
-    return Response.json({ error: "Choose a valid Kroger-family store." }, { status: 400 });
+    return Response.json({ error: "Choose a valid Kroger-family store.", retrySafe: true }, { status: 400 });
   }
   const modality = body.fulfillmentMode === "pickup"
     ? "PICKUP" as const
     : body.fulfillmentMode === "delivery" ? "DELIVERY" as const : null;
   if (!modality) {
-    return Response.json({ error: "Choose Kroger pickup or delivery." }, { status: 400 });
+    return Response.json({ error: "Choose Kroger pickup or delivery.", retrySafe: true }, { status: 400 });
   }
   const operationId = typeof body.operationId === "string" ? body.operationId.trim() : "";
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(operationId)) {
     return Response.json(
-      { error: "Start a new Cartiva cart build before adding Kroger items." },
+      { error: "Start a new Cartiva cart build before adding Kroger items.", retrySafe: true },
       { status: 400 },
     );
   }
   const items = normalizedItems(body.items, modality);
   if (!items) {
     return Response.json(
-      { error: "Send 1 to 24 unique Kroger UPCs, each with a numeric quantity from 1 to 99." },
+      { error: "Send 1 to 24 unique Kroger UPCs, each with a numeric quantity from 1 to 99.", retrySafe: true },
       { status: 400 },
     );
   }
