@@ -595,6 +595,47 @@ export function krogerCartItemsWereVerified(
   ) > now);
 }
 
+/**
+ * Re-verifies exact UPCs when a comparison and cart request are handled by
+ * different serverless functions. This preserves the same fail-closed rule as
+ * the short-lived in-process verification cache without trusting browser data.
+ */
+export async function verifyKrogerCartItemsAtLocation(
+  locationId: string,
+  fulfillmentMode: "pickup" | "delivery",
+  items: Array<{ upc: string }>,
+  auth: KrogerAuthClient = getKrogerAuthClient(),
+) {
+  const location = await getKrogerLocation(locationId, auth);
+  const checkedAt = new Date().toISOString();
+  const results = await Promise.all(items.map(async ({ upc }) => {
+    const parameters = new URLSearchParams({ "filter.locationId": locationId });
+    const payload = record(await checkedJson(
+      await auth.fetchPublic(
+        `/v1/products/${encodeURIComponent(upc)}?${parameters}`,
+        { signal: AbortSignal.timeout(12_000) },
+      ),
+      "verify a cart product",
+    ));
+    const product = normalizeKrogerProduct(record(payload?.data) ?? {}, {
+      locationId,
+      locationVerified: true,
+      locationName: location.name,
+      chain: location.chain,
+      fulfillmentMode,
+      checkedAt,
+    });
+    return Boolean(
+      product
+      && product.upc === upc
+      && product.cartEligible
+      && product.priceProvenance.exactStoreVerified
+      && product.priceProvenance.locationId === locationId,
+    );
+  }));
+  return results.every(Boolean);
+}
+
 export function krogerCartUrl(chain?: string) {
   const domain = familyDomain(chain);
   return `https://${domain ?? "www.kroger.com"}/cart`;

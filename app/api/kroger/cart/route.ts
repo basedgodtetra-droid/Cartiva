@@ -1,4 +1,4 @@
-import { KrogerAuthError } from "@/lib/kroger-auth";
+import { KrogerAuthError, type KrogerAuthClient } from "@/lib/kroger-auth";
 import {
   enforceRateLimit,
   hasOnlyKeys,
@@ -18,7 +18,12 @@ import {
   isValidKrogerLocationId,
   KrogerProviderError,
   krogerCartItemsWereVerified,
+  verifyKrogerCartItemsAtLocation,
 } from "@/lib/kroger-provider";
+import {
+  usesServerlessKrogerWebSession,
+  withServerlessKrogerWebSession,
+} from "@/lib/kroger-web-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +58,86 @@ function normalizedItems(value: unknown, modality: "PICKUP" | "DELIVERY") {
     normalized.push({ upc, quantity, modality });
   }
   return normalized;
+}
+
+function cartErrorResponse(error: unknown) {
+  const status = error instanceof KrogerAuthError
+    ? error.status
+    : error instanceof KrogerProviderError ? error.status : 502;
+  const ambiguous = error instanceof KrogerCartOutcomeUnknownError;
+  const conflict = error instanceof KrogerCartOperationConflictError;
+  return Response.json(
+    ambiguous
+      ? {
+          error: "Kroger's response was interrupted, so Cartiva cannot safely retry automatically. Check your retailer cart before trying again.",
+          code: "outcome_unknown",
+          retrySafe: false,
+        }
+      : { error: error instanceof Error ? error.message : "Kroger cart could not be updated.", retrySafe: true },
+    { status: conflict ? 409 : status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+async function writeCart(
+  operationId: string,
+  locationId: string,
+  fulfillmentMode: "pickup" | "delivery",
+  items: Array<{ upc: string; quantity: number; modality: "PICKUP" | "DELIVERY" }>,
+  auth?: KrogerAuthClient,
+) {
+  try {
+    const requestFingerprint = createHash("sha256").update(JSON.stringify({
+      locationId,
+      fulfillmentMode,
+      items,
+    })).digest("base64url");
+    const { receipt, replayed } = await runKrogerCartOperation(operationId, requestFingerprint, async () => {
+      const recentlyVerified = krogerCartItemsWereVerified(locationId, fulfillmentMode, items);
+      if (
+        !recentlyVerified
+        && !(await verifyKrogerCartItemsAtLocation(locationId, fulfillmentMode, items))
+      ) {
+        throw new KrogerProviderError(
+          "Search Kroger again before adding these items; at least one match is no longer verified for the selected store.",
+          "upstream",
+          409,
+        );
+      }
+      const location = await getKrogerLocation(locationId);
+      // Kroger's public cart endpoint does not accept a location ID. The store is
+      // used to preserve search provenance and choose the correct banner link;
+      // the shopper must confirm their active checkout store at the retailer.
+      try {
+        if (auth) await addToKrogerCart(items, auth);
+        else await addToKrogerCart(items);
+      } catch (error) {
+        if (error instanceof KrogerProviderError && error.code === "outcome_unknown") {
+          throw new KrogerCartOutcomeUnknownError();
+        }
+        if (error instanceof KrogerAuthError || error instanceof KrogerProviderError) throw error;
+        throw new KrogerCartOutcomeUnknownError();
+      }
+      return {
+        success: true as const,
+        addedCount: items.reduce((sum, item) => sum + item.quantity, 0),
+        itemCount: items.length,
+        cartUrl: krogerCartUrl(location.chain),
+        chain: location.chain,
+        selectedSearchLocation: { locationId: location.locationId, name: location.name },
+        locationBoundByCartApi: false as const,
+        message: "Kroger accepted these items. Review the active store, availability, quantities, and final prices in your retailer cart before checkout.",
+      };
+    }, (error) => (
+      error instanceof KrogerAuthError
+      || (error instanceof KrogerProviderError && error.code !== "outcome_unknown")
+    ));
+    const { expiresAt: _expiresAt, requestFingerprint: _requestFingerprint, ...publicReceipt } = receipt;
+    void _expiresAt;
+    void _requestFingerprint;
+    return Response.json({ ...publicReceipt, replayed }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return cartErrorResponse(error);
+  }
 }
 
 export async function POST(request: Request) {
@@ -92,66 +177,17 @@ export async function POST(request: Request) {
     );
   }
   const fulfillmentMode = modality === "PICKUP" ? "pickup" as const : "delivery" as const;
-  try {
-    const requestFingerprint = createHash("sha256").update(JSON.stringify({
-      locationId,
-      fulfillmentMode,
-      items,
-    })).digest("base64url");
-    const { receipt, replayed } = await runKrogerCartOperation(operationId, requestFingerprint, async () => {
-      if (!krogerCartItemsWereVerified(locationId, fulfillmentMode, items)) {
-        throw new KrogerProviderError(
-          "Search Kroger again before adding these items; at least one match is no longer verified for the selected store.",
-          "upstream",
-          409,
-        );
-      }
-      const location = await getKrogerLocation(locationId);
-      // Kroger's public cart endpoint does not accept a location ID. The store is
-      // used to preserve search provenance and choose the correct banner link;
-      // the shopper must confirm their active checkout store at the retailer.
-      try {
-        await addToKrogerCart(items);
-      } catch (error) {
-        if (error instanceof KrogerProviderError && error.code === "outcome_unknown") {
-          throw new KrogerCartOutcomeUnknownError();
-        }
-        if (error instanceof KrogerAuthError || error instanceof KrogerProviderError) throw error;
-        throw new KrogerCartOutcomeUnknownError();
-      }
-      return {
-        success: true as const,
-        addedCount: items.reduce((sum, item) => sum + item.quantity, 0),
-        itemCount: items.length,
-        cartUrl: krogerCartUrl(location.chain),
-        chain: location.chain,
-        selectedSearchLocation: { locationId: location.locationId, name: location.name },
-        locationBoundByCartApi: false as const,
-        message: "Kroger accepted these items. Review the active store, availability, quantities, and final prices in your retailer cart before checkout.",
-      };
-    }, (error) => (
-      error instanceof KrogerAuthError
-      || (error instanceof KrogerProviderError && error.code !== "outcome_unknown")
-    ));
-    const { expiresAt: _expiresAt, requestFingerprint: _requestFingerprint, ...publicReceipt } = receipt;
-    void _expiresAt;
-    void _requestFingerprint;
-    return Response.json({ ...publicReceipt, replayed }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error) {
-    const status = error instanceof KrogerAuthError
-      ? error.status
-      : error instanceof KrogerProviderError ? error.status : 502;
-    const ambiguous = error instanceof KrogerCartOutcomeUnknownError;
-    const conflict = error instanceof KrogerCartOperationConflictError;
-    return Response.json(
-      ambiguous
-        ? {
-            error: "Kroger's response was interrupted, so Cartiva cannot safely retry automatically. Check your retailer cart before trying again.",
-            code: "outcome_unknown",
-            retrySafe: false,
-          }
-        : { error: error instanceof Error ? error.message : "Kroger cart could not be updated.", retrySafe: true },
-      { status: conflict ? 409 : status, headers: { "Cache-Control": "no-store" } },
-    );
+  if (usesServerlessKrogerWebSession(request)) {
+    try {
+      const written = await withServerlessKrogerWebSession(
+        request,
+        (auth) => writeCart(operationId, locationId, fulfillmentMode, items, auth),
+      );
+      written.result.headers.append("Set-Cookie", written.setCookie);
+      return written.result;
+    } catch (error) {
+      return cartErrorResponse(error);
+    }
   }
+  return writeCart(operationId, locationId, fulfillmentMode, items);
 }

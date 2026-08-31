@@ -1,4 +1,10 @@
 import { getKrogerAuthClient, KrogerAuthError } from "@/lib/kroger-auth";
+import {
+  clearServerlessKrogerAuthorizationCookie,
+  usesServerlessKrogerWebSession,
+  validateServerlessKrogerAuthorization,
+  withServerlessKrogerWebSession,
+} from "@/lib/kroger-web-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,15 +60,30 @@ export async function GET(request: Request) {
     );
   }
   try {
-    await getKrogerAuthClient().exchangeAuthorizationCode(code, state);
-    return page(
+    let sessionCookie: string | undefined;
+    if (usesServerlessKrogerWebSession()) {
+      validateServerlessKrogerAuthorization(request, state);
+      const completed = await withServerlessKrogerWebSession(
+        request,
+        (client) => client.exchangeAuthorizationCodeAfterExternalStateValidation(code),
+      );
+      sessionCookie = completed.setCookie;
+    } else {
+      await getKrogerAuthClient().exchangeAuthorizationCode(code, state);
+    }
+    const response = page(
       "Kroger connected",
       "Cartiva can now add verified products to your Kroger-family cart. You can close this tab and return to Cartiva.",
       true,
     );
+    if (sessionCookie) response.headers.append("Set-Cookie", sessionCookie);
+    if (usesServerlessKrogerWebSession()) {
+      response.headers.append("Set-Cookie", clearServerlessKrogerAuthorizationCookie());
+    }
+    return response;
   } catch (error) {
     const status = error instanceof KrogerAuthError ? error.status : 500;
-    return page(
+    const response = page(
       "Kroger wasn't connected",
       error instanceof KrogerAuthError && error.code === "oauth_state"
         ? "This connection request expired or could not be verified. Close this tab and start again from Cartiva."
@@ -70,5 +91,9 @@ export async function GET(request: Request) {
       false,
       status,
     );
+    if (usesServerlessKrogerWebSession()) {
+      response.headers.append("Set-Cookie", clearServerlessKrogerAuthorizationCookie());
+    }
+    return response;
   }
 }

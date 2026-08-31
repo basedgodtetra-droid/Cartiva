@@ -4,6 +4,11 @@ import {
   krogerAuthIsConfigured,
 } from "@/lib/kroger-auth";
 import {
+  serverlessKrogerWebSessionIsConfigured,
+  usesServerlessKrogerWebSession,
+  withServerlessKrogerWebSession,
+} from "@/lib/kroger-web-session";
+import {
   enforceRateLimit,
   validateLocalApiRequest,
 } from "@/lib/api-security";
@@ -15,13 +20,25 @@ export async function GET(request: Request) {
   const rejected = validateLocalApiRequest(request)
     ?? enforceRateLimit(request, "kroger-auth-status", { limit: 60, windowMs: 60_000 });
   if (rejected) return rejected;
-  if (!krogerAuthIsConfigured()) {
+  if (!krogerAuthIsConfigured() || !serverlessKrogerWebSessionIsConfigured()) {
     return Response.json(
       { connected: false, configured: false },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
   try {
+    if (usesServerlessKrogerWebSession(request)) {
+      const checked = await withServerlessKrogerWebSession(
+        request,
+        (client) => client.connectionStatus(),
+      );
+      const response = Response.json(
+        { ...checked.result, configured: true },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+      response.headers.append("Set-Cookie", checked.setCookie);
+      return response;
+    }
     return Response.json(
       { ...(await getKrogerAuthClient().connectionStatus()), configured: true },
       { headers: { "Cache-Control": "no-store" } },

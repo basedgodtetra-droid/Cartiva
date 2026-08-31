@@ -127,6 +127,19 @@ function configFromEnvironment(): KrogerAuthConfig {
   };
 }
 
+/**
+ * Creates a request-scoped customer auth client for serverless web sessions.
+ * The caller owns the supplied file and is responsible for removing it after
+ * copying the encrypted session envelope into an HttpOnly cookie.
+ */
+export function createKrogerAuthClientForSessionFile(sessionFile: string) {
+  return new KrogerAuthClient(
+    { ...configFromEnvironment(), sessionFile },
+    fetch,
+    async () => undefined,
+  );
+}
+
 function validTokenResponse(value: unknown): value is KrogerTokenResponse {
   if (!value || typeof value !== "object") return false;
   const token = value as Record<string, unknown>;
