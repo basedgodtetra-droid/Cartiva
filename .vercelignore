@@ -1,0 +1,21 @@
+# Cartiva's Vercel project deploys the root Next.js application only.
+# Keep unrelated clients, generated output, and local design/QA artifacts out
+# of the deployment upload.
+mobile/
+cartiva-extension/
+site/
+work/
+build/
+figma-export/
+qa_week5_selection_*/
+.codex_*/
+examples/
+
+# Local/generated state.
+.cartiva/
+.next/
+node_modules/
+coverage/
+outputs/
+dev-server*.log
+*.tsbuildinfo
