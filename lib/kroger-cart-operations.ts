@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 const RECEIPT_TTL_MS = 24 * 60 * 60_000;
@@ -178,6 +179,12 @@ function state() {
 }
 
 function receiptFile() {
+  // Vercel's deployed bundle is read-only. The web cart flow still gets the
+  // existing in-function duplicate guard while each warm instance is alive;
+  // ambiguous outcomes remain fail-closed and are never retried by the UI.
+  if (process.env.VERCEL === "1") {
+    return path.join(os.tmpdir(), "cartiva-kroger-cart-receipts.json");
+  }
   return process.env.KROGER_CART_RECEIPT_FILE?.trim()
     || path.resolve(".cartiva", "kroger-cart-receipts.json");
 }
