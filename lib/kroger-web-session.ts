@@ -40,7 +40,7 @@ function secureCookie(name: string, value: string, maxAge: number) {
 }
 
 function stateSecret() {
-  const value = process.env.CARTIVA_SESSION_SECRET?.trim();
+  const value = process.env.CARTIVA_WEB_SESSION_SECRET?.trim();
   if (!value || value.length < 32) {
     throw new KrogerAuthError(
       "Kroger website sessions are not configured on this deployment.",

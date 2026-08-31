@@ -18,7 +18,7 @@ beforeEach(() => {
   vi.stubEnv("KROGER_CLIENT_ID", "cartiva-web-test");
   vi.stubEnv("KROGER_CLIENT_SECRET", "test-client-secret-not-for-production");
   vi.stubEnv("KROGER_REDIRECT_URI", callback);
-  vi.stubEnv("CARTIVA_SESSION_SECRET", "cartiva-test-session-secret-32-characters-minimum");
+  vi.stubEnv("CARTIVA_WEB_SESSION_SECRET", "cartiva-test-session-secret-32-characters-minimum");
   vi.stubEnv("CARTIVA_PUBLIC_ORIGIN", origin);
   resetKrogerAuthClientForTests();
 });
