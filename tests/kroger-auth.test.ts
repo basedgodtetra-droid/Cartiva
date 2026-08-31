@@ -43,7 +43,14 @@ describe("Kroger OAuth", () => {
     const [url, request] = vi.mocked(fetcher).mock.calls[0];
     expect(String(url)).toBe("https://api.kroger.com/v1/connect/oauth2/token");
     expect(String(url)).not.toContain("client-secret");
+    expect(request).toMatchObject({ method: "POST", redirect: "manual" });
     expect((request?.headers as Record<string, string>).Authorization).toMatch(/^Basic /);
+
+    await auth.fetchPublic("/v1/locations");
+    const [, publicRequest] = vi.mocked(fetcher).mock.calls[1];
+    expect(publicRequest).toMatchObject({ redirect: "manual" });
+    expect((publicRequest?.headers as Record<string, string>).Authorization)
+      .toBe("Bearer public-token");
   });
 
   it("requires a one-use matching state and stores customer tokens only on the server", async () => {
@@ -65,6 +72,11 @@ describe("Kroger OAuth", () => {
       authorizationUrl.searchParams.get("state")!,
     );
     expect(await auth.connectionStatus()).toEqual({ connected: true });
+    await auth.fetchCustomer("/v1/cart/add", { method: "PUT" });
+    const [, customerRequest] = vi.mocked(fetcher).mock.calls[1];
+    expect(customerRequest).toMatchObject({ method: "PUT", redirect: "manual" });
+    expect((customerRequest?.headers as Record<string, string>).Authorization)
+      .toBe("Bearer customer-access");
     await expect(auth.exchangeAuthorizationCode(
       "authorization-code",
       authorizationUrl.searchParams.get("state")!,

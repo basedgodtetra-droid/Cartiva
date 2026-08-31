@@ -233,7 +233,36 @@ describe("Kroger provider normalization", () => {
     }], auth)).rejects.toMatchObject({ code: "outcome_unknown" });
     expect(auth.fetchCustomer).toHaveBeenCalledWith(
       "/v1/cart/add",
-      expect.objectContaining({ redirect: "error" }),
+      expect.objectContaining({ redirect: "manual" }),
+    );
+  });
+
+  it("never follows Kroger redirects for reads or cart writes", async () => {
+    const readAuth = {
+      fetchPublic: vi.fn(async () => new Response(null, {
+        status: 302,
+        headers: { Location: "https://example.invalid/redirect" },
+      })),
+    } as unknown as KrogerAuthClient;
+    await expect(findKrogerLocations("75201", readAuth)).rejects.toMatchObject({
+      code: "upstream",
+      status: 502,
+    });
+
+    const cartAuth = {
+      fetchCustomer: vi.fn(async () => new Response(null, {
+        status: 302,
+        headers: { Location: "https://example.invalid/redirect" },
+      })),
+    } as unknown as KrogerAuthClient;
+    await expect(addToKrogerCart([{
+      upc: "0001111012345",
+      quantity: 1,
+      modality: "PICKUP",
+    }], cartAuth)).rejects.toMatchObject({ code: "outcome_unknown" });
+    expect(cartAuth.fetchCustomer).toHaveBeenCalledWith(
+      "/v1/cart/add",
+      expect.objectContaining({ redirect: "manual" }),
     );
   });
 });

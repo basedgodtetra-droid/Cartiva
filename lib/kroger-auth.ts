@@ -13,6 +13,10 @@ import "./server-only-guard";
 const KROGER_API_ORIGIN = "https://api.kroger.com";
 const TOKEN_PATH = "/v1/connect/oauth2/token";
 const AUTHORIZE_PATH = "/v1/connect/oauth2/authorize";
+// `redirect: "error"` is not implemented by Cloudflare Workers. Manual mode
+// keeps the no-follow guarantee, while the existing status checks reject 3xx
+// responses without forwarding credentials or request bodies to another URL.
+const KROGER_REDIRECT_MODE: RequestRedirect = "manual";
 // Customer authorization is used only for Cart API writes. Product discovery
 // continues to use the server's client-credentials token, and Cartiva does not
 // call Kroger's customer profile endpoints, so do not request broader consent.
@@ -302,7 +306,7 @@ export class KrogerAuthClient {
         },
         body: parameters,
         cache: "no-store",
-        redirect: "error",
+        redirect: KROGER_REDIRECT_MODE,
         signal: AbortSignal.timeout(12_000),
       });
     } catch {
@@ -656,7 +660,7 @@ export class KrogerAuthClient {
         Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
-      redirect: "error",
+      redirect: KROGER_REDIRECT_MODE,
     });
   }
 
@@ -672,7 +676,7 @@ export class KrogerAuthClient {
           Authorization: `Bearer ${accessToken}`,
         },
         cache: "no-store",
-        redirect: "error",
+        redirect: KROGER_REDIRECT_MODE,
       },
     );
     const first = await send(initialToken);

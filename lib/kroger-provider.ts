@@ -662,7 +662,7 @@ export async function addToKrogerCart(
     // An add-semantics PUT must never be replayed automatically at a redirect
     // target or expose its UPC payload to another origin. Any redirect remains
     // an unconfirmed outcome under the durable operation guard.
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(12_000),
   });
   if (response.status !== 204) {

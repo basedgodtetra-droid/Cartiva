@@ -179,10 +179,14 @@ function state() {
 }
 
 function receiptFile() {
-  // Vercel's deployed bundle is read-only. The web cart flow still gets the
-  // existing in-function duplicate guard while each warm instance is alive;
-  // ambiguous outcomes remain fail-closed and are never retried by the UI.
-  if (process.env.VERCEL === "1") {
+  // Serverless deployment bundles are read-only. The web cart flow still gets
+  // the existing in-instance duplicate guard while each warm instance is
+  // alive; ambiguous outcomes remain fail-closed and are never retried by the
+  // UI.
+  if (
+    process.env.VERCEL === "1"
+    || process.env.CARTIVA_SERVERLESS_WEB_SESSION === "true"
+  ) {
     return path.join(os.tmpdir(), "cartiva-kroger-cart-receipts.json");
   }
   return process.env.KROGER_CART_RECEIPT_FILE?.trim()
