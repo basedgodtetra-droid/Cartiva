@@ -38,6 +38,28 @@ describe("local API security boundary", () => {
     ))?.status).toBe(403);
   });
 
+  it("accepts equivalent loopback aliases used by a local reverse proxy", () => {
+    expect(validateLocalApiRequest(jsonRequest(
+      "http://localhost:3000/api/search",
+      {},
+      { Origin: "http://127.0.0.1:3000", "Sec-Fetch-Site": "same-origin" },
+    ))).toBeNull();
+  });
+
+  it("accepts the explicitly configured Cartiva website and no other hosted origin", () => {
+    vi.stubEnv("CARTIVA_PUBLIC_ORIGIN", "https://preview.cartiva.example");
+    expect(validateLocalApiRequest(jsonRequest(
+      "https://preview.cartiva.example/api/search",
+      {},
+      { Origin: "https://preview.cartiva.example", "Sec-Fetch-Site": "same-origin" },
+    ))).toBeNull();
+    expect(validateLocalApiRequest(jsonRequest(
+      "https://preview.cartiva.example/api/search",
+      {},
+      { Origin: "https://attacker.example", "Sec-Fetch-Site": "cross-site" },
+    ))?.status).toBe(403);
+  });
+
   it("requires JSON and enforces the body-size ceiling while streaming", async () => {
     const plain = new Request("http://localhost:3000/api/search", {
       method: "POST",

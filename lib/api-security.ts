@@ -5,6 +5,7 @@ const MAX_JSON_BODY_BYTES = 64 * 1024;
 const JSON_BODY_READ_TIMEOUT_MS = 8_000;
 const MAX_RATE_LIMIT_BUCKETS = 4_096;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const CARTIVA_CANONICAL_ORIGIN = "https://cartiva-complete-cart.basedgodtetra.chatgpt.site";
 const trustedExtensionRequests = new WeakSet<Request>();
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -185,20 +186,67 @@ export function validateLocalApiRequest(
   if (trustedExtensionRequests.has(request)) return null;
 
   const url = new URL(request.url);
-  if (!LOOPBACK_HOSTS.has(url.hostname)) {
+  const browserOrigin = request.headers.get("Origin")
+    ?? (() => {
+      const referrer = request.headers.get("Referer");
+      if (!referrer) return null;
+      try {
+        return new URL(referrer).origin;
+      } catch {
+        return null;
+      }
+    })();
+  const configuredOrigins = new Set([CARTIVA_CANONICAL_ORIGIN]);
+  for (const value of [
+    process.env.CARTIVA_PUBLIC_ORIGIN,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.VERCEL_BRANCH_URL,
+    process.env.VERCEL_URL,
+  ]) {
+    const cleaned = value?.trim();
+    if (!cleaned) continue;
+    try {
+      configuredOrigins.add(new URL(cleaned.includes("://") ? cleaned : `https://${cleaned}`).origin);
+    } catch {
+      // An invalid deployment hint must never broaden the API boundary.
+    }
+  }
+
+  let browserUrl: URL | null = null;
+  if (browserOrigin) {
+    try {
+      browserUrl = new URL(browserOrigin);
+    } catch {
+      return securityError("The request origin is invalid.", 403);
+    }
+  }
+  const urlIsLoopback = LOOPBACK_HOSTS.has(url.hostname);
+  const browserIsEquivalentLoopback = Boolean(
+    browserUrl
+    && urlIsLoopback
+    && LOOPBACK_HOSTS.has(browserUrl.hostname)
+    && browserUrl.protocol === url.protocol
+    && browserUrl.port === url.port,
+  );
+  const configuredBrowserRequest = Boolean(browserOrigin && configuredOrigins.has(browserOrigin));
+  const configuredDirectRequest = configuredOrigins.has(url.origin);
+  const fetchMetadataAllowsOriginlessRead = !browserOrigin
+    && request.headers.get("Sec-Fetch-Site")?.toLowerCase() === "same-origin";
+
+  if (
+    !(urlIsLoopback && (!browserOrigin || browserIsEquivalentLoopback || configuredBrowserRequest))
+    && !(configuredDirectRequest && (browserOrigin === url.origin || fetchMetadataAllowsOriginlessRead))
+  ) {
     return securityError(
-      "Cartiva's retailer backend is local-only until authenticated multi-user access is available.",
+      urlIsLoopback || configuredDirectRequest
+        ? "Cross-origin access to this Cartiva API is not allowed."
+        : "Cartiva's retailer backend is available only to the configured Cartiva website.",
       403,
     );
   }
 
-  const origin = request.headers.get("Origin");
-  if (origin && origin !== url.origin) {
-    return securityError("Cross-origin access to this local API is not allowed.", 403);
-  }
-
   if (request.headers.get("Sec-Fetch-Site")?.toLowerCase() === "cross-site") {
-    return securityError("Cross-site access to this local API is not allowed.", 403);
+    return securityError("Cross-site access to this Cartiva API is not allowed.", 403);
   }
 
   return null;

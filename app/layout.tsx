@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
 
 const canonicalOrigin = new URL("https://cartiva-complete-cart.basedgodtetra.chatgpt.site");
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-cartiva-inter",
+  display: "swap",
+});
 
 const socialImage = new URL("/og.png", canonicalOrigin).toString();
 
@@ -35,7 +41,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.variable}>{children}</body>
     </html>
   );
 }

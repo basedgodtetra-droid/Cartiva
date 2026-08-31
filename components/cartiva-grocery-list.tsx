@@ -1,0 +1,243 @@
+"use client";
+
+import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { Check, Minus, Package2, Pencil, Plus, Trash2, X } from "lucide-react";
+import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
+import type { CartivaLocation, ComparisonPhase } from "@/components/cartiva-workspace-types";
+import styles from "@/components/cartiva-workspace.module.css";
+
+interface CartivaGroceryListProps {
+  items: GroceryNotepadItem[];
+  quantities: Record<string, number>;
+  locations: CartivaLocation[];
+  selectedLocationId: string;
+  fulfillmentMode: "pickup" | "delivery";
+  comparisonPhase: ComparisonPhase;
+  canCompare: boolean;
+  onAdd: (value: string) => void;
+  onEdit: (index: number, value: string) => void;
+  onRemove: (index: number) => void;
+  onQuantity: (id: string, quantity: number) => void;
+  onClarify: (index: number, clarificationId: string, value: string) => void;
+  onLocation: (locationId: string) => void;
+  onFulfillment: (mode: "pickup" | "delivery") => void;
+  onCompare: () => void;
+}
+
+function categoryFor(item: GroceryNotepadItem) {
+  const value = item.raw.toLowerCase();
+  if (/egg|milk|yogurt|cheese|butter/.test(value)) return "Dairy & eggs";
+  if (/chicken|beef|pork|bacon|turkey|meat|fish|salmon/.test(value)) return "Meat & seafood";
+  if (/bread|bagel|tortilla|bun|muffin/.test(value)) return "Bakery";
+  if (/coke|cola|pepsi|soda|water|juice|coffee|tea/.test(value)) return "Beverages";
+  if (/apple|banana|berry|berries|broccoli|lettuce|tomato|onion|produce|fruit|vegetable/.test(value)) return "Produce";
+  if (/frozen|ice cream/.test(value)) return "Frozen";
+  return "Pantry & grocery";
+}
+
+function groupedItems(items: GroceryNotepadItem[]) {
+  const groups = new Map<string, Array<{ item: GroceryNotepadItem; index: number }>>();
+  items.forEach((item, index) => {
+    const category = categoryFor(item);
+    groups.set(category, [...(groups.get(category) ?? []), { item, index }]);
+  });
+  return [...groups.entries()];
+}
+
+export function CartivaGroceryList({
+  items,
+  quantities,
+  locations,
+  selectedLocationId,
+  fulfillmentMode,
+  comparisonPhase,
+  canCompare,
+  onAdd,
+  onEdit,
+  onRemove,
+  onQuantity,
+  onClarify,
+  onLocation,
+  onFulfillment,
+  onCompare,
+}: CartivaGroceryListProps) {
+  const [addValue, setAddValue] = useState("");
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteValue, setPasteValue] = useState("");
+  const [editingId, setEditingId] = useState<string>();
+  const [editingValue, setEditingValue] = useState("");
+
+  const addItems = (value: string) => {
+    if (!value.trim()) return;
+    onAdd(value);
+    setAddValue("");
+    setPasteValue("");
+    setPasteOpen(false);
+  };
+
+  const submitAdd = (event: FormEvent) => {
+    event.preventDefault();
+    addItems(addValue);
+  };
+
+  const startEditing = (item: GroceryNotepadItem) => {
+    setEditingId(item.id);
+    setEditingValue(item.raw);
+  };
+
+  const commitEditing = (index: number) => {
+    onEdit(index, editingValue);
+    setEditingId(undefined);
+    setEditingValue("");
+  };
+
+  const editingKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitEditing(index);
+    }
+    if (event.key === "Escape") {
+      setEditingId(undefined);
+      setEditingValue("");
+    }
+  };
+
+  const busy = comparisonPhase === "finding-store" || comparisonPhase === "searching";
+
+  return (
+    <section className={styles.listCard} aria-labelledby="grocery-list-heading">
+      <div className={styles.cardHeading}>
+        <h2 id="grocery-list-heading">My grocery list</h2>
+        <span>{items.length} {items.length === 1 ? "item" : "items"}</span>
+      </div>
+
+      <form className={styles.addForm} onSubmit={submitAdd}>
+        <Plus aria-hidden="true" />
+        <label htmlFor="add-grocery" className={styles.srOnly}>Add a grocery item</label>
+        <input
+          id="add-grocery"
+          value={addValue}
+          onChange={(event) => setAddValue(event.target.value)}
+          placeholder="Add milk, produce, pantry…"
+          autoComplete="off"
+        />
+        <button type="submit" disabled={!addValue.trim()}><Plus aria-hidden="true" /> Add</button>
+      </form>
+
+      <button type="button" className={styles.pasteToggle} onClick={() => setPasteOpen((current) => !current)}>
+        {pasteOpen ? <X aria-hidden="true" /> : <Package2 aria-hidden="true" />}
+        {pasteOpen ? "Close list paste" : "Paste a full list"}
+      </button>
+
+      {pasteOpen ? (
+        <div className={styles.pastePanel}>
+          <label htmlFor="paste-groceries">Paste groceries, one per line</label>
+          <textarea
+            id="paste-groceries"
+            rows={5}
+            value={pasteValue}
+            onChange={(event) => setPasteValue(event.target.value)}
+            placeholder={"Large eggs, 18 count\n2% milk, 1 gallon\nWhite bread"}
+          />
+          <button type="button" className={styles.secondaryButton} onClick={() => addItems(pasteValue)} disabled={!pasteValue.trim()}>
+            Add list
+          </button>
+        </div>
+      ) : null}
+
+      <div className={styles.listContent}>
+        {items.length === 0 ? (
+          <div className={styles.emptyList}>
+            <span><Package2 aria-hidden="true" /></span>
+            <h3>Your weekly list starts here</h3>
+            <p>Add individual groceries above, or paste the whole list at once.</p>
+          </div>
+        ) : groupedItems(items).map(([category, entries]) => (
+          <div className={styles.categoryGroup} key={category}>
+            <h3>{category}</h3>
+            {entries.map(({ item, index }) => {
+              const quantity = quantities[item.id] ?? 1;
+              return (
+                <div className={styles.groceryItem} key={item.id} data-needs-detail={item.status === "needs-detail"}>
+                  <span className={styles.itemGlyph}><Package2 aria-hidden="true" /></span>
+                  <div className={styles.itemCopy}>
+                    {editingId === item.id ? (
+                      <input
+                        className={styles.itemEditInput}
+                        value={editingValue}
+                        onChange={(event) => setEditingValue(event.target.value)}
+                        onKeyDown={(event) => editingKeyDown(event, index)}
+                        onBlur={() => commitEditing(index)}
+                        autoFocus
+                        aria-label={`Edit ${item.name}`}
+                      />
+                    ) : (
+                      <>
+                        <strong>{item.name}</strong>
+                        <span>{item.detail ?? (item.status === "needs-detail" ? item.clarification?.shortLabel : "Ready to match")}</span>
+                      </>
+                    )}
+                    {item.clarification ? (
+                      <div className={styles.clarification}>
+                        <p>{item.clarification.prompt}</p>
+                        <div>
+                          {item.clarification.options.map((option) => (
+                            <button
+                              type="button"
+                              key={option.id}
+                              onClick={() => onClarify(index, item.clarification!.id, option.value)}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className={styles.itemActions}>
+                    <div className={styles.quantityControl} aria-label={`Quantity for ${item.name}`}>
+                      <button type="button" onClick={() => onQuantity(item.id, Math.max(1, quantity - 1))} disabled={quantity <= 1} aria-label={`Decrease ${item.name} quantity`}><Minus aria-hidden="true" /></button>
+                      <span aria-live="polite">{quantity}</span>
+                      <button type="button" onClick={() => onQuantity(item.id, Math.min(99, quantity + 1))} disabled={quantity >= 99} aria-label={`Increase ${item.name} quantity`}><Plus aria-hidden="true" /></button>
+                    </div>
+                    <button type="button" className={styles.rowIconButton} onClick={() => startEditing(item)} aria-label={`Edit ${item.name}`}><Pencil aria-hidden="true" /></button>
+                    <button type="button" className={styles.rowIconButton} onClick={() => onRemove(index)} aria-label={`Remove ${item.name}`}><Trash2 aria-hidden="true" /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.listSettings}>
+        <div>
+          <label htmlFor="store-select">Store area</label>
+          {locations.length ? (
+            <select id="store-select" value={selectedLocationId} onChange={(event) => onLocation(event.target.value)}>
+              {locations.map((location) => (
+                <option value={location.locationId} key={location.locationId}>
+                  {location.chain} · {location.name}
+                </option>
+              ))}
+            </select>
+          ) : <span>Enter a ZIP above</span>}
+        </div>
+        <div>
+          <span>Fulfillment</span>
+          <div className={styles.segmentedControl}>
+            <button type="button" data-active={fulfillmentMode === "pickup"} onClick={() => onFulfillment("pickup")}><Check aria-hidden="true" /> Pickup</button>
+            <button type="button" data-active={fulfillmentMode === "delivery"} onClick={() => onFulfillment("delivery")}><Check aria-hidden="true" /> Delivery</button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.compareAction}>
+        <button type="button" className={styles.primaryButton} onClick={onCompare} disabled={!canCompare || busy}>
+          {comparisonPhase === "finding-store" ? "Finding a nearby store…" : comparisonPhase === "searching" ? "Comparing Kroger basket…" : "Compare basket"}
+        </button>
+        <p>{items.some((item) => item.status === "needs-detail") ? "Choose the missing details before comparing" : "Real Kroger results are usually ready in 8–15 seconds"}</p>
+      </div>
+    </section>
+  );
+}
