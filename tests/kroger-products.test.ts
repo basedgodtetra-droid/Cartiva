@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  applyGroceryClarification,
+  interpretGroceryInput,
+} from "@/lib/grocery-notepad";
 import { rankKrogerProducts } from "@/lib/kroger-products";
 import { analyzeProductFacets } from "@/lib/product-facets";
 import type { KrogerProduct } from "@/lib/types";
@@ -253,5 +257,179 @@ describe("Kroger product ranking", () => {
         recommended: null,
       });
     }
+  });
+
+  it.each([
+    {
+      request: "93/7 ground beef 2 lb",
+      wrongTitle: "Kroger Ground Beef 80/20, 2 lb Tray",
+      exactTitle: "Kroger Lean Ground Beef 93% Lean, 2 lb Tray",
+      productType: "Ground Beef",
+      size: { amount: 2, unit: "lb", kind: "weight", baseAmount: 32, baseUnit: "oz", label: "2 lb" } as const,
+    },
+    {
+      request: "boneless skinless chicken breast",
+      wrongTitle: "Kroger Bone-In Skin-On Chicken Thighs",
+      exactTitle: "Kroger Boneless Skinless Chicken Breast",
+      productType: "Chicken Breast",
+    },
+    {
+      request: "ribeye steak",
+      wrongTitle: "Kroger Sirloin Steak",
+      exactTitle: "Kroger Ribeye Steak",
+      productType: "Beef",
+    },
+    {
+      request: "pork chops",
+      wrongTitle: "Kroger Pork Tenderloin",
+      exactTitle: "Kroger Pork Chops",
+      productType: "Pork",
+    },
+    {
+      request: "salmon fillet",
+      wrongTitle: "Salmon Flavor Cat Treats",
+      exactTitle: "Kroger Atlantic Salmon Fillet",
+      productType: "Seafood",
+    },
+  ])("strictly verifies resolved protein attributes for $request", ({
+    request,
+    wrongTitle,
+    exactTitle,
+    productType,
+    size,
+  }) => {
+    const wrong = krogerProduct({
+      id: "0001111000001",
+      productId: "0001111000001",
+      upc: "0001111000001",
+      title: wrongTitle,
+      productType,
+      price: 1.99,
+      priceCents: 199,
+      size,
+    });
+    const exact = krogerProduct({
+      id: "0001111000002",
+      productId: "0001111000002",
+      upc: "0001111000002",
+      title: exactTitle,
+      productType,
+      price: 6.99,
+      priceCents: 699,
+      size,
+    });
+    const constraints = analyzeProductFacets(request).constraints;
+
+    expect(rankKrogerProducts(request, [wrong], constraints)).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+    expect(rankKrogerProducts(request, [wrong, exact], constraints).recommended?.productId).toBe(exact.productId);
+  });
+
+  it.each([
+    {
+      caseName: "a chicken productType that contradicts the title's cut",
+      request: "boneless skinless chicken breast",
+      title: "Kroger Boneless Skinless Chicken Thighs",
+      productType: "Chicken Breast",
+    },
+    {
+      caseName: "a seafood productType that contradicts the title's species",
+      request: "wild caught salmon fillet",
+      title: "Kroger Wild Caught Cod Fillet",
+      productType: "Salmon",
+    },
+    {
+      caseName: "a cod liver-oil supplement",
+      request: "cod",
+      title: "Kroger Cod Liver Oil 1000 mg Softgels",
+      productType: "Vitamins and Supplements",
+    },
+    {
+      caseName: "prepared tuna salad",
+      request: "tuna",
+      title: "Kroger Tuna Salad",
+      productType: "Deli Prepared Foods",
+    },
+    {
+      caseName: "breakfast-sausage pizza",
+      request: "breakfast sausage",
+      title: "Kroger Breakfast Sausage Pizza",
+      productType: "Frozen Pizza",
+    },
+  ])("rejects $caseName despite exact-store eligibility", ({
+    request,
+    title,
+    productType,
+  }) => {
+    const candidate = krogerProduct({
+      id: "0001111000003",
+      productId: "0001111000003",
+      upc: "0001111000003",
+      title,
+      productType,
+      size: undefined,
+    });
+    const constraints = analyzeProductFacets(request).constraints;
+
+    expect(candidate.priceProvenance.exactStoreVerified).toBe(true);
+    expect(rankKrogerProducts(request, [candidate], constraints)).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+  });
+
+  it("allows either raw or fully cooked shrimp after the shopper chooses Any", () => {
+    const clarified = applyGroceryClarification("shrimp", "shrimp-cooking", "any");
+    const interpreted = interpretGroceryInput(clarified).items[0];
+    const request = interpreted.canonicalText;
+    const constraints = analyzeProductFacets(request).constraints;
+    const raw = krogerProduct({
+      id: "0001111000101",
+      productId: "0001111000101",
+      upc: "0001111000101",
+      title: "Kroger Raw Jumbo Shrimp 1 lb",
+      productType: "Seafood",
+    });
+    const cooked = krogerProduct({
+      id: "0001111000102",
+      productId: "0001111000102",
+      upc: "0001111000102",
+      title: "Kroger Fully Cooked Jumbo Shrimp 1 lb",
+      productType: "Seafood",
+    });
+
+    expect(interpreted.status).toBe("ready");
+    expect(rankKrogerProducts(request, [raw], constraints).recommended?.productId).toBe(raw.productId);
+    expect(rankKrogerProducts(request, [cooked], constraints).recommended?.productId).toBe(cooked.productId);
+  });
+
+  it("allows smoked sausage after Any style without admitting sausage pizza", () => {
+    const clarified = applyGroceryClarification("sausage", "sausage-style", "any");
+    const interpreted = interpretGroceryInput(clarified).items[0];
+    const request = interpreted.canonicalText;
+    const constraints = analyzeProductFacets(request).constraints;
+    const smoked = krogerProduct({
+      id: "0001111000201",
+      productId: "0001111000201",
+      upc: "0001111000201",
+      title: "Kroger Smoked Sausage 14 oz",
+      productType: "Sausage",
+    });
+    const pizza = krogerProduct({
+      id: "0001111000202",
+      productId: "0001111000202",
+      upc: "0001111000202",
+      title: "Kroger Sausage Pizza 20 oz",
+      productType: "Frozen Pizza",
+    });
+
+    expect(interpreted.status).toBe("ready");
+    expect(rankKrogerProducts(request, [smoked], constraints).recommended?.productId).toBe(smoked.productId);
+    expect(rankKrogerProducts(request, [pizza], constraints)).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
   });
 });

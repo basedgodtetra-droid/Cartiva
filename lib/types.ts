@@ -45,6 +45,8 @@ export interface RetailPriceTrust {
   checkedAt?: string;
 }
 
+export type RetailerMetadataAttribute = "title" | "brand" | "productType" | "size";
+
 /** Shared catalog fields; retailer-specific trust metadata stays discriminated. */
 export interface RetailProductCore {
   retailer?: Retailer;
@@ -67,6 +69,8 @@ export interface RetailProductCore {
   availabilityStatus?: RetailAvailabilityStatus;
   sponsored: boolean;
   size?: Measurement;
+  /** Retailer-supplied facts stay candidate metadata and never become shopper requirements. */
+  attributeOrigins?: Partial<Record<RetailerMetadataAttribute, "RETAILER_METADATA">>;
   reportedUnitPrice?: number;
   reportedUnitBasis?: "oz" | "fl oz" | "lb" | "each";
   checkedAt?: string;

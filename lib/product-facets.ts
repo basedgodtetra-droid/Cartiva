@@ -1,5 +1,9 @@
 import type { WalmartProduct } from "./types";
-import { extractRequestedBrand } from "./product-knowledge";
+import {
+  extractRequestedBrand,
+  productTitleConflictsWithProteinConstraint,
+  stripFlexibleProteinPreferences,
+} from "./product-knowledge";
 
 export type ProductCategory =
   | "soda"
@@ -15,6 +19,9 @@ export type ProductCategory =
   | "water"
   | "coffee"
   | "meat"
+  | "turkey"
+  | "sausage"
+  | "seafood"
   | "canned-seafood"
   | "juice"
   | "pasta"
@@ -187,7 +194,10 @@ const chickenGroups: FacetGroup[] = [
     option("chicken-cut-breast", "Breast", phrase("cut", "breast", "Chicken breast", ["breast", "breasts"])),
     option("chicken-cut-thighs", "Thighs", phrase("cut", "thighs", "Chicken thighs", ["thigh", "thighs"])),
     option("chicken-cut-drumsticks", "Drumsticks", phrase("cut", "drumsticks", "Chicken drumsticks", ["drumstick", "drumsticks"])),
+    option("chicken-cut-wings", "Wings", phrase("cut", "wings", "Chicken wings", ["wing", "wings"])),
     option("chicken-cut-tenders", "Tenders", phrase("cut", "tenders", "Chicken tenders", ["tender", "tenders"])),
+    option("chicken-form-whole", "Whole chicken", phrase("form", "whole", "Whole chicken", ["whole chicken"])),
+    option("chicken-form-ground", "Ground chicken", phrase("form", "ground", "Ground chicken", ["ground chicken"])),
   ]),
   group("chicken-prep", "Bone and skin", [
     option(
@@ -437,11 +447,11 @@ const coffeeGroups: FacetGroup[] = [
   ]),
 ];
 
-const meatGroups: FacetGroup[] = [
+const meatCoreGroups: FacetGroup[] = [
   group("meat-cut", "Cut", [
-    option("meat-cut-ground", "Ground", phrase("cut", "ground", "Ground")),
-    option("meat-cut-steak", "Steak", phrase("cut", "steak", "Steak")),
-    option("meat-cut-roast", "Roast", phrase("cut", "roast", "Roast")),
+    option("meat-cut-ground", "Ground", phrase("form", "ground", "Ground")),
+    option("meat-cut-steak", "Steak", phrase("form", "steak", "Steak")),
+    option("meat-cut-roast", "Roast", phrase("form", "roast", "Roast")),
     option("meat-cut-chops", "Chops", phrase("cut", "chops", "Chops", ["chop", "chops"])),
     option("meat-cut-ribs", "Ribs", phrase("cut", "ribs", "Ribs", ["rib", "ribs"])),
   ]),
@@ -458,6 +468,78 @@ const meatGroups: FacetGroup[] = [
     option("meat-package-family", "Family pack", phrase("packageType", "family-pack", "Family pack", ["family pack", "value pack"])),
     option("meat-package-tray", "Tray", phrase("packageType", "tray", "Tray")),
     option("meat-package-vacuum", "Vacuum sealed", phrase("packageType", "vacuum-sealed", "Vacuum sealed", ["vacuum sealed", "vacuum-sealed"])),
+  ]),
+];
+
+const groundMeatRatioGroup = group("ground-meat-ratio", "Lean / fat ratio", [
+  option("ground-meat-ratio-80-20", "80/20", phrase("leanRatio", "80/20", "80/20", ["80/20", "80% lean", "80 percent lean", "80%"])),
+  option("ground-meat-ratio-85-15", "85/15", phrase("leanRatio", "85/15", "85/15", ["85/15", "85% lean", "85 percent lean", "85%"])),
+  option("ground-meat-ratio-90-10", "90/10", phrase("leanRatio", "90/10", "90/10", ["90/10", "90% lean", "90 percent lean", "90%"])),
+  option("ground-meat-ratio-93-7", "93/7", phrase("leanRatio", "93/7", "93/7", ["93/7", "93% lean", "93 percent lean", "93%"])),
+  option("ground-meat-ratio-96-4", "96/4", phrase("leanRatio", "96/4", "96/4", ["96/4", "96% lean", "96 percent lean", "96%"])),
+  option("ground-meat-ratio-99-1", "99% lean", phrase("leanRatio", "99/1", "99% lean", ["99/1", "99% lean", "99 percent lean", "99%"])),
+]);
+
+const steakCutGroup = group("steak-cut", "Steak cut", [
+  option("steak-cut-ribeye", "Ribeye", phrase("cut", "ribeye", "Ribeye", ["ribeye", "rib eye"])),
+  option("steak-cut-new-york", "New York strip", phrase("cut", "new-york-strip", "New York strip", ["new york strip", "ny strip"])),
+  option("steak-cut-sirloin", "Sirloin", phrase("cut", "sirloin", "Sirloin")),
+  option("steak-cut-filet", "Filet mignon", phrase("cut", "filet-mignon", "Filet mignon", ["filet mignon"])),
+  option("steak-cut-t-bone", "T-bone", phrase("cut", "t-bone", "T-bone", ["t bone", "t-bone"])),
+]);
+
+function meatGroups(text: string): FacetGroup[] {
+  const groups = [...meatCoreGroups];
+  if (/\bground\s+(?:beef|pork)\b/i.test(text)) groups.splice(1, 0, groundMeatRatioGroup);
+  if (/\b(?:steaks?|ribeye|sirloin|filet\s+mignon|new\s+york\s+strip|t[ -]?bone)\b/i.test(text)) {
+    groups.splice(1, 0, steakCutGroup);
+  }
+  return groups;
+}
+
+const turkeyGroups: FacetGroup[] = [
+  group("turkey-form", "Form", [
+    option("turkey-form-ground", "Ground turkey", phrase("form", "ground", "Ground turkey", ["ground turkey"])),
+    option("turkey-cut-breast", "Turkey breast", phrase("cut", "breast", "Turkey breast", ["turkey breast"])),
+    option("turkey-form-whole", "Whole turkey", phrase("form", "whole", "Whole turkey", ["whole turkey"])),
+    option("turkey-form-deli", "Deli turkey", phrase("form", "deli", "Deli turkey", ["deli turkey"])),
+  ]),
+  groundMeatRatioGroup,
+];
+
+const sausageGroups: FacetGroup[] = [
+  group("sausage-kind", "Kind", [
+    option("sausage-breakfast", "Breakfast", phrase("sausageKind", "breakfast", "Breakfast sausage", ["breakfast sausage"])),
+    option("sausage-italian", "Italian", phrase("sausageKind", "italian", "Italian sausage", ["italian sausage"])),
+    option("sausage-bratwurst", "Bratwurst", phrase("sausageKind", "bratwurst", "Bratwurst", ["bratwurst", "brats"])),
+    option("sausage-smoked", "Smoked", phrase("sausageKind", "smoked", "Smoked sausage", ["smoked sausage"])),
+    option("sausage-chicken", "Chicken", phrase("sausageKind", "chicken", "Chicken sausage", ["chicken sausage"])),
+  ]),
+];
+
+const seafoodGroups: FacetGroup[] = [
+  group("seafood-species", "Species", [
+    option("seafood-species-salmon", "Salmon", phrase("species", "salmon", "Salmon")),
+    option("seafood-species-tilapia", "Tilapia", phrase("species", "tilapia", "Tilapia")),
+    option("seafood-species-cod", "Cod", phrase("species", "cod", "Cod")),
+    option("seafood-species-tuna", "Tuna", phrase("species", "tuna", "Tuna")),
+    option("seafood-species-catfish", "Catfish", phrase("species", "catfish", "Catfish")),
+    option("seafood-species-shrimp", "Shrimp", phrase("species", "shrimp", "Shrimp")),
+  ]),
+  group("seafood-form", "Form", [
+    option("seafood-form-fillet", "Fillet", phrase("seafoodForm", "fillet", "Fillet", ["fillet", "fillets"])),
+    option("seafood-form-portions", "Portions", phrase("seafoodForm", "portions", "Portions", ["portion", "portions"])),
+    option("seafood-form-side", "Whole side", phrase("seafoodForm", "whole-side", "Whole side", ["whole side", "salmon side"])),
+  ]),
+  group("seafood-cooking", "Preparation", [
+    option("seafood-cooking-raw", "Raw", phrase("cookingState", "raw", "Raw")),
+    option("seafood-cooking-cooked", "Cooked", phrase("cookingState", "cooked", "Cooked", ["cooked", "fully cooked"])),
+  ]),
+  group("shrimp-size", "Shrimp size", [
+    option("shrimp-size-small", "Small", phrase("shrimpSize", "small", "Small")),
+    option("shrimp-size-medium", "Medium", phrase("shrimpSize", "medium", "Medium")),
+    option("shrimp-size-large", "Large", phrase("shrimpSize", "large", "Large")),
+    option("shrimp-size-jumbo", "Jumbo", phrase("shrimpSize", "jumbo", "Jumbo")),
   ]),
 ];
 
@@ -564,10 +646,13 @@ const baconGroups: FacetGroup[] = [
 ];
 
 const DEFINITIONS: FacetDefinition[] = [
-  { category: "canned-seafood", label: "Canned seafood", detect: /\b(?:tuna|albacore|canned salmon|canned sardines?)\b/i, exclude: /\b(?:cat|dog|pet)\s+(?:food|treats?)\b/i, groups: cannedSeafoodGroups },
+  { category: "canned-seafood", label: "Canned seafood", detect: /\b(?:tuna|albacore|canned salmon|canned sardines?)\b/i, exclude: /\b(?:cat|dog|pet)\s+(?:food|treats?)\b|\b(?:tuna|salmon|sardine)\s+(?:salad|pizza|sandwich|dip|spread)\b|\b(?:fish|cod|salmon|tuna)(?:\s+liver)?\s+(?:oil|supplements?|softgels?|capsules?|tablets?)\b/i, groups: cannedSeafoodGroups },
+  { category: "seafood", label: "Seafood", detect: /\b(?:fish|salmon|tilapia|cod|catfish|shrimp)\b/i, exclude: /\b(?:cat|dog|pet)\s+(?:food|treats?)\b|\b(?:fish|salmon|shrimp|cod|tuna|tilapia|catfish)(?:\s+liver)?\s+(?:oil|seasoning|flavor|supplements?|softgels?|capsules?|tablets?)\b/i, groups: seafoodGroups },
   { category: "soda", label: "Soda", detect: /\b(?:soda|soft drink|cola|coke|coca[ -]?cola|sprite|pepsi|7\s?up|dr\.? pepper|mountain dew|mtn dew)\b/i, exclude: /\bbaking soda\b/i, groups: sodaGroups },
   { category: "juice", label: "Juice", detect: /\b(?:juice|apple juice|orange juice|cranberry juice)\b/i, groups: juiceGroups },
   { category: "bread", label: "Bread", detect: /\b(?:bread|loaf|buns?|tortillas?)\b/i, exclude: /\bbread crumbs?\b/i, groups: breadGroups },
+  { category: "sausage", label: "Sausage", detect: /\b(?:sausage|bratwurst|brats)\b/i, exclude: /\bsausage\s+(?:seasoning|flavor|pizza|salad|sandwich|dip|spread)\b/i, groups: sausageGroups },
+  { category: "turkey", label: "Turkey", detect: /\bturkey\b/i, exclude: /\b(?:cat|dog|pet)\s+(?:food|treats?)\b|\bturkey\s+(?:bacon|sausage|seasoning|flavor)\b/i, groups: turkeyGroups },
   { category: "chicken", label: "Chicken", detect: /\bchicken\b/i, exclude: /\b(?:chicken broth|chicken soup|chicken noodle|chicken nuggets?|chicken patties)\b/i, groups: chickenGroups },
   { category: "milk", label: "Milk", detect: /\b(?:milk|almond milk|oat milk)\b/i, exclude: /\b(?:milk chocolate|milkshake|milk shake)\b/i, groups: milkGroups },
   { category: "chips", label: "Chips", detect: /\b(?:chips?|takis|doritos|lay['’]?s|cheetos)\b/i, exclude: /\b(?:chocolate|baking|wood)\s+chips\b/i, groups: chipsGroups },
@@ -592,7 +677,9 @@ function groupsFor(definition: FacetDefinition, text: string) {
 function allOptions() {
   return DEFINITIONS.flatMap((definition) => {
     const seeds = typeof definition.groups === "function"
-      ? ["produce", "apples", "potatoes", "tomatoes"]
+      ? definition.category === "meat"
+        ? ["beef", "ground beef", "steak", "pork chops"]
+        : ["produce", "apples", "potatoes", "tomatoes"]
       : [""];
     return seeds.flatMap((seed) => groupsFor(definition, seed).flatMap((item) => item.options));
   });
@@ -644,12 +731,13 @@ export function analyzeProductFacets(
   }
 
   const groups = groupsFor(definition, text);
+  const constraintText = stripFlexibleProteinPreferences(text);
   const registry = optionRegistryFor(definition, text);
   const validSelectedIds = [...new Set(selectedOptionIds)].filter((id) => registry.has(id));
   const templates = groups.flatMap((item) => item.options.flatMap((item) => item.constraints));
   const typedByAttribute = new Map<string, ProductConstraint>();
   const matchedTemplates = templates
-    .filter((template) => constraintMatchesText(text, template))
+    .filter((template) => constraintMatchesText(constraintText, template))
     .sort((a, b) => constraintSpecificity(b) - constraintSpecificity(a));
   for (const template of matchedTemplates) {
     if (!typedByAttribute.has(template.attribute)) {
@@ -759,8 +847,15 @@ function walmartSearchIdentity(request: StructuredProductRequest) {
   if (request.category === "canned-seafood") {
     return request.text.match(/\b(?:tuna|albacore|salmon|sardines?)\b/i)?.[0] ?? "canned seafood";
   }
+  if (request.category === "seafood") {
+    return request.text.match(/\b(?:salmon|tilapia|cod|catfish|shrimp|fish)\b/i)?.[0] ?? "seafood";
+  }
+  if (request.category === "turkey") return "turkey";
+  if (request.category === "sausage") {
+    return request.text.match(/\b(?:breakfast sausage|italian sausage|smoked sausage|chicken sausage|bratwurst|sausage)\b/i)?.[0] ?? "sausage";
+  }
   if (request.category === "meat") {
-    return request.text.match(/\b(?:beef|pork|steak|roast|chops?|ribs?|sausage|meat)\b/i)?.[0] ?? "meat";
+    return request.text.match(/\b(?:beef|pork|steak|roast|chops?|ribs?|meat)\b/i)?.[0] ?? "meat";
   }
   return request.categoryLabel ?? request.category;
 }
@@ -836,7 +931,10 @@ export function productConstraintIssues(
 ) {
   const candidate = `${product.brand ?? ""} ${product.productType ?? ""} ${product.title} ${product.size?.label ?? ""}`;
   return constraints
-    .filter((item) => !productMatchesConstraint(candidate, item))
+    .filter((item) => (
+      !productMatchesConstraint(candidate, item)
+      || productTitleConflictsWithProteinConstraint(product.title, item.attribute, item.value)
+    ))
     .map((item) => `does not match ${item.label}`);
 }
 

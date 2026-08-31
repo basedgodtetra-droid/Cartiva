@@ -1,4 +1,8 @@
-import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
+import {
+  sanitizeGroceryProteinOrigins,
+  type GroceryNotepadItem,
+  type GroceryProteinOriginMap,
+} from "@/lib/grocery-notepad";
 import type { KrogerMatchResult } from "@/lib/types";
 
 export const CARTIVA_LIBRARY_KEY = "cartiva-local-library-v1";
@@ -8,6 +12,7 @@ export interface CartivaListSnapshot {
   quantities: Record<string, number>;
   fulfillmentMode: "pickup" | "delivery";
   zipCode: string;
+  proteinOrigins?: GroceryProteinOriginMap;
 }
 
 export interface CartivaSavedList extends CartivaListSnapshot {
@@ -176,6 +181,7 @@ function isSavedList(value: unknown): value is CartivaSavedList {
     && typeof value.rawInput === "string"
     && isRecord(value.quantities)
     && Object.values(value.quantities).every(validQuantity)
+    && (value.proteinOrigins === undefined || isRecord(value.proteinOrigins))
     && (value.fulfillmentMode === "pickup" || value.fulfillmentMode === "delivery")
     && typeof value.zipCode === "string"
     && Number.isInteger(value.itemCount)
@@ -217,6 +223,7 @@ function isListSnapshot(value: unknown): value is CartivaListSnapshot {
     && isRecord(value.quantities)
     && Object.keys(value.quantities).length <= 25
     && Object.values(value.quantities).every(validQuantity)
+    && (value.proteinOrigins === undefined || isRecord(value.proteinOrigins))
     && (value.fulfillmentMode === "pickup" || value.fulfillmentMode === "delivery")
     && typeof value.zipCode === "string"
     && (value.zipCode === "" || /^\d{5}$/.test(value.zipCode));
@@ -374,6 +381,9 @@ export function upsertSavedList(
     ),
     fulfillmentMode: input.snapshot.fulfillmentMode,
     zipCode: /^\d{5}$/.test(input.snapshot.zipCode) ? input.snapshot.zipCode : "",
+    proteinOrigins: Object.keys(input.snapshot.proteinOrigins ?? {}).length
+      ? sanitizeGroceryProteinOrigins(input.snapshot.proteinOrigins)
+      : undefined,
     itemCount: Math.max(0, Math.min(25, Math.floor(input.itemCount))),
     createdAt: existing?.createdAt ?? input.now,
     updatedAt: input.now,
@@ -515,6 +525,9 @@ export function buildCartivaComparisonRecord(
       quantities: { ...input.listSnapshot.quantities },
       fulfillmentMode: input.listSnapshot.fulfillmentMode,
       zipCode: input.listSnapshot.zipCode,
+      proteinOrigins: Object.keys(input.listSnapshot.proteinOrigins ?? {}).length
+        ? sanitizeGroceryProteinOrigins(input.listSnapshot.proteinOrigins)
+        : undefined,
     },
     fingerprint,
     retailer: "kroger",

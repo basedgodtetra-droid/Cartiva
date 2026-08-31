@@ -16,6 +16,7 @@ import {
   missingRequestedDescriptors,
   productMatchesRequestedBrand,
   productTypeMatchesRequest,
+  stripFlexibleProteinPreferences,
 } from "./product-knowledge";
 import { productConstraintIssues } from "./product-facets";
 import type { ProductConstraint } from "./product-facets";
@@ -137,7 +138,7 @@ function scoreProduct(
   product: WalmartProduct,
   constraints: ProductConstraint[] = [],
 ) {
-  const requestWords = importantWords(request);
+  const requestWords = importantWords(stripFlexibleProteinPreferences(request));
   const titleWords = new Set(words(`${product.brand ?? ""} ${product.title}`));
   const matchedTerms = [...new Set(requestWords.filter((word) => titleWords.has(word)))];
   const ratio = requestWords.length ? matchedTerms.length / requestWords.length : 0;

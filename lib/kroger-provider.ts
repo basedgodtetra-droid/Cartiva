@@ -317,6 +317,9 @@ function normalizeKrogerProduct(
   const categories = Array.isArray(raw.categories)
     ? raw.categories.filter((value): value is string => typeof value === "string")
     : [];
+  const brand = textValue(raw.brand);
+  const productType = categories[0];
+  const size = extractMeasurement(`${title} ${sizeText}`);
   const { link, linkType, sourceUrl } = safeProductLink(
     raw,
     context.chain,
@@ -341,12 +344,18 @@ function normalizeKrogerProduct(
     sourceUrl: sourceUrl ?? link,
     thumbnail: productImage(raw),
     seller: context.chain || "Kroger",
-    brand: textValue(raw.brand),
-    productType: categories[0],
+    brand,
+    productType,
     inStock: availabilityStatus === "in_stock",
     availabilityStatus,
     sponsored: false,
-    size: extractMeasurement(`${title} ${sizeText}`),
+    size,
+    attributeOrigins: {
+      title: "RETAILER_METADATA",
+      ...(brand ? { brand: "RETAILER_METADATA" as const } : {}),
+      ...(productType ? { productType: "RETAILER_METADATA" as const } : {}),
+      ...(size ? { size: "RETAILER_METADATA" as const } : {}),
+    },
     checkedAt: context.checkedAt,
     verification: "verified",
     verificationIssues: [],

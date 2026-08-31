@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  applyGroceryClarification,
+  groceryProteinOriginKey,
   interpretGroceryInput,
+  resolveGroceryClarification,
+  sanitizeGroceryProteinOrigins,
   type GroceryNotepadItem,
+  type GroceryProteinOriginMap,
 } from "@/lib/grocery-notepad";
 import type { KrogerMatchResult, KrogerSearchStreamEvent } from "@/lib/types";
 import { CartivaComparison } from "@/components/cartiva-comparison";
@@ -52,6 +55,7 @@ interface StoredWorkspace {
   fulfillmentMode?: "pickup" | "delivery";
   listName?: string;
   activeListId?: string;
+  proteinOrigins?: GroceryProteinOriginMap;
 }
 
 interface CartivaWorkspaceProps {
@@ -63,6 +67,36 @@ function replaceItem(items: GroceryNotepadItem[], index: number, value: string |
   return items
     .flatMap((item, itemIndex) => itemIndex === index ? (value?.trim() ? [value.trim()] : []) : [item.raw])
     .join("\n");
+}
+
+function proteinOriginsForItem(
+  origins: GroceryProteinOriginMap,
+  item: GroceryNotepadItem,
+  index: number,
+) {
+  return origins[groceryProteinOriginKey(item.raw, index)]
+    ?? origins[groceryProteinOriginKey(item.raw)];
+}
+
+function moveProteinOrigins(
+  current: GroceryProteinOriginMap,
+  item: GroceryNotepadItem,
+  index: number,
+  nextRaw: string,
+  additions: GroceryProteinOriginMap[string] = {},
+) {
+  const previousKey = groceryProteinOriginKey(item.raw, index);
+  const nextKey = groceryProteinOriginKey(nextRaw, index);
+  const previous = proteinOriginsForItem(current, item, index);
+  const next = { ...current };
+  if (previousKey !== nextKey) delete next[previousKey];
+  const merged = {
+    ...(previous ?? {}),
+    ...(current[nextKey] ?? {}),
+    ...additions,
+  };
+  if (Object.keys(merged).length) next[nextKey] = merged;
+  return sanitizeGroceryProteinOrigins(next);
 }
 
 async function responseError(response: Response, fallback: string) {
@@ -138,6 +172,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     recordCartAdded,
   } = useCartivaLibrary();
   const [rawInput, setRawInput] = useState("");
+  const [proteinOrigins, setProteinOrigins] = useState<GroceryProteinOriginMap>({});
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [zipInput, setZipInput] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -159,13 +194,17 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const cartTransferRef = useRef<string | undefined>(undefined);
   const loadedRequestRef = useRef("");
 
-  const interpretation = useMemo(() => interpretGroceryInput(rawInput), [rawInput]);
+  const interpretation = useMemo(
+    () => interpretGroceryInput(rawInput, { proteinOrigins }),
+    [proteinOrigins, rawInput],
+  );
   const selectedLocation = locations.find((location) => location.locationId === selectedLocationId);
   const currentSnapshot: CartivaListSnapshot = {
     rawInput,
     quantities,
     fulfillmentMode,
     zipCode: zipInput,
+    proteinOrigins,
   };
   const activeSavedList = activeListId
     ? library.lists.find((list) => list.id === activeListId)
@@ -177,6 +216,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     && activeSavedList.rawInput === currentSnapshot.rawInput
     && activeSavedList.fulfillmentMode === currentSnapshot.fulfillmentMode
     && activeSavedList.zipCode === currentSnapshot.zipCode
+    && JSON.stringify(activeSavedList.proteinOrigins ?? {}) === JSON.stringify(currentSnapshot.proteinOrigins ?? {})
     && JSON.stringify(activeSavedList.quantities) === JSON.stringify(currentSnapshot.quantities),
   );
   const readiness = getCompareReadiness({
@@ -358,6 +398,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         }
         if (typeof value.listName === "string") setListName(value.listName.slice(0, 80));
         if (typeof value.activeListId === "string") setActiveListId(value.activeListId);
+        setProteinOrigins(sanitizeGroceryProteinOrigins(value.proteinOrigins));
       }
     } catch {
       window.localStorage.removeItem(WORKSPACE_KEY);
@@ -375,8 +416,9 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       fulfillmentMode,
       listName,
       activeListId,
+      proteinOrigins,
     } satisfies StoredWorkspace));
-  }, [activeListId, fulfillmentMode, hydrated, listName, quantities, rawInput, zipInput]);
+  }, [activeListId, fulfillmentMode, hydrated, listName, proteinOrigins, quantities, rawInput, zipInput]);
 
   useEffect(() => {
     if (!hydrated || !libraryHydrated) return;
@@ -399,6 +441,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     comparisonRunRef.current += 1;
     clearPendingKrogerCartBeforeBasketChange();
     setRawInput(snapshot.rawInput);
+    setProteinOrigins(sanitizeGroceryProteinOrigins(snapshot.proteinOrigins));
     setQuantities({ ...snapshot.quantities });
     setFulfillmentMode(snapshot.fulfillmentMode);
     setZipInput(snapshot.zipCode);
@@ -518,18 +561,44 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   };
 
   const editItem = (index: number, value: string) => {
+    const item = interpretation.items[index];
+    if (item) {
+      setProteinOrigins((current) => moveProteinOrigins(current, item, index, value));
+    }
     updateRawInput(replaceItem(interpretation.items, index, value));
   };
 
   const removeItem = (index: number) => {
+    setProteinOrigins((current) => {
+      const next: GroceryProteinOriginMap = {};
+      for (const [itemIndex, item] of interpretation.items.entries()) {
+        if (itemIndex === index) continue;
+        const origins = proteinOriginsForItem(current, item, itemIndex);
+        if (!origins) continue;
+        const nextIndex = itemIndex > index ? itemIndex - 1 : itemIndex;
+        next[groceryProteinOriginKey(item.raw, nextIndex)] = origins;
+      }
+      return sanitizeGroceryProteinOrigins(next);
+    });
     updateRawInput(replaceItem(interpretation.items, index, null));
   };
 
   const clarifyItem = (index: number, clarificationId: string, value: string) => {
     const item = interpretation.items[index];
     if (!item) return;
-    const clarified = applyGroceryClarification(item.raw, clarificationId, value);
-    updateRawInput(replaceItem(interpretation.items, index, clarified));
+    const resolved = resolveGroceryClarification(item.raw, clarificationId, value);
+    if (resolved.selectedAttribute) {
+      setProteinOrigins((current) => moveProteinOrigins(
+        current,
+        item,
+        index,
+        resolved.raw,
+        {
+          [resolved.selectedAttribute!.key]: resolved.selectedAttribute!.origin,
+        },
+      ));
+    }
+    updateRawInput(replaceItem(interpretation.items, index, resolved.raw));
   };
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -600,7 +669,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   } | null> => {
     const runId = comparisonRunRef.current + 1;
     comparisonRunRef.current = runId;
-    const currentInterpretation = interpretGroceryInput(rawInput);
+    const currentInterpretation = interpretGroceryInput(rawInput, { proteinOrigins });
     const runQuantities = Object.fromEntries(
       currentInterpretation.items.map((item) => [item.id, quantities[item.id] ?? 1]),
     );
@@ -609,6 +678,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       quantities: runQuantities,
       fulfillmentMode,
       zipCode: zipInput,
+      proteinOrigins,
     };
     const runListName = normalizedListName;
     const runListId = activeListId;
@@ -960,6 +1030,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     if (rawInput.trim() && !window.confirm("Start a new list? This clears the groceries in this workspace.")) return;
     clearPendingKrogerCartBeforeBasketChange();
     setRawInput("");
+    setProteinOrigins({});
     setQuantities({});
     setListName("Untitled list");
     setActiveListId(undefined);
@@ -1003,6 +1074,17 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
             <div className={styles.pageIntro}>
               <h2>Your list, compared as one cart</h2>
               <p>Real store totals appear only when every requested item has a trustworthy match.</p>
+            </div>
+            <div
+              className={styles.summaryBar}
+              aria-label={`${interpretation.items.length} items, ${interpretation.readyCount} ready, ${interpretation.unresolvedCount} ${interpretation.unresolvedCount === 1 ? "choice" : "choices"} needed, estimated savings unavailable`}
+            >
+              <span><strong>{interpretation.items.length}</strong> items</span>
+              <span data-tone="ready"><strong>{interpretation.readyCount}</strong> ready</span>
+              <span data-tone={interpretation.unresolvedCount ? "warning" : "ready"}>
+                <strong>{interpretation.unresolvedCount}</strong> {interpretation.unresolvedCount === 1 ? "choice" : "choices"} needed
+              </span>
+              <span className={styles.summarySavings}><strong>Estimated savings</strong><small>—</small></span>
             </div>
             <div className={styles.workspaceGrid}>
               <CartivaGroceryList

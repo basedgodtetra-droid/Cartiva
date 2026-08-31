@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   applyGroceryClarification,
+  groceryProteinOriginKey,
   interpretGroceryInput,
+  resolveGroceryClarification,
 } from "@/lib/grocery-notepad";
+import { AttributeOrigin } from "@/packages/shared/src/types";
 
 describe("Smart Grocery Notepad interpretation", () => {
   it("accepts natural separators and known space-separated product phrases", () => {
@@ -47,7 +50,7 @@ describe("Smart Grocery Notepad interpretation", () => {
       "Eggs, 18 ct\nWhite Bread\nMilk, 1 gallon\nChicken Breast, 2 lb\nBananas",
     );
     expect(result.usedSmartSplit).toBe(true);
-    expect(result.unresolvedCount).toBe(1);
+    expect(result.unresolvedCount).toBe(2);
   });
 
   it("asks progressive material questions without repeating supplied details", () => {
@@ -65,7 +68,7 @@ describe("Smart Grocery Notepad interpretation", () => {
     expect(interpretGroceryInput("coke zero").items[0].clarification).toBeUndefined();
     expect(interpretGroceryInput("coke zero 12 pack").items[0].clarification).toBeUndefined();
     expect(interpretGroceryInput("yogurt").items[0].clarification?.id).toBe("yogurt-size");
-    expect(interpretGroceryInput("chicken breast").items[0].clarification?.id).toBe("chicken-weight");
+    expect(interpretGroceryInput("chicken breast").items[0].clarification?.id).toBe("chicken-preparation");
     expect(interpretGroceryInput("bananas").items[0].clarification).toBeUndefined();
   });
 
@@ -78,7 +81,7 @@ describe("Smart Grocery Notepad interpretation", () => {
     expect(interpretGroceryInput("dozen eggs").items[0]).toMatchObject({ name: "Eggs", detail: "12 ct" });
     expect(interpretGroceryInput("12 eggs").items[0]).toMatchObject({ name: "Eggs", detail: "12 ct" });
     expect(interpretGroceryInput("coke zero 12-pack").items[0].clarification).toBeUndefined();
-    expect(interpretGroceryInput("chicken breast 2-lb").items[0].clarification).toBeUndefined();
+    expect(interpretGroceryInput("chicken breast 2-lb").items[0].clarification?.id).toBe("chicken-preparation");
   });
 
   it("lets named soda proceed while retaining clarification for generic soda", () => {
@@ -171,5 +174,120 @@ describe("Smart Grocery Notepad interpretation", () => {
     ]);
 
     expect(interpretGroceryInput("eggs\nwhite bread", { undoImplicitSplits: true }).items).toHaveLength(2);
+  });
+
+  it.each([
+    ["ground beef", "ground-beef-ratio"],
+    ["93/7 ground beef", undefined],
+    ["chicken", "chicken-cut"],
+    ["chicken breast", "chicken-preparation"],
+    ["boneless skinless chicken breast", undefined],
+    ["steak", "steak-cut"],
+    ["ribeye steak", undefined],
+    ["pork", "pork-form"],
+    ["salmon", "salmon-form"],
+    ["ground beef 93/7 2 lb", undefined],
+  ])("applies the protein clarification contract for %s", (input, clarificationId) => {
+    const item = interpretGroceryInput(input).items[0];
+    expect(item.clarification?.id).toBe(clarificationId);
+    expect(item.status).toBe(clarificationId ? "needs-detail" : "ready");
+    expect(item.proteinIntent).toBeDefined();
+  });
+
+  it("normalizes explicit protein attributes without repeating a supplied answer", () => {
+    const explicit = interpretGroceryInput("ground beef 93/7 2 lb").items[0];
+    expect(explicit).toMatchObject({
+      name: "Ground Beef",
+      detail: "93/7 · 2 lb",
+      canonicalText: "Ground Beef, 93/7, 2 lb",
+      status: "ready",
+      proteinIntent: {
+        category: "meat",
+        animal: { value: "beef", origin: AttributeOrigin.USER_EXPLICIT },
+        form: { value: "ground", origin: AttributeOrigin.USER_EXPLICIT },
+        leanRatio: { value: "93/7", origin: AttributeOrigin.USER_EXPLICIT },
+        weight: { value: "2 lb", origin: AttributeOrigin.USER_EXPLICIT },
+      },
+    });
+    expect(interpretGroceryInput("93% lean ground beef").items[0].proteinIntent?.leanRatio?.value).toBe("93/7");
+  });
+
+  it("progresses through at most two material protein questions", () => {
+    const chicken = interpretGroceryInput("chicken").items[0];
+    const breastRaw = applyGroceryClarification(chicken.raw, chicken.clarification!.id, "breast");
+    const breast = interpretGroceryInput(breastRaw).items[0];
+    expect(breast.raw).toBe("chicken breast");
+    expect(breast.clarification?.id).toBe("chicken-preparation");
+
+    const readyRaw = applyGroceryClarification(breast.raw, breast.clarification!.id, "boneless skinless");
+    expect(interpretGroceryInput(readyRaw).items[0]).toMatchObject({
+      raw: "boneless skinless chicken breast",
+      status: "ready",
+      clarification: undefined,
+    });
+
+    const steakRaw = applyGroceryClarification("steak", "steak-cut", "ribeye");
+    expect(interpretGroceryInput(steakRaw).items[0]).toMatchObject({ raw: "ribeye steak", status: "ready" });
+
+    const porkRaw = applyGroceryClarification("pork", "pork-form", "chops");
+    expect(interpretGroceryInput(porkRaw).items[0].clarification?.id).toBe("pork-chop-preparation");
+  });
+
+  it("preserves USER_SELECTED provenance while keeping no preference flexible", () => {
+    const selection = resolveGroceryClarification("ground beef", "ground-beef-ratio", "93/7");
+    expect(selection.selectedAttribute).toEqual({
+      key: "leanRatio",
+      value: "93/7",
+      origin: AttributeOrigin.USER_SELECTED,
+    });
+    const selected = interpretGroceryInput(selection.raw, {
+      proteinOrigins: {
+        [groceryProteinOriginKey(selection.raw)]: {
+          leanRatio: AttributeOrigin.USER_SELECTED,
+        },
+      },
+    }).items[0];
+    expect(selected.proteinIntent?.leanRatio).toEqual({
+      value: "93/7",
+      origin: AttributeOrigin.USER_SELECTED,
+    });
+
+    const anyRaw = applyGroceryClarification("ground beef", "ground-beef-ratio", "any");
+    expect(interpretGroceryInput(anyRaw).items[0]).toMatchObject({
+      name: "Ground Beef",
+      detail: "Any lean ratio",
+      canonicalText: "Ground Beef, Any lean ratio",
+      status: "ready",
+    });
+  });
+
+  it("keeps duplicate-row protein origins separate with indexed keys", () => {
+    const raw = "ground beef 93/7";
+    const legacyKey = groceryProteinOriginKey(raw);
+    const firstKey = groceryProteinOriginKey(raw, 0);
+    const secondKey = groceryProteinOriginKey(raw, 1);
+    const result = interpretGroceryInput(`${raw}\n${raw}`, {
+      proteinOrigins: {
+        [legacyKey]: { leanRatio: AttributeOrigin.INFERRED },
+        [firstKey]: { leanRatio: AttributeOrigin.USER_SELECTED },
+        [secondKey]: { leanRatio: AttributeOrigin.USER_EXPLICIT },
+      },
+    });
+
+    expect(firstKey).not.toBe(secondKey);
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0].proteinIntent?.leanRatio?.origin).toBe(AttributeOrigin.USER_SELECTED);
+    expect(result.items[1].proteinIntent?.leanRatio?.origin).toBe(AttributeOrigin.USER_EXPLICIT);
+  });
+
+  it("uses category policies across turkey, bacon, sausage, fish, and shrimp", () => {
+    expect(interpretGroceryInput("turkey").items[0].clarification?.id).toBe("turkey-form");
+    expect(interpretGroceryInput("ground turkey").items[0].clarification?.id).toBe("ground-turkey-ratio");
+    expect(interpretGroceryInput("bacon").items[0].clarification?.id).toBe("bacon-style");
+    expect(interpretGroceryInput("sausage").items[0].clarification?.id).toBe("sausage-style");
+    expect(interpretGroceryInput("fish").items[0].clarification?.id).toBe("fish-species");
+    expect(interpretGroceryInput("shrimp").items[0].clarification?.id).toBe("shrimp-cooking");
+    expect(interpretGroceryInput("raw shrimp").items[0].clarification?.id).toBe("shrimp-size");
+    expect(interpretGroceryInput("jumbo raw shrimp").items[0].clarification).toBeUndefined();
   });
 });

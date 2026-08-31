@@ -86,6 +86,11 @@ describe("Kroger provider normalization", () => {
       cartEligible: true,
       identityVerified: true,
       linkType: "product",
+      attributeOrigins: {
+        title: "RETAILER_METADATA",
+        brand: "RETAILER_METADATA",
+        size: "RETAILER_METADATA",
+      },
       priceProvenance: {
         priceScope: "exact_store",
         exactStoreVerified: true,

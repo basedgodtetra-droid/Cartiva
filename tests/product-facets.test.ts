@@ -452,3 +452,49 @@ describe("category false-positive guards", () => {
     expect(analyzeProductFacets(text).groups).toEqual([]);
   });
 });
+
+describe("protein product constraints", () => {
+  it.each([
+    ["93/7 ground beef 2 lb", "meat", "leanRatio", "93/7"],
+    ["boneless skinless chicken breast", "chicken", "cut", "breast"],
+    ["ribeye steak", "meat", "cut", "ribeye"],
+    ["pork chops", "meat", "cut", "chops"],
+    ["salmon fillet", "seafood", "species", "salmon"],
+    ["jumbo raw shrimp", "seafood", "cookingState", "raw"],
+    ["ground turkey 93/7", "turkey", "leanRatio", "93/7"],
+    ["italian sausage", "sausage", "sausageKind", "italian"],
+  ])("structures %s as strict protein intent", (text, category, attribute, value) => {
+    const request = analyzeProductFacets(text);
+    expect(request.category).toBe(category);
+    expect(request.constraints).toContainEqual(expect.objectContaining({
+      attribute,
+      value,
+      source: "typed",
+    }));
+  });
+
+  it("recognizes retailer lean-ratio wording as equivalent but rejects a different ratio", () => {
+    const constraints = analyzeProductFacets("93/7 ground beef").constraints;
+    const percentTitle = {
+      title: "Kroger Lean Ground Beef 93% Lean 1 lb Tray",
+      productType: "ground beef",
+      brand: "Kroger",
+    };
+    const wrongRatio = {
+      ...percentTitle,
+      title: "Kroger Ground Beef 80/20 1 lb Tray",
+    };
+
+    expect(productConstraintIssues(percentTitle, constraints)).toEqual([]);
+    expect(productConstraintIssues(wrongRatio, constraints)).toContain("does not match 93/7");
+  });
+
+  it("keeps a supplied protein attribute out of the remaining facet groups", () => {
+    expect(groupIds("ribeye steak")).not.toContain("steak-cut");
+    expect(groupIds("93/7 ground beef")).not.toContain("ground-meat-ratio");
+    expect(groupIds("salmon fillet")).not.toEqual(expect.arrayContaining(["seafood-species", "seafood-form"]));
+    expect(groupIds("boneless skinless chicken breast")).not.toEqual(
+      expect.arrayContaining(["chicken-cut", "chicken-prep"]),
+    );
+  });
+});

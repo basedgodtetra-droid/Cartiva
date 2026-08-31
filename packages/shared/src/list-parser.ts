@@ -25,6 +25,9 @@ const PACKAGE_ONLY =
  * by an AI parser without changing the UI.
  */
 const GROCERY_ANCHORS = [
+  "boneless skinless chicken breast",
+  "new york strip steak",
+  "filet mignon steak",
   "whole wheat bread",
   "sandwich bread",
   "sourdough bread",
@@ -37,7 +40,25 @@ const GROCERY_ANCHORS = [
   "greek yogurt",
   "chicken breast",
   "chicken breasts",
+  "chicken thighs",
+  "chicken drumsticks",
+  "chicken wings",
+  "whole chicken",
+  "ground chicken",
   "ground beef",
+  "ground turkey",
+  "turkey breast",
+  "whole turkey",
+  "deli turkey",
+  "ribeye steak",
+  "sirloin steak",
+  "t-bone steak",
+  "pork chops",
+  "pork loin",
+  "pork shoulder",
+  "ground pork",
+  "pork ribs",
+  "salmon fillet",
   "black beans",
   "kidney beans",
   "green beans",
@@ -113,10 +134,15 @@ const GROCERY_ANCHORS = [
   "tortillas",
   "tortilla",
   "beef",
+  "steak",
   "pork",
   "sausage",
   "turkey",
+  "fish",
   "salmon",
+  "tilapia",
+  "cod",
+  "catfish",
   "tuna",
   "shrimp",
   "juice",
@@ -134,7 +160,7 @@ const ITEM_PREFIX = new RegExp(
     "(?:(?:\\d+(?:\\.\\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|a|an)\\s+" +
       "(?:(?:packs|boxes|bags|bottles|cans|jars|cartons)\\s+)?)" +
     "|(?:(?:great value|oscar mayer|eggland(?:'s|s)? best|chobani|fage|barilla|goya|tyson)\\s+)" +
-    "|(?:(?:organic|fresh|frozen|large|small|whole|skim|plain|boneless|skinless)\\s+)" +
+    "|(?:(?:organic|fresh|frozen|large|small|medium|jumbo|whole|skim|plain|boneless|skinless|bone[- ]?in|skin[- ]?on|ground|raw|cooked|thick[- ]?cut|\\d{2}\\s*[/:-]\\s*\\d{1,2})\\s+)" +
   ")$",
   "i",
 );

@@ -8,6 +8,7 @@ import {
   missingRequestedDescriptors,
   productMatchesRequestedBrand,
   productTypeMatchesRequest,
+  stripFlexibleProteinPreferences,
 } from "./product-knowledge";
 import {
   analyzeProductFacets,
@@ -165,7 +166,7 @@ function constraintIdentityQuery(request: StructuredProductRequest) {
 }
 
 function simplifiedUnknownQuery(value: string) {
-  return stripDiscoveryPackageTerms(value)
+  return stripDiscoveryPackageTerms(stripFlexibleProteinPreferences(value))
     .split(/\s+/)
     .filter(Boolean)
     .filter((word) => !SEARCH_FILLER.has(normalize(word)))
@@ -227,7 +228,9 @@ export function parseProductIntent(
     !PACKAGE_ATTRIBUTES.has(item.attribute)
   ));
   const inferredCategory = inferProductCategory(verificationText);
-  const normalizedQuery = stripDiscoveryPackageTerms(verificationText);
+  const normalizedQuery = stripDiscoveryPackageTerms(
+    stripFlexibleProteinPreferences(verificationText),
+  );
   const queries: DiscoveryQuery[] = [];
   addDistinctQuery(queries, "normalized", normalizedQuery);
   addDistinctQuery(

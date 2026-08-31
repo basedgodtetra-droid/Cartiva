@@ -95,6 +95,26 @@ const REQUIRED_DESCRIPTOR_RULES = [
     label: "organic variety",
   },
   {
+    request: /\bboneless\b/i,
+    product: /\bboneless\b/i,
+    label: "boneless preparation",
+  },
+  {
+    request: /\bskinless\b/i,
+    product: /\bskinless\b/i,
+    label: "skinless preparation",
+  },
+  {
+    request: /\bbone[ -]?in\b/i,
+    product: /\bbone[ -]?in\b/i,
+    label: "bone-in preparation",
+  },
+  {
+    request: /\bskin[ -]?on\b/i,
+    product: /\bskin[ -]?on\b/i,
+    label: "skin-on preparation",
+  },
+  {
     request: /\blemon[\s-]*lime\b/i,
     product: /\blemon[\s-]*lime\b/i,
     label: "lemon lime flavor",
@@ -217,7 +237,7 @@ function stripResidualPackageSyntax(value: string) {
 }
 
 function residualDescriptorIssues(request: string, candidate: string) {
-  let residual = request;
+  let residual = stripFlexibleProteinPreferences(request);
   for (const rule of REQUIRED_DESCRIPTOR_RULES) {
     if (rule.request.test(request)) residual = residual.replace(rule.request, " ");
   }
@@ -257,11 +277,17 @@ export function missingRequestedDescriptors(request: string, product: WalmartPro
     .map((rule) => rule.label);
   const requestedRatio = request.match(/\b(\d{2})\s*[/:-]\s*(\d{1,2})\b/);
   if (requestedRatio) {
-    const ratioPattern = new RegExp(
-      `\\b${requestedRatio[1]}\\s*[/:-]\\s*${requestedRatio[2]}\\b`,
+    const lean = Number(requestedRatio[1]);
+    const fat = Number(requestedRatio[2]);
+    const directRatio = new RegExp(`\\b${lean}\\s*[/:-]\\s*${fat}\\b`, "i");
+    const leanPercent = new RegExp(
+      `(?:\\b${lean}\\s*(?:%|\\bpercent\\b)\\s*lean\\b|\\blean\\b[^\\d]{0,24}\\b${lean}\\s*(?:%|\\bpercent\\b))`,
       "i",
     );
-    if (!ratioPattern.test(candidate)) {
+    const conflictingFat = candidate.match(/\b(\d{1,2})\s*(?:%|percent)\s*fat\b/i);
+    const percentageEquivalent = leanPercent.test(candidate)
+      && (!conflictingFat || Number(conflictingFat[1]) === fat);
+    if (!directRatio.test(candidate) && !percentageEquivalent) {
       missing.push(`${requestedRatio[1]}/${requestedRatio[2]} ratio`);
     }
   }
@@ -380,7 +406,12 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     id: "canned seafood",
     detect: /\b(?:tuna|albacore|canned salmon|canned sardines?)\b/i,
-    exclude: /\b(?:cat|dog|pet)\s+(?:food|treats?)\b/i,
+    exclude: /\b(?:cat|dog|pet)\s+(?:food|treats?)\b|\b(?:tuna|salmon|sardine)\s+(?:salad|pizza|sandwich|dip|spread)\b|\b(?:fish|cod|salmon|tuna)(?:\s+liver)?\s+(?:oil|supplements?|softgels?|capsules?|tablets?)\b/i,
+  },
+  {
+    id: "seafood",
+    detect: /\b(?:fish|salmon|tilapia|cod|catfish|shrimp)\b/i,
+    exclude: /\b(?:cat|dog|pet)\s+(?:food|treats?)\b|\b(?:fish|salmon|shrimp|cod|tuna|tilapia|catfish)(?:\s+liver)?\s+(?:oil|seasoning|flavor|supplements?|softgels?|capsules?|tablets?)\b/i,
   },
   { id: "sports drink", detect: /\b(?:gatorade|sports drinks?)\b/i },
   {
@@ -428,6 +459,8 @@ const CATEGORY_RULES: CategoryRule[] = [
     detect: /\b(?:bread|loaf|buns?|tortillas?)\b/i,
     exclude: /\b(?:bread\s*crumbs?|breaded|bread pudding|stuffing mix)\b/i,
   },
+  { id: "sausage", detect: /\b(?:sausage|bratwurst|brats)\b/i, exclude: /\bsausage\s+(?:seasoning|flavor|pizza|salad|sandwich|dip|spread)\b/i },
+  { id: "turkey", detect: /\bturkey\b/i, exclude: /\bturkey\s+(?:bacon|sausage|seasoning|flavor)\b|\b(?:cat|dog|pet)\s+(?:food|treats?)\b/i },
   { id: "chicken breast", detect: /\bchicken breasts?\b/i },
   {
     id: "chicken",
@@ -491,6 +524,173 @@ export function inferProductCategory(value: string) {
   return matchingCategoryRule(value)?.rule.id;
 }
 
+const FLEXIBLE_PROTEIN_PREFERENCE_PATTERN = /\bany\s+(?:lean(?:\s*\/\s*fat)?\s+ratio|steak\s+cut|cut|bone\s+or\s+skin\s+style|preparation|form|fish|species|raw\s+or\s+cooked|cooking\s+style|shrimp\s+size|size|bacon\s+style|sausage\s+kind|style)\b/gi;
+
+/** Remove UI no-preference markers only where product wording is compared or searched. */
+export function stripFlexibleProteinPreferences(value: string) {
+  return value.replace(FLEXIBLE_PROTEIN_PREFERENCE_PATTERN, " ").replace(/\s+/g, " ").trim();
+}
+
+interface ProteinIdentityValueRule {
+  value: string;
+  pattern: RegExp;
+}
+
+interface ProteinIdentityGroup {
+  attribute: string;
+  values: ProteinIdentityValueRule[];
+}
+
+const PROTEIN_IDENTITY_GROUPS: ProteinIdentityGroup[] = [
+  {
+    attribute: "cut",
+    values: [
+      { value: "breast", pattern: /\bbreasts?\b/i },
+      { value: "thighs", pattern: /\bthighs?\b/i },
+      { value: "drumsticks", pattern: /\bdrumsticks?\b/i },
+      { value: "wings", pattern: /\bwings?\b/i },
+      { value: "tenders", pattern: /\btenders?\b/i },
+    ],
+  },
+  {
+    attribute: "cut",
+    values: [
+      { value: "ribeye", pattern: /\brib[ -]?eyes?\b/i },
+      { value: "new-york-strip", pattern: /\b(?:new\s+york|ny)\s+strip\b/i },
+      { value: "sirloin", pattern: /\bsirloin\b/i },
+      { value: "filet-mignon", pattern: /\bfilet\s+mignon\b/i },
+      { value: "t-bone", pattern: /\bt[ -]?bone\b/i },
+    ],
+  },
+  {
+    attribute: "cut",
+    values: [
+      { value: "chops", pattern: /\bchops?\b/i },
+      { value: "loin", pattern: /\bloin\b/i },
+      { value: "shoulder", pattern: /\bshoulder\b/i },
+      { value: "ribs", pattern: /\bribs?\b/i },
+    ],
+  },
+  {
+    attribute: "form",
+    values: [
+      { value: "ground", pattern: /\bground\b/i },
+      { value: "steak", pattern: /\bsteaks?\b/i },
+      { value: "roast", pattern: /\broasts?\b/i },
+      { value: "stew meat", pattern: /\bstew\s+meat\b/i },
+      { value: "deli", pattern: /\bdeli\b/i },
+      { value: "whole", pattern: /\bwhole\s+(?:chicken|turkey|fish)\b/i },
+    ],
+  },
+  {
+    attribute: "species",
+    values: [
+      { value: "salmon", pattern: /\bsalmon\b/i },
+      { value: "tilapia", pattern: /\btilapia\b/i },
+      { value: "cod", pattern: /\bcod\b/i },
+      { value: "tuna", pattern: /\btuna\b/i },
+      { value: "catfish", pattern: /\bcatfish\b/i },
+      { value: "shrimp", pattern: /\bshrimp\b/i },
+    ],
+  },
+  {
+    attribute: "seafoodForm",
+    values: [
+      { value: "fillet", pattern: /\bfillets?\b/i },
+      { value: "portions", pattern: /\bportions?\b/i },
+      { value: "whole-side", pattern: /\b(?:whole\s+side|salmon\s+side)\b/i },
+    ],
+  },
+  {
+    attribute: "boneStyle",
+    values: [
+      { value: "boneless", pattern: /\bboneless\b/i },
+      { value: "bone-in", pattern: /\bbone[ -]?in\b/i },
+    ],
+  },
+  {
+    attribute: "skinStyle",
+    values: [
+      { value: "skinless", pattern: /\bskinless\b/i },
+      { value: "skin-on", pattern: /\bskin[ -]?on\b/i },
+    ],
+  },
+  {
+    attribute: "cookingState",
+    values: [
+      { value: "raw", pattern: /\braw\b/i },
+      { value: "cooked", pattern: /\b(?:fully\s+)?cooked\b/i },
+    ],
+  },
+  {
+    attribute: "sausageKind",
+    values: [
+      { value: "breakfast", pattern: /\bbreakfast\s+sausage\b/i },
+      { value: "italian", pattern: /\bitalian\s+sausage\b/i },
+      { value: "bratwurst", pattern: /\b(?:bratwurst|brats)\b/i },
+      { value: "smoked", pattern: /\bsmoked\s+sausage\b/i },
+      { value: "chicken", pattern: /\bchicken\s+sausage\b/i },
+    ],
+  },
+  {
+    attribute: "baconStyle",
+    values: [
+      { value: "regular", pattern: /\bregular(?:\s+cut)?\s+bacon\b/i },
+      { value: "thick", pattern: /\bthick[ -]?cut\s+bacon\b/i },
+      { value: "turkey", pattern: /\bturkey\s+bacon\b/i },
+    ],
+  },
+  {
+    attribute: "shrimpSize",
+    values: [
+      { value: "small", pattern: /\bsmall\b/i },
+      { value: "medium", pattern: /\bmedium\b/i },
+      { value: "large", pattern: /\blarge\b/i },
+      { value: "jumbo", pattern: /\bjumbo\b/i },
+    ],
+  },
+];
+
+function proteinRatio(value: string) {
+  const direct = value.match(/\b(\d{2})\s*[/:-]\s*(\d{1,2})\b/i);
+  if (direct && Number(direct[1]) + Number(direct[2]) === 100) {
+    return `${Number(direct[1])}/${Number(direct[2])}`;
+  }
+  const lean = value.match(/\b(\d{2})\s*(?:%|percent)(?:\s+lean)?\b/i);
+  return lean ? `${Number(lean[1])}/${100 - Number(lean[1])}` : undefined;
+}
+
+/** Retailer metadata may fill a blank title, but it may never override a contradictory title. */
+export function productTitleConflictsWithProteinConstraint(
+  title: string,
+  attribute: string,
+  value: string,
+) {
+  if (attribute === "leanRatio") {
+    const observed = proteinRatio(title);
+    return Boolean(observed && observed !== value);
+  }
+  return PROTEIN_IDENTITY_GROUPS
+    .filter((group) => group.attribute === attribute && group.values.some((item) => item.value === value))
+    .some((group) => {
+      const matches = group.values.filter((item) => item.pattern.test(title));
+      return matches.length > 0 && matches.some((item) => item.value !== value);
+    });
+}
+
+function proteinIdentityConflicts(request: string, title: string) {
+  return PROTEIN_IDENTITY_GROUPS.some((group) => {
+    const requested = group.values.filter((item) => item.pattern.test(request));
+    if (!requested.length) return false;
+    const offered = group.values.filter((item) => item.pattern.test(title));
+    if (!offered.length) return false;
+    const requestedValues = new Set(requested.map((item) => item.value));
+    return offered.some((item) => !requestedValues.has(item.value));
+  });
+}
+
+const PROTEIN_NON_GROCERY_SIGNAL = /\b(?:supplements?|softgels?|capsules?|tablets?|vitamins?|omega[ -]?3|protein\s+powder)\b|\b(?:fish|cod|salmon|tuna)(?:\s+liver)?\s+oil\b/i;
+
 /** Pet products are a separate shopper identity even when their ingredient is human food. */
 const PET_PRODUCT_SIGNAL = /\b(?:dog|cat|pet)\s+(?:foods?|treats?|snacks?|chews?|biscuits?|jerky|toppers?)\b|\bfor\s+(?:dogs?|cats?|pets?)\b/i;
 
@@ -510,6 +710,14 @@ export function productTypeMatchesRequest(request: string, product: WalmartProdu
   if (PRODUCT_ACCESSORY_SIGNAL.test(request) !== PRODUCT_ACCESSORY_SIGNAL.test(candidateText)) {
     return false;
   }
+  if (
+    MEAT_CATEGORIES.has(requestedType)
+    && !PROTEIN_NON_GROCERY_SIGNAL.test(request)
+    && PROTEIN_NON_GROCERY_SIGNAL.test(product.title)
+  ) {
+    return false;
+  }
+  if (proteinIdentityConflicts(request, product.title)) return false;
   const candidateType = inferProductCategory(candidateText);
   if (requestedType === "chicken" && candidateType === "chicken breast") return true;
   if (requestedType === "yogurt" && candidateType === "Greek yogurt") return true;
@@ -653,8 +861,13 @@ interface MeatPreparationRule {
 }
 
 const MEAT_CATEGORIES = new Set([
+  "bacon",
+  "canned seafood",
   "chicken breast",
   "chicken",
+  "turkey",
+  "sausage",
+  "seafood",
   "ground beef",
   "beef",
   "pork",
@@ -669,8 +882,14 @@ const MEAT_PREPARATION_RULES: MeatPreparationRule[] = [
   { id: "tenders", label: "tenders or strips", pattern: /\b(?:tenders?|tenderloins?|strips?)\b/i },
   { id: "breaded", label: "breaded", pattern: /\b(?:breaded|battered)\b/i },
   { id: "cooked", label: "pre-cooked", pattern: /\b(?:fully\s+cooked|pre[ -]?cooked|ready[ -]?to[ -]?eat|rotisserie|grilled|fried)\b/i },
+  { id: "smoked", label: "smoked", pattern: /\bsmoked\b/i },
+  { id: "canned", label: "canned", pattern: /\b(?:canned|in a can)\b/i },
   { id: "seasoned", label: "seasoned or marinated", pattern: /\b(?:seasoned|marinated)\b/i },
-  { id: "prepared-meal", label: "prepared meal", pattern: /\b(?:prepared\s+meal|dinner|sandwich|deli)\b/i },
+  { id: "pizza", label: "pizza", pattern: /\bpizzas?\b/i },
+  { id: "salad", label: "salad", pattern: /\bsalads?\b/i },
+  { id: "supplement", label: "supplement", pattern: /\b(?:supplements?|softgels?|capsules?|tablets?|vitamins?|omega[ -]?3)\b/i },
+  { id: "oil", label: "oil", pattern: /\b(?:fish|cod|salmon|tuna)(?:\s+liver)?\s+oil\b/i },
+  { id: "prepared-meal", label: "prepared meal", pattern: /\b(?:prepared\s+meal|dinner|sandwich|deli|casserole|meal\s+kit|dip|spread)\b/i },
 ];
 
 function assessMeatPreparation(
@@ -680,15 +899,28 @@ function assessMeatPreparation(
   const requestedCategory = inferProductCategory(request);
   if (!requestedCategory || !MEAT_CATEGORIES.has(requestedCategory)) return undefined;
 
-  const candidate = `${product.productType ?? ""} ${product.title}`;
+  // Shopper-facing title wins over broad or contradictory retailer taxonomy.
+  // Product type can confirm an otherwise generic title, but must never hide a
+  // prepared meal or non-food product named in the title.
+  const candidate = product.title;
   const requestedFeatures = MEAT_PREPARATION_RULES.filter((rule) => rule.pattern.test(request));
   const candidateFeatures = MEAT_PREPARATION_RULES.filter((rule) => rule.pattern.test(candidate));
 
-  if (!requestedFeatures.length && candidateFeatures.length) {
+  const allowsAnyCookingState = /\bany\s+(?:raw\s+or\s+cooked|cooking\s+style)\b/i.test(request);
+  const allowsAnyStyle = /\bany\s+(?:bacon\s+style|sausage\s+kind|style)\b/i.test(request);
+  const unrequestedCandidateFeatures = candidateFeatures.filter((feature) => {
+    if (requestedFeatures.some((requested) => requested.id === feature.id)) return false;
+    if (requestedCategory === "canned seafood" && feature.id === "canned") return false;
+    if (allowsAnyCookingState && feature.id === "cooked") return false;
+    if (allowsAnyStyle && feature.id === "smoked") return false;
+    return true;
+  });
+
+  if (unrequestedCandidateFeatures.length) {
     return {
       rejected: true,
       scoreAdjustment: 0,
-      reasons: [`unrequested meat preparation (${candidateFeatures.map((rule) => rule.label).join(", ")})`],
+      reasons: [`unrequested meat preparation (${unrequestedCandidateFeatures.map((rule) => rule.label).join(", ")})`],
     };
   }
 

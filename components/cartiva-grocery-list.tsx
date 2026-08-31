@@ -28,7 +28,7 @@ interface CartivaGroceryListProps {
 function categoryFor(item: GroceryNotepadItem) {
   const value = item.raw.toLowerCase();
   if (/egg|milk|yogurt|cheese|butter/.test(value)) return "Dairy & eggs";
-  if (/chicken|beef|pork|bacon|turkey|meat|fish|salmon/.test(value)) return "Meat & seafood";
+  if (/chicken|beef|pork|bacon|sausage|turkey|meat|fish|salmon|tilapia|cod|catfish|shrimp|seafood/.test(value)) return "Meat & seafood";
   if (/bread|bagel|tortilla|bun|muffin/.test(value)) return "Bakery";
   if (/coke|cola|pepsi|soda|water|juice|coffee|tea/.test(value)) return "Beverages";
   if (/apple|banana|berry|berries|broccoli|lettuce|tomato|onion|produce|fruit|vegetable/.test(value)) return "Produce";
