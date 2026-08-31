@@ -15,6 +15,7 @@ import type {
   CartivaLocation,
   ComparisonState,
 } from "@/components/cartiva-workspace-types";
+import { getCompareReadiness } from "@/lib/cartiva-workspace-readiness";
 import styles from "@/components/cartiva-workspace.module.css";
 
 const WORKSPACE_KEY = "cartiva-web-workspace-v1";
@@ -66,10 +67,14 @@ export function CartivaWorkspace() {
 
   const interpretation = useMemo(() => interpretGroceryInput(rawInput), [rawInput]);
   const selectedLocation = locations.find((location) => location.locationId === selectedLocationId);
-  const canCompare = interpretation.items.length > 0
-    && interpretation.unresolvedCount === 0
-    && !interpretation.limitReached
-    && /^\d{5}$/.test(zipInput);
+  const readiness = getCompareReadiness({
+    itemCount: interpretation.items.length,
+    unresolvedCount: interpretation.unresolvedCount,
+    limitReached: interpretation.limitReached,
+    zipInput,
+    resolvedZip: zipCode,
+    selectedLocationId,
+  });
 
   useEffect(() => {
     try {
@@ -101,6 +106,24 @@ export function CartivaWorkspace() {
       fulfillmentMode,
     } satisfies StoredWorkspace));
   }, [fulfillmentMode, hydrated, quantities, rawInput, zipInput]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    console.info("[Cartiva] Compare readiness", {
+      items: interpretation.items.length,
+      zipValid: readiness.zipValid,
+      storeSelected: readiness.storeSelected,
+      clarifications: readiness.clarificationsRemaining,
+      canCompare: readiness.canCompare,
+    });
+  }, [
+    hydrated,
+    interpretation.items.length,
+    readiness.canCompare,
+    readiness.clarificationsRemaining,
+    readiness.storeSelected,
+    readiness.zipValid,
+  ]);
 
   const invalidateComparison = () => {
     setComparison(initialComparison);
@@ -152,21 +175,26 @@ export function CartivaWorkspace() {
     }
     setLocationBusy(true);
     try {
+      console.info("[Cartiva] Location request", { sent: true, zipValid: true });
       const response = await fetch("/api/kroger/locations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ zipCode: requestedZip }),
       });
+      console.info("[Cartiva] Location response", { status: response.status, ok: response.ok });
       if (!response.ok) throw new Error(await responseError(response, "Kroger store lookup failed."));
       const body = await response.json() as { locations?: CartivaLocation[] };
       const nextLocations = Array.isArray(body.locations) ? body.locations : [];
-      if (!nextLocations.length) throw new Error("No Kroger-family stores were found within 20 miles of that ZIP.");
+      if (!nextLocations.length) {
+        throw new Error("We couldn't find a participating Kroger-family store near this ZIP.");
+      }
       const nextSelected = nextLocations.find((location) => location.locationId === selectedLocationId)
         ?? nextLocations[0];
       setZipCode(requestedZip);
       setLocations(nextLocations);
       setSelectedLocationId(nextSelected.locationId);
       setCart(initialCart);
+      console.info("[Cartiva] Selected location", { selected: true });
       return nextSelected;
     } finally {
       setLocationBusy(false);
@@ -222,6 +250,11 @@ export function CartivaWorkspace() {
         quantity: quantities[item.id] ?? 1,
         requestedItemId: item.id,
       }));
+      console.info("[Cartiva] Comparison request", {
+        sent: true,
+        itemCount: requestItems.length,
+        storeSelected: true,
+      });
       const response = await fetch("/api/kroger/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -233,6 +266,7 @@ export function CartivaWorkspace() {
           fulfillmentMode,
         }),
       });
+      console.info("[Cartiva] Comparison response", { sent: true, status: response.status, ok: response.ok });
       if (!response.ok) throw new Error(await responseError(response, "Kroger comparison failed."));
       if (!response.body) throw new Error("Kroger comparison returned no results.");
 
@@ -414,11 +448,16 @@ export function CartivaWorkspace() {
       itemCount={interpretation.items.length}
       zipCode={zipCode}
       zipInput={zipInput}
-      locationLabel={selectedLocation ? `${selectedLocation.chain} ${selectedLocation.name}` : undefined}
+      locationLabel={selectedLocation?.name}
       locationBusy={locationBusy}
       onZipInput={(value) => {
         setZipInput(value);
-        if (value !== zipCode) invalidateComparison();
+        if (value !== zipCode) {
+          setZipCode("");
+          setLocations([]);
+          setSelectedLocationId("");
+          invalidateComparison();
+        }
       }}
       onFindLocation={findLocation}
       onNewList={newList}
@@ -436,7 +475,8 @@ export function CartivaWorkspace() {
             selectedLocationId={selectedLocationId}
             fulfillmentMode={fulfillmentMode}
             comparisonPhase={comparison.phase}
-            canCompare={canCompare}
+            canCompare={readiness.canCompare}
+            compareHint={readiness.reason}
             onAdd={addItems}
             onEdit={editItem}
             onRemove={removeItem}

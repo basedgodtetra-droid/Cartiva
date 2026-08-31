@@ -14,6 +14,7 @@ interface CartivaGroceryListProps {
   fulfillmentMode: "pickup" | "delivery";
   comparisonPhase: ComparisonPhase;
   canCompare: boolean;
+  compareHint: string;
   onAdd: (value: string) => void;
   onEdit: (index: number, value: string) => void;
   onRemove: (index: number) => void;
@@ -52,6 +53,7 @@ export function CartivaGroceryList({
   fulfillmentMode,
   comparisonPhase,
   canCompare,
+  compareHint,
   onAdd,
   onEdit,
   onRemove,
@@ -234,9 +236,9 @@ export function CartivaGroceryList({
 
       <div className={styles.compareAction}>
         <button type="button" className={styles.primaryButton} onClick={onCompare} disabled={!canCompare || busy}>
-          {comparisonPhase === "finding-store" ? "Finding a nearby store…" : comparisonPhase === "searching" ? "Comparing Kroger basket…" : "Compare basket"}
+          {comparisonPhase === "finding-store" ? "Finding stores…" : comparisonPhase === "searching" ? "Comparing Kroger basket…" : "Compare basket"}
         </button>
-        <p>{items.some((item) => item.status === "needs-detail") ? "Choose the missing details before comparing" : "Real Kroger results are usually ready in 8–15 seconds"}</p>
+        <p role="status" aria-live="polite">{busy ? "Real Kroger results are usually ready in 8–15 seconds." : compareHint}</p>
       </div>
     </section>
   );

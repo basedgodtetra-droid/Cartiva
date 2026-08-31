@@ -91,9 +91,10 @@ export function CartivaShell({
                 onChange={(event) => onZipInput(event.target.value.replace(/\D/g, "").slice(0, 5))}
                 placeholder="ZIP code"
                 aria-describedby="location-summary"
+                aria-invalid={Boolean(zipInput) && !/^\d{5}$/.test(zipInput)}
               />
               <button type="submit" disabled={locationBusy || !/^\d{5}$/.test(zipInput)}>
-                {locationBusy ? "Finding…" : zipCode === zipInput && locationLabel ? "Change" : "Find"}
+                {locationBusy ? "Finding stores…" : zipCode === zipInput && locationLabel ? "Change" : "Find"}
               </button>
             </form>
             <button type="button" className={styles.newListButton} onClick={onNewList}>New list</button>
