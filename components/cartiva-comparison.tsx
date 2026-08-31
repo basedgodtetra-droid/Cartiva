@@ -1,4 +1,4 @@
-import { AlertCircle, Check, ChevronRight, CircleDashed, ExternalLink, PackageCheck, RefreshCw, Store } from "lucide-react";
+import { AlertCircle, Bookmark, Check, ChevronRight, CircleDashed, ExternalLink, PackageCheck, RefreshCw, Store } from "lucide-react";
 import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
 import type { CartState, CartivaLocation, ComparisonState } from "@/components/cartiva-workspace-types";
 import styles from "@/components/cartiva-workspace.module.css";
@@ -10,15 +10,17 @@ interface CartivaComparisonProps {
   selectedLocation?: CartivaLocation;
   fulfillmentMode: "pickup" | "delivery";
   cart: CartState;
+  basketSaved: boolean;
   onChangeStore: () => void;
   onRetry: () => void;
+  onSaveBasket?: () => void;
   onAddToKroger: () => void;
 }
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 function itemPrice(price: number, quantity: number) {
-  return money.format(price * quantity);
+  return money.format((Math.round(price * 100) * quantity) / 100);
 }
 
 function checkedTime(value?: string) {
@@ -36,16 +38,18 @@ export function CartivaComparison({
   selectedLocation,
   fulfillmentMode,
   cart,
+  basketSaved,
   onChangeStore,
   onRetry,
+  onSaveBasket,
   onAddToKroger,
 }: CartivaComparisonProps) {
   const matchedCount = comparison.results.filter((result) => result?.status === "matched" && result.recommended).length;
   const complete = items.length > 0 && matchedCount === items.length && comparison.phase === "complete";
   const cartReady = complete && comparison.results.every((result) => result?.recommended?.cartEligible && result.recommended.upc);
-  const subtotal = comparison.results.reduce((sum, result, index) => {
+  const subtotalCents = comparison.results.reduce((sum, result, index) => {
     const product = result?.status === "matched" ? result.recommended : null;
-    return sum + (product?.price ?? 0) * (quantities[items[index]?.id] ?? 1);
+    return sum + Math.round((product?.price ?? 0) * 100) * (quantities[items[index]?.id] ?? 1);
   }, 0);
   const hasResults = comparison.results.some(Boolean);
   const busy = comparison.phase === "searching" || comparison.phase === "finding-store";
@@ -65,7 +69,7 @@ export function CartivaComparison({
             <span><strong>Kroger</strong><small>{selectedLocation?.name ?? "Nearby store"}</small></span>
             <em>Selected</em>
           </div>
-          <strong className={styles.retailerPrice}>{complete ? money.format(subtotal) : "—"}</strong>
+          <strong className={styles.retailerPrice}>{complete ? money.format(subtotalCents / 100) : "—"}</strong>
           <p className={complete ? styles.completeText : styles.mutedStatus}>
             {busy ? <><RefreshCw className={styles.spin} aria-hidden="true" /> {comparison.completedItems} / {items.length} checked</>
               : complete ? <><Check aria-hidden="true" /> {matchedCount} / {items.length} matched</>
@@ -155,7 +159,7 @@ export function CartivaComparison({
         <div className={styles.subtotalPanel}>
           <div className={styles.subtotalLine}>
             <span>Product subtotal</span>
-            <strong>{complete ? money.format(subtotal) : "—"}</strong>
+            <strong>{complete ? money.format(subtotalCents / 100) : "—"}</strong>
           </div>
           <p>Taxes, fees, substitutions, and final availability are confirmed at Kroger.</p>
 
@@ -164,6 +168,18 @@ export function CartivaComparison({
           ) : null}
           {cart.phase === "success" ? (
             <div className={styles.cartNotice} data-tone="success"><Check aria-hidden="true" /><span>{cart.message}</span></div>
+          ) : null}
+
+          {complete && onSaveBasket ? (
+            <button
+              type="button"
+              className={styles.saveBasketButton}
+              onClick={onSaveBasket}
+              disabled={basketSaved}
+            >
+              {basketSaved ? <Check aria-hidden="true" /> : <Bookmark aria-hidden="true" />}
+              {basketSaved ? "Basket saved" : "Save this basket"}
+            </button>
           ) : null}
 
           {cart.phase === "success" && cart.cartUrl ? (

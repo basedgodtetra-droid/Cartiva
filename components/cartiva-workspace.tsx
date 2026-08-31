@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   applyGroceryClarification,
   interpretGroceryInput,
@@ -9,13 +9,20 @@ import {
 import type { KrogerMatchResult, KrogerSearchStreamEvent } from "@/lib/types";
 import { CartivaComparison } from "@/components/cartiva-comparison";
 import { CartivaGroceryList } from "@/components/cartiva-grocery-list";
+import { useCartivaLibrary } from "@/components/cartiva-library-provider";
 import { CartivaShell } from "@/components/cartiva-shell";
+import { CartivaUtilityRail } from "@/components/cartiva-utility-rail";
 import type {
   CartState,
   CartivaLocation,
   ComparisonState,
 } from "@/components/cartiva-workspace-types";
 import { getCompareReadiness } from "@/lib/cartiva-workspace-readiness";
+import {
+  buildCartivaComparisonRecord,
+  type CartivaComparisonRecord,
+  type CartivaListSnapshot,
+} from "@/lib/cartiva-library";
 import styles from "@/components/cartiva-workspace.module.css";
 
 const WORKSPACE_KEY = "cartiva-web-workspace-v1";
@@ -31,6 +38,13 @@ interface StoredWorkspace {
   zipCode?: string;
   quantities?: Record<string, number>;
   fulfillmentMode?: "pickup" | "delivery";
+  listName?: string;
+  activeListId?: string;
+}
+
+interface CartivaWorkspaceProps {
+  loadListId?: string;
+  loadBasketId?: string;
 }
 
 function replaceItem(items: GroceryNotepadItem[], index: number, value: string | null) {
@@ -52,7 +66,15 @@ function wait(milliseconds: number) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
-export function CartivaWorkspace() {
+export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceProps = {}) {
+  const {
+    state: library,
+    hydrated: libraryHydrated,
+    saveList,
+    recordComparison: saveComparisonHistory,
+    saveBasket,
+    recordCartAdded,
+  } = useCartivaLibrary();
   const [rawInput, setRawInput] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [zipInput, setZipInput] = useState("");
@@ -64,9 +86,32 @@ export function CartivaWorkspace() {
   const [cart, setCart] = useState<CartState>(initialCart);
   const [locationBusy, setLocationBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [listName, setListName] = useState("Weekly groceries");
+  const [activeListId, setActiveListId] = useState<string>();
+  const [lastComparisonRecord, setLastComparisonRecord] = useState<CartivaComparisonRecord | null>(null);
+  const comparisonRunRef = useRef(0);
+  const loadedRequestRef = useRef("");
 
   const interpretation = useMemo(() => interpretGroceryInput(rawInput), [rawInput]);
   const selectedLocation = locations.find((location) => location.locationId === selectedLocationId);
+  const currentSnapshot: CartivaListSnapshot = {
+    rawInput,
+    quantities,
+    fulfillmentMode,
+    zipCode: zipInput,
+  };
+  const activeSavedList = activeListId
+    ? library.lists.find((list) => list.id === activeListId)
+    : undefined;
+  const normalizedListName = listName.replace(/\s+/g, " ").trim() || "Untitled list";
+  const listSaved = Boolean(
+    activeSavedList
+    && activeSavedList.name === normalizedListName
+    && activeSavedList.rawInput === currentSnapshot.rawInput
+    && activeSavedList.fulfillmentMode === currentSnapshot.fulfillmentMode
+    && activeSavedList.zipCode === currentSnapshot.zipCode
+    && JSON.stringify(activeSavedList.quantities) === JSON.stringify(currentSnapshot.quantities),
+  );
   const readiness = getCompareReadiness({
     itemCount: interpretation.items.length,
     unresolvedCount: interpretation.unresolvedCount,
@@ -89,6 +134,8 @@ export function CartivaWorkspace() {
         if (value.fulfillmentMode === "pickup" || value.fulfillmentMode === "delivery") {
           setFulfillmentMode(value.fulfillmentMode);
         }
+        if (typeof value.listName === "string") setListName(value.listName.slice(0, 80));
+        if (typeof value.activeListId === "string") setActiveListId(value.activeListId);
       }
     } catch {
       window.localStorage.removeItem(WORKSPACE_KEY);
@@ -104,8 +151,45 @@ export function CartivaWorkspace() {
       zipCode: zipInput,
       quantities,
       fulfillmentMode,
+      listName,
+      activeListId,
     } satisfies StoredWorkspace));
-  }, [fulfillmentMode, hydrated, quantities, rawInput, zipInput]);
+  }, [activeListId, fulfillmentMode, hydrated, listName, quantities, rawInput, zipInput]);
+
+  useEffect(() => {
+    if (!hydrated || !libraryHydrated) return;
+    const requestKey = loadListId
+      ? `list:${loadListId}`
+      : loadBasketId
+        ? `basket:${loadBasketId}`
+        : "";
+    if (!requestKey || loadedRequestRef.current === requestKey) return;
+    loadedRequestRef.current = requestKey;
+
+    const savedList = loadListId ? library.lists.find((list) => list.id === loadListId) : undefined;
+    const savedBasket = loadBasketId ? library.baskets.find((basket) => basket.id === loadBasketId) : undefined;
+    const snapshot = savedList ?? savedBasket?.listSnapshot;
+    if (!snapshot) {
+      setComparison({ ...initialComparison, phase: "error", message: "That saved Cartiva item is no longer available on this device." });
+      return;
+    }
+
+    comparisonRunRef.current += 1;
+    setRawInput(snapshot.rawInput);
+    setQuantities({ ...snapshot.quantities });
+    setFulfillmentMode(snapshot.fulfillmentMode);
+    setZipInput(snapshot.zipCode);
+    setZipCode("");
+    setLocations([]);
+    setSelectedLocationId("");
+    setListName(savedList?.name ?? savedBasket?.listName ?? "Weekly groceries");
+    setActiveListId(savedList?.id ?? (savedBasket?.listId && library.lists.some((list) => list.id === savedBasket.listId)
+      ? savedBasket.listId
+      : undefined));
+    setLastComparisonRecord(null);
+    setComparison(initialComparison);
+    setCart(initialCart);
+  }, [hydrated, library.baskets, library.lists, libraryHydrated, loadBasketId, loadListId]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -126,8 +210,21 @@ export function CartivaWorkspace() {
   ]);
 
   const invalidateComparison = () => {
+    comparisonRunRef.current += 1;
     setComparison(initialComparison);
     setCart(initialCart);
+    setLastComparisonRecord(null);
+  };
+
+  const saveCurrentList = () => {
+    const id = saveList({
+      id: activeListId,
+      name: normalizedListName,
+      snapshot: currentSnapshot,
+      itemCount: interpretation.items.length,
+    });
+    setListName(normalizedListName);
+    setActiveListId(id);
   };
 
   const updateRawInput = (value: string) => {
@@ -215,8 +312,25 @@ export function CartivaWorkspace() {
     }
   };
 
-  const runComparison = async (): Promise<{ results: KrogerMatchResult[]; location: CartivaLocation } | null> => {
+  const runComparison = async (): Promise<{
+    results: KrogerMatchResult[];
+    location: CartivaLocation;
+    comparisonRecord: CartivaComparisonRecord | null;
+  } | null> => {
+    const runId = comparisonRunRef.current + 1;
+    comparisonRunRef.current = runId;
     const currentInterpretation = interpretGroceryInput(rawInput);
+    const runQuantities = Object.fromEntries(
+      currentInterpretation.items.map((item) => [item.id, quantities[item.id] ?? 1]),
+    );
+    const runListSnapshot: CartivaListSnapshot = {
+      rawInput,
+      quantities: runQuantities,
+      fulfillmentMode,
+      zipCode: zipInput,
+    };
+    const runListName = normalizedListName;
+    const runListId = activeListId;
     if (!currentInterpretation.items.length) {
       setComparison({ ...initialComparison, phase: "error", message: "Add at least one grocery item first." });
       return null;
@@ -243,11 +357,12 @@ export function CartivaWorkspace() {
       const location = selectedLocation && zipCode === zipInput
         ? selectedLocation
         : await loadLocations(zipInput);
+      if (comparisonRunRef.current !== runId) return null;
       setComparison((current) => ({ ...current, phase: "searching", message: `Checking ${location.name}…` }));
 
       const requestItems = currentInterpretation.items.map((item) => ({
         text: item.canonicalText,
-        quantity: quantities[item.id] ?? 1,
+        quantity: runQuantities[item.id] ?? 1,
         requestedItemId: item.id,
       }));
       console.info("[Cartiva] Comparison request", {
@@ -278,7 +393,7 @@ export function CartivaWorkspace() {
       let checkedAt: string | undefined;
 
       const acceptLine = (line: string) => {
-        if (!line.trim()) return;
+        if (!line.trim() || comparisonRunRef.current !== runId) return;
         const event = JSON.parse(line) as KrogerSearchStreamEvent;
         checkedAt = event.checkedAt;
         if (event.type !== "item") return;
@@ -295,6 +410,10 @@ export function CartivaWorkspace() {
 
       while (true) {
         const { done, value } = await reader.read();
+        if (comparisonRunRef.current !== runId) {
+          await reader.cancel();
+          return null;
+        }
         buffered += decoder.decode(value, { stream: !done });
         const lines = buffered.split("\n");
         buffered = lines.pop() ?? "";
@@ -313,18 +432,37 @@ export function CartivaWorkspace() {
         explanation: "Kroger did not return a verified result for this item.",
       });
       const matched = finalResults.filter((result) => result.status === "matched" && result.recommended).length;
+      const finalCheckedAt = checkedAt ?? new Date().toISOString();
       setComparison({
         phase: "complete",
         results: finalResults,
         completedItems: finalResults.length,
-        checkedAt: checkedAt ?? new Date().toISOString(),
+        checkedAt: finalCheckedAt,
         message: matched === finalResults.length
           ? `All ${matched} items matched at ${location.name}.`
           : `${matched} of ${finalResults.length} items matched. A total is hidden until the basket is complete.`,
       });
       setCart(initialCart);
-      return { results: finalResults, location };
+      const comparisonRecord = buildCartivaComparisonRecord({
+        listId: runListId,
+        listName: runListName,
+        listSnapshot: runListSnapshot,
+        items: currentInterpretation.items,
+        quantities: runQuantities,
+        results: finalResults,
+        location,
+        fulfillmentMode,
+        observedAt: finalCheckedAt,
+      });
+      if (comparisonRecord) {
+        setLastComparisonRecord(comparisonRecord);
+        saveComparisonHistory(comparisonRecord);
+      } else {
+        setLastComparisonRecord(null);
+      }
+      return { results: finalResults, location, comparisonRecord };
     } catch (error) {
+      if (comparisonRunRef.current !== runId) return null;
       setComparison((current) => ({
         ...current,
         phase: "error",
@@ -406,6 +544,7 @@ export function CartivaWorkspace() {
       const operationId = `cartiva_${crypto.randomUUID().replace(/-/g, "")}`;
       let activeResults = comparison.results.filter((result): result is KrogerMatchResult => Boolean(result));
       let activeLocation = selectedLocation;
+      let activityRecord = lastComparisonRecord;
       let cartResponse = await postCart(activeResults, activeLocation.locationId, operationId);
 
       if (cartResponse.status === 409) {
@@ -413,6 +552,7 @@ export function CartivaWorkspace() {
         if (!refreshed) throw new Error("Cartiva could not refresh the Kroger matches before handoff.");
         activeResults = refreshed.results;
         activeLocation = refreshed.location;
+        activityRecord = refreshed.comparisonRecord;
         setCart({ phase: "adding", message: "Matches refreshed. Adding the verified items to Kroger…" });
         cartResponse = await postCart(activeResults, activeLocation.locationId, operationId);
       }
@@ -423,6 +563,13 @@ export function CartivaWorkspace() {
         cartUrl: receipt.cartUrl,
         message: receipt.message ?? `${receipt.addedCount ?? interpretation.items.length} items were accepted by Kroger.`,
       });
+      if (activityRecord) {
+        recordCartAdded({
+          comparisonId: activityRecord.id,
+          itemCount: activityRecord.itemCount,
+          retailerLabel: activityRecord.retailerLabel,
+        });
+      }
       if (receipt.cartUrl) window.open(receipt.cartUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       authWindow?.close();
@@ -434,6 +581,10 @@ export function CartivaWorkspace() {
     if (rawInput.trim() && !window.confirm("Start a new list? This clears the groceries in this workspace.")) return;
     setRawInput("");
     setQuantities({});
+    setListName("Untitled list");
+    setActiveListId(undefined);
+    comparisonRunRef.current += 1;
+    setLastComparisonRecord(null);
     setComparison(initialComparison);
     setCart(initialCart);
   };
@@ -448,8 +599,12 @@ export function CartivaWorkspace() {
       itemCount={interpretation.items.length}
       zipCode={zipCode}
       zipInput={zipInput}
+      listName={listName}
       locationLabel={selectedLocation?.name}
       locationBusy={locationBusy}
+      listSaved={listSaved}
+      onListName={(value) => setListName(value)}
+      onSaveList={saveCurrentList}
       onZipInput={(value) => {
         setZipInput(value);
         if (value !== zipCode) {
@@ -463,40 +618,47 @@ export function CartivaWorkspace() {
       onNewList={newList}
     >
       <main className={styles.workspace} id="main-content">
-        <div className={styles.pageIntro}>
-          <h2>Your list, compared as one cart</h2>
-          <p>Real store totals appear only when every requested item has a trustworthy match.</p>
-        </div>
-        <div className={styles.workspaceGrid}>
-          <CartivaGroceryList
-            items={interpretation.items}
-            quantities={quantities}
-            locations={locations}
-            selectedLocationId={selectedLocationId}
-            fulfillmentMode={fulfillmentMode}
-            comparisonPhase={comparison.phase}
-            canCompare={readiness.canCompare}
-            compareHint={readiness.reason}
-            onAdd={addItems}
-            onEdit={editItem}
-            onRemove={removeItem}
-            onQuantity={updateQuantity}
-            onClarify={clarifyItem}
-            onLocation={selectLocation}
-            onFulfillment={selectFulfillment}
-            onCompare={runComparison}
-          />
-          <CartivaComparison
-            items={interpretation.items}
-            quantities={quantities}
-            comparison={comparison}
-            selectedLocation={selectedLocation}
-            fulfillmentMode={fulfillmentMode}
-            cart={cart}
-            onChangeStore={changeStore}
-            onRetry={runComparison}
-            onAddToKroger={addToKroger}
-          />
+        <div className={styles.workspaceLayout}>
+          <div className={styles.primaryWorkspace}>
+            <div className={styles.pageIntro}>
+              <h2>Your list, compared as one cart</h2>
+              <p>Real store totals appear only when every requested item has a trustworthy match.</p>
+            </div>
+            <div className={styles.workspaceGrid}>
+              <CartivaGroceryList
+                items={interpretation.items}
+                quantities={quantities}
+                locations={locations}
+                selectedLocationId={selectedLocationId}
+                fulfillmentMode={fulfillmentMode}
+                comparisonPhase={comparison.phase}
+                canCompare={readiness.canCompare}
+                compareHint={readiness.reason}
+                onAdd={addItems}
+                onEdit={editItem}
+                onRemove={removeItem}
+                onQuantity={updateQuantity}
+                onClarify={clarifyItem}
+                onLocation={selectLocation}
+                onFulfillment={selectFulfillment}
+                onCompare={runComparison}
+              />
+              <CartivaComparison
+                items={interpretation.items}
+                quantities={quantities}
+                comparison={comparison}
+                selectedLocation={selectedLocation}
+                fulfillmentMode={fulfillmentMode}
+                cart={cart}
+                basketSaved={Boolean(lastComparisonRecord && library.baskets.some((basket) => basket.id === lastComparisonRecord.id))}
+                onChangeStore={changeStore}
+                onRetry={runComparison}
+                onSaveBasket={lastComparisonRecord?.complete ? () => saveBasket(lastComparisonRecord) : undefined}
+                onAddToKroger={addToKroger}
+              />
+            </div>
+          </div>
+          <CartivaUtilityRail />
         </div>
       </main>
     </CartivaShell>

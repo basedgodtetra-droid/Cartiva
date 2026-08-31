@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { CartivaLibraryProvider } from "@/components/cartiva-library-provider";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
 
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={inter.variable}>{children}</body>
+      <body className={inter.variable}><CartivaLibraryProvider>{children}</CartivaLibraryProvider></body>
     </html>
   );
 }

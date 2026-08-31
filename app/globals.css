@@ -11,7 +11,7 @@
   --accent-lime: #ccec72;
   --signal: #d8f38f;
   --surface-cream: #fbf8ef;
-  --font-cartiva: system-ui, "Segoe UI Variable", "Inter", "Geist", "Manrope", "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-cartiva: var(--font-cartiva-inter), Inter, Arial, Helvetica, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --glass-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --spring-ease: cubic-bezier(0.2, 0.9, 0.2, 1.15);
   --shadow-emerald: rgba(3, 67, 43, 0.16);
@@ -2028,5 +2028,290 @@ summary {
   .glass-chip {
     border-color: rgba(23, 79, 56, 0.5);
     background: rgba(255, 255, 255, 0.94);
+  }
+}
+
+.cartiva-footer {
+  border-top: 1px solid #dce3de;
+  background: #f5f6f3;
+  color: #26332c;
+}
+
+.cartiva-footer__main {
+  display: grid;
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(430px, 1fr);
+  gap: 56px;
+  padding: 38px 0 30px;
+}
+
+.cartiva-footer__brand > a {
+  display: inline-flex;
+  color: #17231d;
+  text-decoration: none;
+}
+
+.cartiva-footer__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.cartiva-footer__mark {
+  width: 30px;
+  height: 30px;
+  color: #087f60;
+}
+
+.cartiva-footer__brand p {
+  max-width: 360px;
+  margin: 14px 0 0;
+  color: #657169;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.cartiva-footer__links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.cartiva-footer__links nav {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cartiva-footer__links h2 {
+  margin: 0 0 3px;
+  color: #26332c;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cartiva-footer__links a {
+  color: #657169;
+  font-size: 12px;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.cartiva-footer__links a:hover {
+  color: #087f60;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cartiva-footer a:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid rgba(77, 91, 84, 0.35);
+  outline-offset: 3px;
+}
+
+.cartiva-footer__fineprint {
+  display: flex;
+  width: min(1180px, calc(100% - 48px));
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  border-top: 1px solid #dce3de;
+  margin: 0 auto;
+  padding: 18px 0 24px;
+  color: #78827c;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cartiva-footer__fineprint p {
+  max-width: 720px;
+  margin: 0;
+}
+
+.cartiva-info {
+  min-height: 100vh;
+  background: #f7f7f2;
+  color: #17231d;
+}
+
+.cartiva-info__bar {
+  border-bottom: 1px solid #dde4df;
+  background: #fff;
+}
+
+.cartiva-info__bar-inner {
+  display: flex;
+  width: min(1120px, calc(100% - 40px));
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 auto;
+}
+
+.cartiva-info__home {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cartiva-info__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.cartiva-info__mark {
+  width: 32px;
+  height: 32px;
+  color: #087f60;
+}
+
+.cartiva-info__compare {
+  min-height: 40px;
+  border: 1px solid #ccd5d0;
+  border-radius: 20px;
+  padding: 10px 16px;
+  color: #26332c;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cartiva-info__document {
+  width: min(760px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 62px 0 80px;
+}
+
+.cartiva-info__eyebrow {
+  margin: 0 0 9px;
+  color: #087f60;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cartiva-info__document h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 32px);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.16;
+}
+
+.cartiva-info__lede {
+  margin: 14px 0 0;
+  color: #5f6c65;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.cartiva-info__updated {
+  margin: 15px 0 0;
+  color: #7a857f;
+  font-size: 12px;
+}
+
+.cartiva-info__content {
+  border-top: 1px solid #dde4df;
+  margin-top: 34px;
+  padding-top: 8px;
+}
+
+.cartiva-info__content section {
+  padding: 24px 0;
+  border-bottom: 1px solid #e4e9e6;
+}
+
+.cartiva-info__content h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.cartiva-info__content h3 {
+  margin: 20px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cartiva-info__content p,
+.cartiva-info__content li {
+  color: #48564e;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.cartiva-info__content p {
+  margin: 11px 0 0;
+}
+
+.cartiva-info__content ul {
+  margin: 11px 0 0;
+  padding-left: 20px;
+}
+
+.cartiva-info__content a {
+  color: #087f60;
+  text-underline-offset: 3px;
+}
+
+.cartiva-info__notice {
+  border-left: 3px solid #b9c8c0;
+  margin-top: 26px;
+  padding: 10px 14px;
+  background: #f0f3f0;
+  color: #56635c;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .cartiva-footer__main {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .cartiva-footer__links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 26px;
+  }
+
+  .cartiva-footer__fineprint {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cartiva-info__document {
+    padding-block: 42px 60px;
+  }
+}
+
+@media (max-width: 460px) {
+  .cartiva-footer__main,
+  .cartiva-footer__fineprint {
+    width: min(100% - 32px, 1180px);
+  }
+
+  .cartiva-footer__links {
+    grid-template-columns: 1fr;
+  }
+
+  .cartiva-info__bar-inner,
+  .cartiva-info__document {
+    width: calc(100% - 32px);
+  }
+
+  .cartiva-info__compare {
+    padding-inline: 12px;
   }
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { Bookmark, Clock3, List, MapPin, Menu, Plus, ReceiptText } from "lucide-react";
-import { CartivaLogo } from "@/components/cartiva-logo";
+import { MapPin } from "lucide-react";
+import { CartivaAppNavigation } from "@/components/cartiva-app-navigation";
+import { SiteFooter } from "@/components/site-footer";
 import styles from "@/components/cartiva-workspace.module.css";
 
 interface CartivaShellProps {
@@ -8,8 +9,12 @@ interface CartivaShellProps {
   itemCount: number;
   zipCode: string;
   zipInput: string;
+  listName: string;
   locationLabel?: string;
   locationBusy: boolean;
+  listSaved: boolean;
+  onListName: (value: string) => void;
+  onSaveList: () => void;
   onZipInput: (value: string) => void;
   onFindLocation: () => void;
   onNewList: () => void;
@@ -20,56 +25,32 @@ export function CartivaShell({
   itemCount,
   zipCode,
   zipInput,
+  listName,
   locationLabel,
   locationBusy,
+  listSaved,
+  onListName,
+  onSaveList,
   onZipInput,
   onFindLocation,
   onNewList,
 }: CartivaShellProps) {
-  const countLabel = `${itemCount} ${itemCount === 1 ? "item" : "items"}`;
-
   return (
     <div className={styles.app}>
-      <aside className={styles.sidebar} aria-label="Cartiva workspace navigation">
-        <CartivaLogo className={styles.logo} markClassName={styles.logoMark} />
-        <p className={styles.navEyebrow}>Workspace</p>
-        <nav className={styles.navList}>
-          <a href="#compare" className={`${styles.navItem} ${styles.navItemActive}`} aria-current="page">
-            <List aria-hidden="true" />
-            Compare baskets
-          </a>
-          <span className={styles.navItem} aria-disabled="true"><ReceiptText aria-hidden="true" /> My lists</span>
-          <span className={styles.navItem} aria-disabled="true"><Bookmark aria-hidden="true" /> Saved baskets</span>
-          <span className={styles.navItem} aria-disabled="true"><Clock3 aria-hidden="true" /> Price history</span>
-        </nav>
-
-        <p className={styles.navEyebrow}>This week</p>
-        <div className={styles.weekCard}>
-          <span>Weekly groceries</span>
-          <strong>{countLabel}</strong>
-          <small>{itemCount ? "Ready to compare" : "Start a list"}</small>
-        </div>
-
-        <div className={styles.sidebarFoot}>
-          <span className={styles.avatar}>J</span>
-          <span><strong>Josh</strong><small>Cartiva workspace</small></span>
-        </div>
-      </aside>
-
-      <div className={styles.mobileBar}>
-        <button type="button" className={styles.iconButton} aria-label="Open navigation">
-          <Menu aria-hidden="true" />
-        </button>
-        <CartivaLogo className={styles.mobileLogo} markClassName={styles.mobileLogoMark} />
-        <button type="button" className={styles.mobileNewButton} onClick={onNewList}>
-          <Plus aria-hidden="true" /> New
-        </button>
-      </div>
+      <CartivaAppNavigation itemCount={itemCount} currentListName={listName} onNewList={onNewList} />
 
       <div className={styles.page}>
         <header className={styles.header}>
           <div>
-            <h1>Weekly grocery run</h1>
+            <label htmlFor="cartiva-list-name" className={styles.srOnly}>List name</label>
+            <input
+              id="cartiva-list-name"
+              className={styles.listNameInput}
+              value={listName}
+              maxLength={80}
+              onChange={(event) => onListName(event.target.value)}
+              aria-label="List name"
+            />
             <p>Compare the list, then hand off one complete basket.</p>
           </div>
           <div className={styles.headerActions}>
@@ -97,6 +78,7 @@ export function CartivaShell({
                 {locationBusy ? "Finding stores…" : zipCode === zipInput && locationLabel ? "Change" : "Find"}
               </button>
             </form>
+            <button type="button" className={styles.saveListButton} onClick={onSaveList} disabled={!itemCount}>{listSaved ? "Saved" : "Save list"}</button>
             <button type="button" className={styles.newListButton} onClick={onNewList}>New list</button>
           </div>
           <p id="location-summary" className={styles.srOnly} aria-live="polite">
@@ -104,6 +86,7 @@ export function CartivaShell({
           </p>
         </header>
         {children}
+        <SiteFooter />
       </div>
     </div>
   );

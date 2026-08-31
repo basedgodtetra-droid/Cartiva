@@ -9,10 +9,12 @@
   --cartiva-text: #17231d;
   --cartiva-muted: #68756e;
   --cartiva-soft: #8c9892;
+  --cartiva-focus: #4d5b54;
+  --cartiva-focus-ring: rgba(77, 91, 84, 0.24);
   min-height: 100vh;
   background: var(--cartiva-background);
   color: var(--cartiva-text);
-  font-family: var(--font-cartiva-inter), Inter, system-ui, sans-serif;
+  font-family: var(--font-cartiva-inter), Inter, Arial, Helvetica, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
 }
 
@@ -23,20 +25,12 @@
   font: inherit;
 }
 
-.app button,
-.app a,
-.app input,
-.app textarea,
-.app select {
-  outline-color: var(--cartiva-green);
-}
-
 .app button:focus-visible,
 .app a:focus-visible,
 .app input:focus-visible,
 .app textarea:focus-visible,
 .app select:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--cartiva-green) 32%, transparent);
+  outline: 2px solid var(--cartiva-focus-ring);
   outline-offset: 2px;
 }
 
@@ -1678,5 +1672,819 @@
   .app *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Refined application shell, saved-library views, and wide utility rail. */
+.skipLink {
+  position: fixed;
+  z-index: 100;
+  top: 10px;
+  left: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--cartiva-text);
+  color: #fff;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.listNameInput {
+  width: min(360px, 100%);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  margin: -4px 0 0 -7px;
+  padding: 3px 6px;
+  background: transparent;
+  color: var(--cartiva-text);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.listNameInput:hover {
+  border-color: var(--cartiva-border);
+  background: #fafbf9;
+}
+
+.listNameInput:focus-visible {
+  border-color: #aeb8b2;
+  outline: 2px solid var(--cartiva-focus-ring) !important;
+}
+
+.saveListButton,
+.saveBasketButton {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #b9c8c0;
+  border-radius: 20px;
+  padding: 0 16px;
+  background: #f1f6f3;
+  color: #315347;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.saveListButton:disabled,
+.saveBasketButton:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.saveBasketButton {
+  width: 100%;
+  margin: 14px 0 0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.saveBasketButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.addForm:focus-within,
+.locationForm:focus-within {
+  border-color: #aeb8b2;
+  box-shadow: 0 0 0 3px rgba(77, 91, 84, 0.1);
+}
+
+.addForm input:focus-visible,
+.locationForm input:focus-visible {
+  outline: 0;
+}
+
+.itemEditInput {
+  border-color: #aeb8b2 !important;
+}
+
+.itemEditInput:focus-visible {
+  border-color: #7c8a82 !important;
+  outline: 2px solid var(--cartiva-focus-ring) !important;
+}
+
+.quantityControl button,
+.rowIconButton {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.pageIntro h2,
+.cardHeading h2,
+.comparisonHeading h2,
+.basketHeader h2 {
+  font-weight: 650;
+}
+
+.retailerPrice,
+.basketItemPrice strong,
+.subtotalLine strong,
+.weekCard strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.weekCard small,
+.checkoutNote,
+.cartNotice {
+  font-size: 12px;
+}
+
+.workspaceLayout,
+.primaryWorkspace {
+  min-width: 0;
+}
+
+.utilityRail {
+  display: none;
+}
+
+.utilityEyebrow {
+  margin: 0 0 6px;
+  color: var(--cartiva-green);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.utilityRail > h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.utilitySection {
+  border-top: 1px solid var(--cartiva-border);
+  margin-top: 22px;
+  padding-top: 18px;
+}
+
+.utilitySectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.utilitySectionHeading h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.utilitySectionHeading a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.utilitySectionHeading svg {
+  width: 12px;
+  height: 12px;
+}
+
+.utilityRow,
+.activityRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 8px;
+  margin: 0;
+  padding: 8px 6px;
+  color: var(--cartiva-text);
+  text-decoration: none;
+}
+
+.utilityRow:hover,
+.activityRow:hover {
+  background: #f0f3f0;
+}
+
+.utilityRow > span,
+.activityRow {
+  min-width: 0;
+}
+
+.utilityRow strong,
+.utilityRow small,
+.activityRow strong,
+.activityRow span,
+.activityRow small {
+  display: block;
+}
+
+.utilityRow strong,
+.activityRow strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.utilityRow small,
+.activityRow span,
+.activityRow small {
+  margin-top: 2px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.utilityRow em {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.utilityRow em svg {
+  width: 12px;
+  height: 12px;
+}
+
+.utilityEmpty {
+  margin: 8px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.trendNeutral { color: var(--cartiva-muted) !important; }
+.trendDown { color: #17664c !important; }
+.trendUp { color: #8a5b34 !important; }
+
+.activityRow {
+  display: block;
+}
+
+.libraryHeader {
+  display: flex;
+  min-height: 118px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--cartiva-border);
+  padding: 28px clamp(28px, 5.4vw, 66px);
+  background: #fff;
+}
+
+.libraryHeader h1 {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 32px);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.libraryHeader p {
+  max-width: 680px;
+  margin: 7px 0 0;
+  color: var(--cartiva-muted);
+  line-height: 1.5;
+}
+
+.backToCompare,
+.collectionPrimary {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 9px;
+  padding: 0 14px;
+  background: var(--cartiva-green);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.backToCompare svg {
+  width: 16px;
+  height: 16px;
+}
+
+.libraryPage {
+  width: 100%;
+  max-width: 1240px;
+  min-height: 58vh;
+  margin: 0 auto;
+  padding: 38px clamp(28px, 5.4vw, 66px) 64px;
+}
+
+.createListPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 14px;
+  padding: 20px;
+  background: #fff;
+}
+
+.createListPanel h2,
+.collectionCard h2,
+.basketHistoryCard h2,
+.sectionHeading h2,
+.historySeries h3,
+.collectionEmpty h2 {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.createListPanel h2,
+.collectionCard h2,
+.basketHistoryCard h2,
+.sectionHeading h2 {
+  font-size: 18px;
+}
+
+.createListPanel p,
+.collectionCard p,
+.basketHistoryCard p,
+.sectionHeading p,
+.historySeries p,
+.collectionEmpty p {
+  margin: 5px 0 0;
+  color: var(--cartiva-muted);
+  line-height: 1.5;
+}
+
+.createListPanel form,
+.collectionCardHeading form {
+  display: flex;
+  gap: 8px;
+}
+
+.createListPanel input,
+.collectionCardHeading input {
+  min-width: 260px;
+  min-height: 42px;
+  border: 1px solid #cdd5d0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+}
+
+.createListPanel button,
+.collectionCardHeading button,
+.collectionActions button,
+.historyActions button,
+.historyActions a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--cartiva-text);
+  font-size: 12px;
+  font-weight: 620;
+  text-decoration: none;
+}
+
+.createListPanel button {
+  border-color: var(--cartiva-green);
+  background: var(--cartiva-green);
+  color: #fff;
+}
+
+.createListPanel button svg,
+.collectionActions svg,
+.historyActions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.loadingState {
+  color: var(--cartiva-muted);
+}
+
+.collectionGrid {
+  display: grid;
+  margin-top: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.collectionCard,
+.basketHistoryCard,
+.historySeries {
+  border: 1px solid var(--cartiva-border);
+  border-radius: 14px;
+  padding: 20px;
+  background: #fff;
+}
+
+.collectionCardHeading {
+  min-height: 48px;
+}
+
+.listPreview {
+  min-height: 44px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cartiva-border-soft);
+  color: var(--cartiva-muted);
+  font-size: 12px;
+}
+
+.collectionActions,
+.historyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.collectionActions .collectionPrimary {
+  min-height: 40px;
+  margin-right: auto;
+}
+
+.dangerAction {
+  color: #8a3934 !important;
+}
+
+.collectionEmpty {
+  display: grid;
+  max-width: 560px;
+  min-height: 300px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  margin: 28px auto 0;
+  padding: 38px;
+  text-align: center;
+}
+
+.collectionEmpty > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cartiva-mint);
+  color: var(--cartiva-green);
+}
+
+.collectionEmpty svg {
+  width: 22px;
+  height: 22px;
+}
+
+.collectionEmpty .collectionPrimary {
+  margin-top: 10px;
+}
+
+.collectionStack {
+  display: grid;
+  gap: 16px;
+}
+
+.historyCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.historicalBadge {
+  display: inline-block;
+  margin-bottom: 9px;
+  color: #75592f;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.historyActions {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.basketMetadata {
+  display: grid;
+  margin: 20px 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 9px;
+  background: var(--cartiva-border-soft);
+}
+
+.basketMetadata div {
+  min-width: 0;
+  padding: 12px;
+  background: #fafbf9;
+}
+
+.basketMetadata dt {
+  color: var(--cartiva-muted);
+  font-size: 11px;
+}
+
+.basketMetadata dd {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 620;
+  line-height: 1.4;
+}
+
+.savedProductList {
+  border-top: 1px solid var(--cartiva-border-soft);
+}
+
+.savedProductList > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cartiva-border-soft);
+}
+
+.savedProductList strong,
+.savedProductList small {
+  display: block;
+}
+
+.savedProductList strong {
+  font-size: 13px;
+}
+
+.savedProductList small {
+  margin-top: 3px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+}
+
+.savedProductList em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.historyLayout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 30px;
+}
+
+.sectionHeading {
+  margin-bottom: 14px;
+}
+
+.historySeries {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.7fr);
+  gap: 20px;
+}
+
+.historySeries h3 {
+  font-size: 15px;
+}
+
+.historySeries ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historySeries li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--cartiva-border-soft);
+  font-size: 11px;
+}
+
+.historySeries time {
+  color: var(--cartiva-muted);
+}
+
+.historySeries li strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.mobileBarSpacer {
+  width: 40px;
+}
+
+.mobileMenuBackdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  background: rgba(16, 25, 20, 0.42);
+}
+
+.mobileMenu {
+  width: min(340px, calc(100vw - 40px));
+  height: 100%;
+  overflow-y: auto;
+  border: 0;
+  border-right: 1px solid var(--cartiva-border);
+  padding: 20px 16px;
+  background: #fff;
+  box-shadow: 12px 0 32px rgba(14, 30, 21, 0.16);
+}
+
+.mobileMenuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.mobileMenu .navEyebrow {
+  margin-top: 18px;
+}
+
+.mobileMenuSummary {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--cartiva-border);
+  margin-top: 24px;
+  padding: 18px 10px 0;
+}
+
+.mobileMenuSummary span {
+  color: var(--cartiva-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (min-width: 1480px) {
+  .workspace {
+    max-width: 1280px;
+    padding-inline: 30px;
+  }
+
+  .workspaceLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 950px) minmax(220px, 230px);
+    align-items: start;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .pageIntro,
+  .workspaceGrid {
+    max-width: 950px;
+    margin-inline: 0;
+  }
+
+  .workspaceGrid {
+    grid-template-columns: minmax(330px, 360px) minmax(500px, 566px);
+    gap: 24px;
+  }
+
+  .utilityRail {
+    position: sticky;
+    top: 100px;
+    display: block;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding: 8px 2px 28px;
+  }
+}
+
+@media (min-width: 1660px) {
+  .workspace {
+    max-width: 1488px;
+  }
+
+  .workspaceLayout {
+    grid-template-columns: minmax(0, 1102px) minmax(220px, 230px);
+  }
+
+  .pageIntro,
+  .workspaceGrid {
+    max-width: 1102px;
+  }
+
+  .workspaceGrid {
+    grid-template-columns: minmax(360px, 420px) minmax(500px, 654px);
+    gap: 28px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .libraryHeader,
+  .createListPanel,
+  .historyCardTop {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .basketMetadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .historyLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 780px) {
+  .listNameInput {
+    width: 100%;
+    font-size: 20px;
+  }
+
+  .headerActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .locationForm {
+    grid-column: 1 / -1;
+  }
+
+  .saveListButton {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .libraryHeader {
+    min-height: 0;
+    padding: 24px 18px;
+  }
+
+  .libraryPage {
+    padding: 24px 18px 44px;
+  }
+
+  .createListPanel form,
+  .createListPanel input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .collectionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .historySeries {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .createListPanel form,
+  .collectionCardHeading form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .basketMetadata {
+    grid-template-columns: 1fr;
+  }
+
+  .historyCardTop,
+  .historyActions,
+  .historyActions a,
+  .historyActions button {
+    width: 100%;
+  }
+
+  .savedProductList > div {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 390px) {
+  .mobileBar .iconButton {
+    display: grid;
   }
 }
