@@ -9,9 +9,9 @@
   --cartiva-warning: #fff7e8;
   --cartiva-text: #17221d;
   --cartiva-muted: #68756e;
-  --cartiva-soft: #8c9892;
+  --cartiva-soft: #66736c;
   --cartiva-focus: #4d5b54;
-  --cartiva-focus-ring: rgba(15, 138, 106, 0.28);
+  --cartiva-focus-ring: #4d5b54;
   min-height: 100vh;
   background: var(--cartiva-background);
   color: var(--cartiva-text);
@@ -488,6 +488,13 @@
 .addForm button:disabled,
 .secondaryButton:disabled {
   opacity: 0.48;
+}
+
+.entryHelper {
+  margin: 7px 2px 0;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .pasteToggle {
@@ -1138,6 +1145,14 @@
   padding: 8px 0;
 }
 
+.basketItem[data-state="unmatched"] {
+  margin: 4px 0;
+  border: 1px solid #ead9b9;
+  border-radius: 10px;
+  padding: 8px;
+  background: var(--cartiva-warning);
+}
+
 .productImage {
   display: grid;
   width: 44px;
@@ -1181,6 +1196,24 @@
 
 .basketItemCopy small {
   color: var(--cartiva-soft);
+}
+
+.matchDetails {
+  color: var(--cartiva-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.matchDetails summary {
+  width: fit-content;
+  color: var(--cartiva-green-hover);
+  cursor: pointer;
+  font-weight: 720;
+}
+
+.matchDetails p {
+  margin: 4px 0 0;
+  white-space: normal;
 }
 
 .basketItemPrice {
@@ -1524,6 +1557,15 @@
 
   .summaryBar > span:nth-child(n + 3) {
     border-top: 1px solid var(--cartiva-border-soft);
+  }
+
+  .summarySavings {
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .summarySavings small {
+    font-size: 10.5px;
   }
 
   .listCard {

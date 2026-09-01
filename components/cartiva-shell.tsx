@@ -75,7 +75,7 @@ export function CartivaShell({
                 aria-invalid={Boolean(zipInput) && !/^\d{5}$/.test(zipInput)}
               />
               <button type="submit" disabled={locationBusy || !/^\d{5}$/.test(zipInput)}>
-                {locationBusy ? "Finding stores…" : zipCode === zipInput && locationLabel ? "Change" : "Find"}
+                {locationBusy ? "Finding stores…" : zipCode === zipInput && locationLabel ? "Change store" : "Find stores"}
               </button>
             </form>
             <button type="button" className={styles.saveListButton} onClick={onSaveList} disabled={!itemCount}>{listSaved ? "Saved" : "Save list"}</button>

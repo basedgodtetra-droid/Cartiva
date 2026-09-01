@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { AlertCircle, Bookmark, Check, ChevronRight, CircleDashed, ExternalLink, PackageCheck, RefreshCw, Store } from "lucide-react";
 import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
 import type { CartState, CartivaLocation, ComparisonState } from "@/components/cartiva-workspace-types";
@@ -15,6 +18,7 @@ interface CartivaComparisonProps {
   basketSaved: boolean;
   onChangeStore: () => void;
   onRetry: () => void;
+  onReviewItem: (index: number) => void;
   onSaveBasket?: () => void;
   onAddToKroger: () => void;
   onResolveCartReview: (itemsWereAdded: boolean) => void;
@@ -45,10 +49,14 @@ export function CartivaComparison({
   basketSaved,
   onChangeStore,
   onRetry,
+  onReviewItem,
   onSaveBasket,
   onAddToKroger,
   onResolveCartReview,
 }: CartivaComparisonProps) {
+  const cartNoticeRef = useRef<HTMLDivElement | null>(null);
+  const cartActionRef = useRef<HTMLButtonElement | null>(null);
+  const previousCartPhaseRef = useRef(cart.phase);
   const matchedCount = comparison.results.filter((result) => result?.status === "matched" && result.recommended).length;
   const complete = items.length > 0 && matchedCount === items.length && comparison.phase === "complete";
   const cartReady = cartReadiness.canAddToKroger;
@@ -60,6 +68,17 @@ export function CartivaComparison({
   const busy = comparison.phase === "searching" || comparison.phase === "finding-store";
   const canResumeOAuth = cart.code === "oauth_required";
   const transferring = (cart.phase === "connecting" || cart.phase === "adding") && !canResumeOAuth;
+  const unmatchedIndexes = comparison.results.flatMap((result, index) => (
+    result?.status === "no_match" ? [index] : []
+  ));
+
+  useEffect(() => {
+    const phaseChanged = previousCartPhaseRef.current !== cart.phase;
+    previousCartPhaseRef.current = cart.phase;
+    if (phaseChanged && (cart.phase === "error" || cart.phase === "success")) {
+      cartNoticeRef.current?.focus();
+    }
+  }, [cart.phase]);
 
   return (
     <section className={styles.comparisonColumn} id="compare" aria-labelledby="comparison-heading">
@@ -111,13 +130,18 @@ export function CartivaComparison({
           <small>{complete ? `All ${items.length} requested items matched.` : comparison.message ?? "Cartiva shows a total only after every requested item has a trustworthy match."}</small>
         </span>
         {comparison.phase === "error" ? <button type="button" onClick={onRetry}>Try again</button> : null}
+        {comparison.phase === "complete" && unmatchedIndexes.length ? (
+          <button type="button" onClick={() => onReviewItem(unmatchedIndexes[0])}>
+            Review {unmatchedIndexes.length} {unmatchedIndexes.length === 1 ? "item" : "items"}
+          </button>
+        ) : null}
       </div>
 
       <article className={styles.basketCard} aria-labelledby="basket-heading">
         <div className={styles.basketHeader}>
           <div>
             <h2 id="basket-heading">Kroger basket</h2>
-            <p>{selectedLocation ? `${selectedLocation.chain} · ${selectedLocation.address.addressLine1} · ${fulfillmentMode} eligible` : "Choose a nearby Kroger-family store to build this basket."}</p>
+            <p>{selectedLocation ? `${selectedLocation.chain} · ${selectedLocation.address.addressLine1} · ${fulfillmentMode} selected` : "Choose a nearby Kroger-family store to build this basket."}</p>
           </div>
           <button type="button" className={styles.changeStoreButton} onClick={onChangeStore}><Store aria-hidden="true" /> Change store</button>
         </div>
@@ -135,7 +159,11 @@ export function CartivaComparison({
             const quantity = quantities[item.id] ?? 1;
             const status = result?.status;
             return (
-              <div className={styles.basketItem} key={item.id}>
+              <div
+                className={styles.basketItem}
+                key={item.id}
+                data-state={status === "no_match" ? "unmatched" : product ? "matched" : "pending"}
+              >
                 <span
                   className={styles.productImage}
                   style={product?.thumbnail ? { backgroundImage: `url(${JSON.stringify(product.thumbnail).slice(1, -1)})` } : undefined}
@@ -146,10 +174,16 @@ export function CartivaComparison({
                   <strong>{product?.title ?? item.name}</strong>
                   <span>
                     {product
-                      ? `${product.size?.label ?? item.detail ?? "Package verified"} · ${quantity > 1 ? `quantity ${quantity} · ` : ""}${result?.confidence ?? "low"} confidence`
+                      ? `${product.size?.label ?? item.detail ?? "Package verified"} · Qty ${quantity}`
                       : busy ? "Searching Kroger for this request…" : status === "no_match" ? result?.explanation : item.detail ?? "Waiting to compare"}
                   </span>
-                  {product ? <small>Requested: {item.canonicalText}</small> : null}
+                  {product ? (
+                    <details className={styles.matchDetails}>
+                      <summary>Match details</summary>
+                      <p>Requested: {item.canonicalText}</p>
+                      <p>{result?.confidence ?? "Low"} confidence · Official Kroger data for this store.</p>
+                    </details>
+                  ) : null}
                 </div>
                 <div className={styles.basketItemPrice}>
                   <strong>{product ? itemPrice(product.price, quantity) : "—"}</strong>
@@ -172,7 +206,13 @@ export function CartivaComparison({
           <p>Taxes, fees, substitutions, and final availability are confirmed at Kroger.</p>
 
           {cart.phase === "error" ? (
-            <div className={styles.cartNotice} data-tone="error">
+            <div
+              ref={cartNoticeRef}
+              className={styles.cartNotice}
+              data-tone="error"
+              role="alert"
+              tabIndex={-1}
+            >
               <AlertCircle aria-hidden="true" />
               <div className={styles.cartNoticeCopy}>
                 <strong>We couldn&apos;t add the basket yet.</strong>
@@ -182,7 +222,15 @@ export function CartivaComparison({
                     ? <button type="button" onClick={onAddToKroger}>Try again</button>
                     : <>
                         <button type="button" onClick={() => onResolveCartReview(true)}>Items are in Kroger</button>
-                        <button type="button" onClick={() => onResolveCartReview(false)}>Items were not added</button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onResolveCartReview(false);
+                            window.requestAnimationFrame(() => cartActionRef.current?.focus());
+                          }}
+                        >
+                          Items were not added
+                        </button>
                       </>}
                   <a href="#basket-products">View matches</a>
                 </div>
@@ -190,7 +238,13 @@ export function CartivaComparison({
             </div>
           ) : null}
           {cart.phase === "success" ? (
-            <div className={styles.cartNotice} data-tone="success">
+            <div
+              ref={cartNoticeRef}
+              className={styles.cartNotice}
+              data-tone="success"
+              role="status"
+              tabIndex={-1}
+            >
               <Check aria-hidden="true" />
               <div className={styles.cartNoticeCopy}>
                 <strong>Your Kroger cart is ready</strong>
@@ -201,6 +255,7 @@ export function CartivaComparison({
 
           {complete && onSaveBasket ? (
             <button
+              ref={cartActionRef}
               type="button"
               className={styles.saveBasketButton}
               onClick={onSaveBasket}

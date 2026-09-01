@@ -38,6 +38,7 @@ import {
   pendingKrogerCartMatches,
   type PendingKrogerCart,
 } from "@/lib/cartiva-kroger-cart";
+import { trackCartivaEvent } from "@/lib/cartiva-product-events";
 import styles from "@/components/cartiva-workspace.module.css";
 
 const WORKSPACE_KEY = "cartiva-web-workspace-v1";
@@ -193,6 +194,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const comparisonRunRef = useRef(0);
   const cartTransferRef = useRef<string | undefined>(undefined);
   const loadedRequestRef = useRef("");
+  const previousClarificationCountRef = useRef<number | undefined>(undefined);
 
   const interpretation = useMemo(
     () => interpretGroceryInput(rawInput, { proteinOrigins }),
@@ -363,6 +365,10 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         retrySafe: false,
         message: `${itemCount} matched products were added.`,
       });
+      trackCartivaEvent("kroger_cart_added", {
+        retailer: "kroger",
+        itemCount,
+      });
       if (lastComparisonRecord && lastComparisonRecord.id === submitting.comparisonId) {
         recordCartAdded({
           comparisonId: lastComparisonRecord.id,
@@ -476,6 +482,21 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   ]);
 
   useEffect(() => {
+    if (!hydrated) return;
+    if (previousClarificationCountRef.current === undefined) {
+      previousClarificationCountRef.current = interpretation.unresolvedCount;
+      return;
+    }
+    if (interpretation.unresolvedCount > previousClarificationCountRef.current) {
+      trackCartivaEvent("clarification_requested", {
+        itemCount: interpretation.items.length,
+        clarificationCount: interpretation.unresolvedCount,
+      });
+    }
+    previousClarificationCountRef.current = interpretation.unresolvedCount;
+  }, [hydrated, interpretation.items.length, interpretation.unresolvedCount]);
+
+  useEffect(() => {
     if (comparison.phase !== "complete") return;
     const controller = new AbortController();
     void fetch("/api/kroger/auth/status", {
@@ -556,8 +577,30 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     invalidateComparison();
   };
 
-  const addItems = (value: string) => {
-    updateRawInput(rawInput.trim() ? `${rawInput.trim()}\n${value.trim()}` : value.trim());
+  const addItems = (value: string, source: "single" | "paste") => {
+    const nextRawInput = rawInput.trim() ? `${rawInput.trim()}\n${value.trim()}` : value.trim();
+    const nextInterpretation = interpretGroceryInput(nextRawInput, { proteinOrigins });
+    const addedCount = Math.max(0, nextInterpretation.items.length - interpretation.items.length);
+    if (!addedCount) {
+      updateRawInput(nextRawInput);
+      return;
+    }
+    if (!interpretation.items.length) {
+      trackCartivaEvent("list_started", { source, itemCount: addedCount });
+    }
+    trackCartivaEvent("item_added", {
+      source,
+      addedCount,
+      itemCount: nextInterpretation.items.length,
+    });
+    if (source === "paste") {
+      trackCartivaEvent("list_pasted", {
+        source,
+        addedCount,
+        itemCount: nextInterpretation.items.length,
+      });
+    }
+    updateRawInput(nextRawInput);
   };
 
   const editItem = (index: number, value: string) => {
@@ -587,18 +630,32 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     const item = interpretation.items[index];
     if (!item) return;
     const resolved = resolveGroceryClarification(item.raw, clarificationId, value);
+    let nextProteinOrigins = proteinOrigins;
     if (resolved.selectedAttribute) {
-      setProteinOrigins((current) => moveProteinOrigins(
-        current,
+      nextProteinOrigins = moveProteinOrigins(
+        proteinOrigins,
         item,
         index,
         resolved.raw,
         {
           [resolved.selectedAttribute!.key]: resolved.selectedAttribute!.origin,
         },
-      ));
+      );
+      setProteinOrigins(nextProteinOrigins);
     }
-    updateRawInput(replaceItem(interpretation.items, index, resolved.raw));
+    const nextRawInput = replaceItem(interpretation.items, index, resolved.raw);
+    const nextInterpretation = interpretGroceryInput(nextRawInput, { proteinOrigins: nextProteinOrigins });
+    trackCartivaEvent("clarification_completed", {
+      itemCount: nextInterpretation.items.length,
+      clarificationCount: nextInterpretation.unresolvedCount,
+    });
+    if (nextInterpretation.items[index]?.clarification) {
+      trackCartivaEvent("clarification_requested", {
+        itemCount: nextInterpretation.items.length,
+        clarificationCount: nextInterpretation.unresolvedCount,
+      });
+    }
+    updateRawInput(nextRawInput);
   };
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -608,6 +665,11 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
 
   const selectLocation = (locationId: string) => {
     setSelectedLocationId(locationId);
+    trackCartivaEvent("store_selected", {
+      source: "manual",
+      retailer: "kroger",
+      fulfillmentMode,
+    });
     invalidateComparison();
   };
 
@@ -641,6 +703,16 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       setLocations(nextLocations);
       setSelectedLocationId(nextSelected.locationId);
       setCart(initialCart);
+      trackCartivaEvent("zip_entered", {
+        retailer: "kroger",
+        fulfillmentMode,
+        storeCount: nextLocations.length,
+      });
+      trackCartivaEvent("store_selected", {
+        source: "automatic",
+        retailer: "kroger",
+        fulfillmentMode,
+      });
       console.info("[Cartiva] Selected location", { selected: true });
       return nextSelected;
     } finally {
@@ -695,6 +767,13 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       document.getElementById("cartiva-zip")?.focus();
       return null;
     }
+
+    trackCartivaEvent("comparison_started", {
+      retailer: "kroger",
+      fulfillmentMode,
+      itemCount: currentInterpretation.items.length,
+      readyCount: currentInterpretation.readyCount,
+    });
 
     try {
       setComparison({
@@ -793,6 +872,13 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           ? `All ${matched} items matched at ${location.name}.`
           : `${matched} of ${finalResults.length} items matched. A total is hidden until the basket is complete.`,
       });
+      trackCartivaEvent("comparison_completed", {
+        retailer: "kroger",
+        fulfillmentMode,
+        itemCount: finalResults.length,
+        matchedCount: matched,
+        complete: matched === finalResults.length,
+      });
       setCart(initialCart);
       const comparisonRecord = buildCartivaComparisonRecord({
         listId: runListId,
@@ -814,6 +900,12 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       return { results: finalResults, location, comparisonRecord };
     } catch (error) {
       if (comparisonRunRef.current !== runId) return null;
+      trackCartivaEvent("comparison_failed", {
+        retailer: "kroger",
+        fulfillmentMode,
+        itemCount: currentInterpretation.items.length,
+        retrySafe: true,
+      });
       setComparison((current) => ({
         ...current,
         phase: "error",
@@ -865,6 +957,12 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           });
     }
     if (!pending) return;
+    trackCartivaEvent("kroger_handoff_started", {
+      retailer: "kroger",
+      fulfillmentMode: pending.fulfillmentMode,
+      itemCount: pending.itemCount,
+      retrySafe: true,
+    });
     window.localStorage.setItem(KROGER_PENDING_CART_STORAGE_KEY, JSON.stringify(pending));
     const authWindow = window.open("about:blank", "cartiva-kroger-oauth", "popup,width=560,height=760");
     if (authWindow) {
@@ -1045,6 +1143,20 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const reviewItem = (index: number) => {
+    const item = interpretation.items[index];
+    if (!item) return;
+    const row = document.getElementById(`list-item-${item.id}`);
+    row?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "center",
+    });
+    window.requestAnimationFrame(() => {
+      (document.getElementById(`edit-${item.id}`) as HTMLButtonElement | null)?.click();
+      window.requestAnimationFrame(() => document.getElementById(`edit-input-${item.id}`)?.focus());
+    });
+  };
+
   return (
     <CartivaShell
       itemCount={interpretation.items.length}
@@ -1073,18 +1185,18 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           <div className={styles.primaryWorkspace}>
             <div className={styles.pageIntro}>
               <h2>Your list, compared as one cart</h2>
-              <p>Real store totals appear only when every requested item has a trustworthy match.</p>
+              <p>Write groceries normally. Cartiva compares one complete basket and keeps checkout with the retailer.</p>
             </div>
             <div
               className={styles.summaryBar}
-              aria-label={`${interpretation.items.length} items, ${interpretation.readyCount} ready, ${interpretation.unresolvedCount} ${interpretation.unresolvedCount === 1 ? "choice" : "choices"} needed, estimated savings unavailable`}
+              aria-label={`${interpretation.items.length} items, ${interpretation.readyCount} ready, ${interpretation.unresolvedCount} ${interpretation.unresolvedCount === 1 ? "choice" : "choices"} needed, estimated savings require two complete retailer baskets`}
             >
               <span><strong>{interpretation.items.length}</strong> items</span>
               <span data-tone="ready"><strong>{interpretation.readyCount}</strong> ready</span>
               <span data-tone={interpretation.unresolvedCount ? "warning" : "ready"}>
                 <strong>{interpretation.unresolvedCount}</strong> {interpretation.unresolvedCount === 1 ? "choice" : "choices"} needed
               </span>
-              <span className={styles.summarySavings}><strong>Estimated savings</strong><small>—</small></span>
+              <span className={styles.summarySavings}><strong>Estimated savings</strong><small>2+ baskets needed</small></span>
             </div>
             <div className={styles.workspaceGrid}>
               <CartivaGroceryList
@@ -1116,6 +1228,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                 basketSaved={Boolean(lastComparisonRecord && library.baskets.some((basket) => basket.id === lastComparisonRecord.id))}
                 onChangeStore={changeStore}
                 onRetry={runComparison}
+                onReviewItem={reviewItem}
                 onSaveBasket={lastComparisonRecord?.complete ? () => saveBasket(lastComparisonRecord) : undefined}
                 onAddToKroger={addToKroger}
                 onResolveCartReview={resolveCartReview}

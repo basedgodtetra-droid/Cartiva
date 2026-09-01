@@ -15,7 +15,7 @@ interface CartivaGroceryListProps {
   comparisonPhase: ComparisonPhase;
   canCompare: boolean;
   compareHint: string;
-  onAdd: (value: string) => void;
+  onAdd: (value: string, source: "single" | "paste") => void;
   onEdit: (index: number, value: string) => void;
   onRemove: (index: number) => void;
   onQuantity: (id: string, quantity: number) => void;
@@ -69,9 +69,9 @@ export function CartivaGroceryList({
   const [editingId, setEditingId] = useState<string>();
   const [editingValue, setEditingValue] = useState("");
 
-  const addItems = (value: string) => {
+  const addItems = (value: string, source: "single" | "paste") => {
     if (!value.trim()) return;
-    onAdd(value);
+    onAdd(value, source);
     setAddValue("");
     setPasteValue("");
     setPasteOpen(false);
@@ -79,7 +79,7 @@ export function CartivaGroceryList({
 
   const submitAdd = (event: FormEvent) => {
     event.preventDefault();
-    addItems(addValue);
+    addItems(addValue, "single");
   };
 
   const startEditing = (item: GroceryNotepadItem) => {
@@ -88,7 +88,10 @@ export function CartivaGroceryList({
   };
 
   const commitEditing = (index: number) => {
-    onEdit(index, editingValue);
+    const item = items[index];
+    if (item && editingValue.trim() !== item.raw.trim()) {
+      onEdit(index, editingValue);
+    }
     setEditingId(undefined);
     setEditingValue("");
   };
@@ -125,6 +128,7 @@ export function CartivaGroceryList({
         />
         <button type="submit" disabled={!addValue.trim()}><Plus aria-hidden="true" /> Add</button>
       </form>
+      <p className={styles.entryHelper}>Write your list however you normally would.</p>
 
       <button type="button" className={styles.pasteToggle} onClick={() => setPasteOpen((current) => !current)}>
         {pasteOpen ? <X aria-hidden="true" /> : <Package2 aria-hidden="true" />}
@@ -141,7 +145,7 @@ export function CartivaGroceryList({
             onChange={(event) => setPasteValue(event.target.value)}
             placeholder={"Large eggs, 18 count\n2% milk, 1 gallon\nWhite bread"}
           />
-          <button type="button" className={styles.secondaryButton} onClick={() => addItems(pasteValue)} disabled={!pasteValue.trim()}>
+          <button type="button" className={styles.secondaryButton} onClick={() => addItems(pasteValue, "paste")} disabled={!pasteValue.trim()}>
             Add list
           </button>
         </div>
@@ -152,7 +156,7 @@ export function CartivaGroceryList({
           <div className={styles.emptyList}>
             <span><Package2 aria-hidden="true" /></span>
             <h3>Your weekly list starts here</h3>
-            <p>Add individual groceries above, or paste the whole list at once.</p>
+            <p>Type one item, or paste the whole list. Retailer work starts only when you compare.</p>
           </div>
         ) : groupedItems(items).map(([category, entries]) => (
           <div className={styles.categoryGroup} key={category}>
@@ -160,11 +164,12 @@ export function CartivaGroceryList({
             {entries.map(({ item, index }) => {
               const quantity = quantities[item.id] ?? 1;
               return (
-                <div className={styles.groceryItem} key={item.id} data-needs-detail={item.status === "needs-detail"}>
+                <div id={`list-item-${item.id}`} className={styles.groceryItem} key={item.id} data-needs-detail={item.status === "needs-detail"}>
                   <span className={styles.itemGlyph}><Package2 aria-hidden="true" /></span>
                   <div className={styles.itemCopy}>
                     {editingId === item.id ? (
                       <input
+                        id={`edit-input-${item.id}`}
                         className={styles.itemEditInput}
                         value={editingValue}
                         onChange={(event) => setEditingValue(event.target.value)}
@@ -202,7 +207,7 @@ export function CartivaGroceryList({
                       <span aria-live="polite">{quantity}</span>
                       <button type="button" onClick={() => onQuantity(item.id, Math.min(99, quantity + 1))} disabled={quantity >= 99} aria-label={`Increase ${item.name} quantity`}><Plus aria-hidden="true" /></button>
                     </div>
-                    <button type="button" className={styles.rowIconButton} onClick={() => startEditing(item)} aria-label={`Edit ${item.name}`}><Pencil aria-hidden="true" /></button>
+                    <button id={`edit-${item.id}`} type="button" className={styles.rowIconButton} onClick={() => startEditing(item)} aria-label={`Edit ${item.name}`}><Pencil aria-hidden="true" /></button>
                     <button type="button" className={styles.rowIconButton} onClick={() => onRemove(index)} aria-label={`Remove ${item.name}`}><Trash2 aria-hidden="true" /></button>
                   </div>
                 </div>
@@ -227,9 +232,9 @@ export function CartivaGroceryList({
         </div>
         <div>
           <span>Fulfillment</span>
-          <div className={styles.segmentedControl}>
-            <button type="button" data-active={fulfillmentMode === "pickup"} onClick={() => onFulfillment("pickup")}><Check aria-hidden="true" /> Pickup</button>
-            <button type="button" data-active={fulfillmentMode === "delivery"} onClick={() => onFulfillment("delivery")}><Check aria-hidden="true" /> Delivery</button>
+          <div className={styles.segmentedControl} role="group" aria-label="Fulfillment method">
+            <button type="button" aria-pressed={fulfillmentMode === "pickup"} data-active={fulfillmentMode === "pickup"} onClick={() => onFulfillment("pickup")}><Check aria-hidden="true" /> Pickup</button>
+            <button type="button" aria-pressed={fulfillmentMode === "delivery"} data-active={fulfillmentMode === "delivery"} onClick={() => onFulfillment("delivery")}><Check aria-hidden="true" /> Delivery</button>
           </div>
         </div>
       </div>

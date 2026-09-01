@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { CartivaLibraryProvider } from "@/components/cartiva-library-provider";
+import { CartivaProductEventTracker } from "@/components/cartiva-product-event-tracker";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
 
@@ -42,7 +43,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={inter.variable}><CartivaLibraryProvider>{children}</CartivaLibraryProvider></body>
+      <body className={inter.variable}>
+        <CartivaLibraryProvider>
+          <CartivaProductEventTracker />
+          {children}
+        </CartivaLibraryProvider>
+      </body>
     </html>
   );
 }

@@ -914,9 +914,18 @@ export function buildWalmartSearchQuery(request: StructuredProductRequest) {
 }
 
 function productMatchesConstraint(
+  product: Pick<WalmartProduct, "title" | "brand" | "productType" | "size">,
   candidate: string,
   value: ProductConstraint,
 ) {
+  if (value.attribute === "packCount" && /^\d+$/.test(value.value)) {
+    const requestedPackCount = Number(value.value);
+    if (product.size?.packCount === requestedPackCount) return true;
+  }
+  if (value.attribute === "count" && /^\d+$/.test(value.value) && product.size?.kind === "count") {
+    const requestedCount = Number(value.value);
+    if ((product.size.packCount ?? product.size.baseAmount) === requestedCount) return true;
+  }
   if (value.attribute === "flavor" && value.value === "original") {
     const explicitOriginal = /\b(?:original(?:\s+taste)?|classic)\b/i.test(candidate);
     const nonOriginalVariety = /\b(?:zero(?:\s+sugar)?|diet|cherry|vanilla|cream soda|caffeine[ -]?free)\b/i.test(candidate);
@@ -932,7 +941,7 @@ export function productConstraintIssues(
   const candidate = `${product.brand ?? ""} ${product.productType ?? ""} ${product.title} ${product.size?.label ?? ""}`;
   return constraints
     .filter((item) => (
-      !productMatchesConstraint(candidate, item)
+      !productMatchesConstraint(product, candidate, item)
       || productTitleConflictsWithProteinConstraint(product.title, item.attribute, item.value)
     ))
     .map((item) => `does not match ${item.label}`);

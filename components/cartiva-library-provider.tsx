@@ -27,6 +27,7 @@ import {
   type CartivaLibraryState,
   type CartivaListSnapshot,
 } from "@/lib/cartiva-library";
+import { trackCartivaEvent } from "@/lib/cartiva-product-events";
 
 interface CartivaLibraryContextValue {
   state: CartivaLibraryState;
@@ -92,6 +93,7 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
     const id = input.id ?? createLibraryId("list");
     const now = new Date().toISOString();
     setState((current) => upsertSavedList(current, { ...input, id, now }));
+    trackCartivaEvent("list_saved", { itemCount: input.itemCount });
     return id;
   }, []);
 
@@ -119,6 +121,13 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
     saveBasket: (comparison) => {
       const savedAt = new Date().toISOString();
       setState((current) => appendHistoricalBasket(current, comparison, savedAt));
+      trackCartivaEvent("basket_saved", {
+        retailer: comparison.retailer,
+        fulfillmentMode: comparison.fulfillmentMode,
+        itemCount: comparison.itemCount,
+        matchedCount: comparison.matchedCount,
+        complete: comparison.complete,
+      });
     },
     deleteBasket: (id) => setState((current) => deleteSavedBasket(current, id)),
     recordCartAdded: (input) => {

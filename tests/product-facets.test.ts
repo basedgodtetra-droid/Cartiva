@@ -389,6 +389,31 @@ describe("facet selection and structured Walmart constraints", () => {
     expect(buildFacetSearchQuery(request.text, request.constraints)).toBe("Sprite 12-pack Cans");
   });
 
+  it("accepts an exact pack proven by retailer metadata when the title omits the pack count", () => {
+    const constraints = analyzeProductFacets("Coke Zero, 12 pack").constraints;
+    const exactPack = {
+      title: "Coca-Cola Zero Sugar Soda Cans",
+      brand: "Coca-Cola",
+      productType: "Beverages",
+      size: {
+        amount: 144,
+        unit: "fl oz" as const,
+        kind: "volume" as const,
+        baseAmount: 144,
+        baseUnit: "fl oz" as const,
+        packCount: 12,
+        perPackageAmount: 12,
+        label: "12 × 12 fl oz",
+      },
+    };
+
+    expect(productConstraintIssues(exactPack, constraints)).toEqual([]);
+    expect(productConstraintIssues({
+      ...exactPack,
+      size: { ...exactPack.size, packCount: 24, amount: 288, baseAmount: 288, label: "24 × 12 fl oz" },
+    }, constraints)).toContain("does not match 12-pack");
+  });
+
   it("allows only one conflicting common soda format", () => {
     const cans = selectFacetOption("Sprite", [], "soda-format-12-cans");
     const bottle = selectFacetOption("Sprite", cans, "soda-format-2-liter");

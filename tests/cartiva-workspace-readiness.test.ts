@@ -30,11 +30,19 @@ describe("Cartiva workspace comparison readiness", () => {
     });
   });
 
-  it("does not reuse a store resolved for a different ZIP", () => {
+  it("does not reuse a store resolved for a different ZIP but can resolve one during comparison", () => {
     expect(readiness({ resolvedZip: "10001" })).toMatchObject({
-      canCompare: false,
+      canCompare: true,
       storeSelected: false,
-      reason: "Find and choose a nearby store to continue.",
+      reason: "Ready — Cartiva will choose a nearby store.",
+    });
+  });
+
+  it("can begin from a valid ZIP and choose a nearby returned store automatically", () => {
+    expect(readiness({ resolvedZip: "", selectedLocationId: "" })).toMatchObject({
+      canCompare: true,
+      storeSelected: false,
+      reason: "Ready — Cartiva will choose a nearby store.",
     });
   });
 

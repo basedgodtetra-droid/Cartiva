@@ -30,7 +30,6 @@ export function getCompareReadiness({
   const clarificationsRemaining = Math.max(0, unresolvedCount);
   const canCompare = itemsReady
     && zipValid
-    && storeSelected
     && clarificationsRemaining === 0;
 
   let reason = "Ready to compare the complete basket.";
@@ -38,9 +37,10 @@ export function getCompareReadiness({
   else if (limitReached) reason = "Reduce the grocery list before comparing.";
   else if (!zipInput) reason = "Enter a ZIP code to continue.";
   else if (!zipValid) reason = "Enter a valid 5-digit ZIP code.";
-  else if (!storeSelected) reason = "Find and choose a nearby store to continue.";
   else if (clarificationsRemaining > 0) {
     reason = `${clarificationsRemaining} ${clarificationsRemaining === 1 ? "item needs" : "items need"} a quick choice.`;
+  } else if (!storeSelected) {
+    reason = "Ready — Cartiva will choose a nearby store.";
   }
 
   return {
