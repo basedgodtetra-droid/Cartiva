@@ -13,6 +13,7 @@ interface CartivaShellProps {
   locationLabel?: string;
   locationBusy: boolean;
   listSaved: boolean;
+  handoffBusy: boolean;
   onListName: (value: string) => void;
   onSaveList: () => void;
   onZipInput: (value: string) => void;
@@ -29,6 +30,7 @@ export function CartivaShell({
   locationLabel,
   locationBusy,
   listSaved,
+  handoffBusy,
   onListName,
   onSaveList,
   onZipInput,
@@ -37,11 +39,12 @@ export function CartivaShell({
 }: CartivaShellProps) {
   return (
     <div className={styles.app}>
-      <CartivaAppNavigation itemCount={itemCount} currentListName={listName} onNewList={onNewList} />
+      <CartivaAppNavigation itemCount={itemCount} currentListName={listName} onNewList={onNewList} newListDisabled={handoffBusy} />
 
       <div className={styles.page}>
         <header className={styles.header}>
-          <div>
+          <div className={styles.headerListContext}>
+            <span>Current list</span>
             <label htmlFor="cartiva-list-name" className={styles.srOnly}>List name</label>
             <input
               id="cartiva-list-name"
@@ -51,7 +54,6 @@ export function CartivaShell({
               onChange={(event) => onListName(event.target.value)}
               aria-label="List name"
             />
-            <p>Compare the list, then hand off one complete basket.</p>
           </div>
           <div className={styles.headerActions}>
             <form
@@ -73,13 +75,14 @@ export function CartivaShell({
                 placeholder="ZIP code"
                 aria-describedby="location-summary"
                 aria-invalid={Boolean(zipInput) && !/^\d{5}$/.test(zipInput)}
+                disabled={handoffBusy}
               />
-              <button type="submit" disabled={locationBusy || !/^\d{5}$/.test(zipInput)}>
+              <button type="submit" disabled={handoffBusy || locationBusy || !/^\d{5}$/.test(zipInput)}>
                 {locationBusy ? "Finding stores…" : zipCode === zipInput && locationLabel ? "Change store" : "Find stores"}
               </button>
             </form>
             <button type="button" className={styles.saveListButton} onClick={onSaveList} disabled={!itemCount}>{listSaved ? "Saved" : "Save list"}</button>
-            <button type="button" className={styles.newListButton} onClick={onNewList}>New list</button>
+            <button type="button" className={styles.newListButton} onClick={onNewList} disabled={handoffBusy}>New list</button>
           </div>
           <p id="location-summary" className={styles.srOnly} aria-live="polite">
             {locationLabel ? `Selected store: ${locationLabel}` : "No store selected"}

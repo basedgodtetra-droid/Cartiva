@@ -31,6 +31,55 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
   );
 }
 
+export function LibraryPage() {
+  const { state, hydrated } = useCartivaLibrary();
+  const lists = state.lists.slice(0, 4);
+  const baskets = state.baskets.slice(0, 3);
+
+  return (
+    <CartivaLibraryShell title="Library" description="Reopen the lists you use again and revisit saved basket snapshots.">
+      <div className={styles.libraryOverview}>
+        <section aria-labelledby="library-lists-heading">
+          <div className={styles.libraryOverviewHeading}>
+            <div><h2 id="library-lists-heading">My lists</h2><p>Start another comparison from a list Cartiva already remembers.</p></div>
+            <Link href="/lists">Manage lists</Link>
+          </div>
+          {!hydrated ? <p className={styles.loadingState}>Loading lists…</p> : lists.length ? (
+            <div className={styles.libraryPreviewGrid}>
+              {lists.map((list) => (
+                <article className={styles.collectionCard} key={list.id}>
+                  <div className={styles.collectionCardHeading}><div><h3>{list.name}</h3><p>{list.itemCount} {list.itemCount === 1 ? "item" : "items"} · Updated {dateTime(list.updatedAt)}</p></div></div>
+                  <p className={styles.listPreview}>{list.rawInput ? list.rawInput.split("\n").slice(0, 3).join(" · ") : "Empty list — ready for groceries"}</p>
+                  <div className={styles.collectionActions}><Link href={`/compare?list=${encodeURIComponent(list.id)}`} className={styles.collectionPrimary}>Open and compare</Link></div>
+                </article>
+              ))}
+            </div>
+          ) : <EmptyState title="No saved lists yet" body="Save a grocery list and it will be ready here for your next trip." action={<Link className={styles.collectionPrimary} href="/compare">Start a list</Link>} />}
+        </section>
+
+        <section aria-labelledby="library-baskets-heading">
+          <div className={styles.libraryOverviewHeading}>
+            <div><h2 id="library-baskets-heading">Saved baskets</h2><p>Historical snapshots stay clearly dated; check prices again for a current result.</p></div>
+            <Link href="/baskets">View all baskets</Link>
+          </div>
+          {!hydrated ? <p className={styles.loadingState}>Loading baskets…</p> : baskets.length ? (
+            <div className={styles.collectionStack}>
+              {baskets.map((basket) => (
+                <article className={styles.basketHistoryCard} key={basket.id}>
+                  <div className={styles.historyCardTop}>
+                    <div><span className={styles.historicalBadge}>Historical result</span><h2>{basket.retailerLabel} · {money(basket.subtotalCents)}</h2><p>{basket.listName} · Saved {dateTime(basket.savedAt)} · {basket.matchedCount}/{basket.itemCount} verified</p></div>
+                    <div className={styles.historyActions}><Link href={`/compare?basket=${encodeURIComponent(basket.id)}`}><RefreshCw aria-hidden="true" /> Check prices again</Link></div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : <EmptyState title="No saved baskets yet" body="Complete a comparison and save the basket when you want a historical snapshot." action={<Link className={styles.collectionPrimary} href="/compare">Compare a basket</Link>} />}
+        </section>
+      </div>
+    </CartivaLibraryShell>
+  );
+}
+
 export function ListsPage() {
   const router = useRouter();
   const { state, hydrated, saveList, renameList, duplicateList, deleteList } = useCartivaLibrary();

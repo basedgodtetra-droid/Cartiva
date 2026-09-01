@@ -13,6 +13,7 @@ interface CartivaGroceryListProps {
   selectedLocationId: string;
   fulfillmentMode: "pickup" | "delivery";
   comparisonPhase: ComparisonPhase;
+  locked: boolean;
   canCompare: boolean;
   compareHint: string;
   onAdd: (value: string, source: "single" | "paste") => void;
@@ -52,6 +53,7 @@ export function CartivaGroceryList({
   selectedLocationId,
   fulfillmentMode,
   comparisonPhase,
+  locked,
   canCompare,
   compareHint,
   onAdd,
@@ -125,12 +127,13 @@ export function CartivaGroceryList({
           onChange={(event) => setAddValue(event.target.value)}
           placeholder="Add milk, produce, pantry…"
           autoComplete="off"
+          disabled={locked}
         />
-        <button type="submit" disabled={!addValue.trim()}><Plus aria-hidden="true" /> Add</button>
+        <button type="submit" disabled={locked || !addValue.trim()}><Plus aria-hidden="true" /> Add</button>
       </form>
       <p className={styles.entryHelper}>Write your list however you normally would.</p>
 
-      <button type="button" className={styles.pasteToggle} onClick={() => setPasteOpen((current) => !current)}>
+      <button type="button" className={styles.pasteToggle} onClick={() => setPasteOpen((current) => !current)} disabled={locked}>
         {pasteOpen ? <X aria-hidden="true" /> : <Package2 aria-hidden="true" />}
         {pasteOpen ? "Close list paste" : "Paste a full list"}
       </button>
@@ -144,8 +147,9 @@ export function CartivaGroceryList({
             value={pasteValue}
             onChange={(event) => setPasteValue(event.target.value)}
             placeholder={"Large eggs, 18 count\n2% milk, 1 gallon\nWhite bread"}
+            disabled={locked}
           />
-          <button type="button" className={styles.secondaryButton} onClick={() => addItems(pasteValue, "paste")} disabled={!pasteValue.trim()}>
+          <button type="button" className={styles.secondaryButton} onClick={() => addItems(pasteValue, "paste")} disabled={locked || !pasteValue.trim()}>
             Add list
           </button>
         </div>
@@ -193,6 +197,7 @@ export function CartivaGroceryList({
                               type="button"
                               key={option.id}
                               onClick={() => onClarify(index, item.clarification!.id, option.value)}
+                              disabled={locked}
                             >
                               {option.label}
                             </button>
@@ -203,12 +208,12 @@ export function CartivaGroceryList({
                   </div>
                   <div className={styles.itemActions}>
                     <div className={styles.quantityControl} aria-label={`Quantity for ${item.name}`}>
-                      <button type="button" onClick={() => onQuantity(item.id, Math.max(1, quantity - 1))} disabled={quantity <= 1} aria-label={`Decrease ${item.name} quantity`}><Minus aria-hidden="true" /></button>
+                      <button type="button" onClick={() => onQuantity(item.id, Math.max(1, quantity - 1))} disabled={locked || quantity <= 1} aria-label={`Decrease ${item.name} quantity`}><Minus aria-hidden="true" /></button>
                       <span aria-live="polite">{quantity}</span>
-                      <button type="button" onClick={() => onQuantity(item.id, Math.min(99, quantity + 1))} disabled={quantity >= 99} aria-label={`Increase ${item.name} quantity`}><Plus aria-hidden="true" /></button>
+                      <button type="button" onClick={() => onQuantity(item.id, Math.min(99, quantity + 1))} disabled={locked || quantity >= 99} aria-label={`Increase ${item.name} quantity`}><Plus aria-hidden="true" /></button>
                     </div>
-                    <button id={`edit-${item.id}`} type="button" className={styles.rowIconButton} onClick={() => startEditing(item)} aria-label={`Edit ${item.name}`}><Pencil aria-hidden="true" /></button>
-                    <button type="button" className={styles.rowIconButton} onClick={() => onRemove(index)} aria-label={`Remove ${item.name}`}><Trash2 aria-hidden="true" /></button>
+                    <button id={`edit-${item.id}`} type="button" className={styles.rowIconButton} onClick={() => startEditing(item)} aria-label={`Edit ${item.name}`} disabled={locked}><Pencil aria-hidden="true" /></button>
+                    <button type="button" className={styles.rowIconButton} onClick={() => onRemove(index)} aria-label={`Remove ${item.name}`} disabled={locked}><Trash2 aria-hidden="true" /></button>
                   </div>
                 </div>
               );
@@ -221,7 +226,7 @@ export function CartivaGroceryList({
         <div>
           <label htmlFor="store-select">Store area</label>
           {locations.length ? (
-            <select id="store-select" value={selectedLocationId} onChange={(event) => onLocation(event.target.value)}>
+            <select id="store-select" value={selectedLocationId} onChange={(event) => onLocation(event.target.value)} disabled={locked}>
               {locations.map((location) => (
                 <option value={location.locationId} key={location.locationId}>
                   {location.chain} · {location.name}
@@ -233,15 +238,24 @@ export function CartivaGroceryList({
         <div>
           <span>Fulfillment</span>
           <div className={styles.segmentedControl} role="group" aria-label="Fulfillment method">
-            <button type="button" aria-pressed={fulfillmentMode === "pickup"} data-active={fulfillmentMode === "pickup"} onClick={() => onFulfillment("pickup")}><Check aria-hidden="true" /> Pickup</button>
-            <button type="button" aria-pressed={fulfillmentMode === "delivery"} data-active={fulfillmentMode === "delivery"} onClick={() => onFulfillment("delivery")}><Check aria-hidden="true" /> Delivery</button>
+            <button type="button" aria-pressed={fulfillmentMode === "pickup"} data-active={fulfillmentMode === "pickup"} onClick={() => onFulfillment("pickup")} disabled={locked}><Check aria-hidden="true" /> Pickup</button>
+            <button type="button" aria-pressed={fulfillmentMode === "delivery"} data-active={fulfillmentMode === "delivery"} onClick={() => onFulfillment("delivery")} disabled={locked}><Check aria-hidden="true" /> Delivery</button>
           </div>
         </div>
       </div>
 
       <div className={styles.compareAction}>
-        <button type="button" className={styles.primaryButton} onClick={onCompare} disabled={!canCompare || busy}>
-          {comparisonPhase === "finding-store" ? "Finding stores…" : comparisonPhase === "searching" ? "Comparing Kroger basket…" : "Compare basket"}
+        <button
+          type="button"
+          className={comparisonPhase === "complete" ? styles.secondaryCompareButton : styles.primaryButton}
+          onClick={onCompare}
+          disabled={locked || !canCompare || busy}
+        >
+          {comparisonPhase === "finding-store"
+            ? "Finding stores…"
+            : comparisonPhase === "searching"
+              ? "Comparing Kroger basket…"
+              : comparisonPhase === "complete" ? "Compare again" : "Compare basket"}
         </button>
         <p role="status" aria-live="polite">{busy ? "Real Kroger results are usually ready in 8–15 seconds." : compareHint}</p>
       </div>

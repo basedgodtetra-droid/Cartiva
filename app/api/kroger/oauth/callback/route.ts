@@ -42,12 +42,32 @@ function page(title: string, message: string, success: boolean, status = 200) {
 export async function GET(request: Request) {
   const parameters = new URL(request.url).searchParams;
   if (parameters.has("error")) {
-    return page(
+    const cancelled = parameters.get("error") === "access_denied";
+    const state = parameters.get("state") ?? "";
+    if (usesServerlessKrogerWebSession()) {
+      try {
+        validateServerlessKrogerAuthorization(request, state);
+      } catch {
+        return page(
+          "Kroger wasn't connected",
+          "This connection response could not be verified. Close this tab and start again from Cartiva.",
+          false,
+          400,
+        );
+      }
+    }
+    const response = page(
       "Kroger wasn't connected",
-      "Kroger authorization was cancelled or declined. You can close this tab and try again from Cartiva.",
+      cancelled
+        ? "Kroger authorization was cancelled or declined. You can close this tab and try again from Cartiva."
+        : "Kroger could not finish authorization. You can close this tab and try again from Cartiva.",
       false,
       400,
     );
+    if (usesServerlessKrogerWebSession()) {
+      response.headers.append("Set-Cookie", clearServerlessKrogerAuthorizationCookie());
+    }
+    return response;
   }
   const code = parameters.get("code") ?? "";
   const state = parameters.get("state") ?? "";
@@ -93,7 +113,10 @@ export async function GET(request: Request) {
       false,
       status,
     );
-    if (usesServerlessKrogerWebSession()) {
+    if (
+      usesServerlessKrogerWebSession()
+      && !(error instanceof KrogerAuthError && error.code === "oauth_state")
+    ) {
       response.headers.append("Set-Cookie", clearServerlessKrogerAuthorizationCookie());
     }
     return response;

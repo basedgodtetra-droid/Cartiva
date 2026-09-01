@@ -1,4 +1,8 @@
 import type { KrogerMatchResult } from "@/lib/types";
+import type {
+  CartivaKrogerCartCode,
+  CartivaKrogerCartPhase,
+} from "@/lib/cartiva-kroger-handoff";
 
 export interface CartivaLocation {
   locationId: string;
@@ -22,7 +26,7 @@ export interface ComparisonState {
   message?: string;
 }
 
-export type CartPhase = "idle" | "connecting" | "adding" | "success" | "error";
+export type CartPhase = CartivaKrogerCartPhase;
 
 export interface CartState {
   phase: CartPhase;
@@ -30,5 +34,5 @@ export interface CartState {
   cartUrl?: string;
   itemCount?: number;
   retrySafe?: boolean;
-  code?: string;
+  code?: CartivaKrogerCartCode;
 }

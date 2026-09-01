@@ -35,7 +35,7 @@ html {
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   margin: 0;
   background:
     radial-gradient(circle at 9% 6%, rgba(33, 183, 113, 0.2), transparent 31rem),

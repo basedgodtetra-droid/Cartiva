@@ -1,5 +1,10 @@
 import { extractMeasurement } from "./measurements";
 import { getKrogerAuthClient, KrogerAuthClient } from "./kroger-auth";
+import {
+  KROGER_FAMILY_HOSTS,
+  krogerFamilyDisplayName,
+  krogerFamilyDomain,
+} from "./kroger-family-links";
 import type {
   KrogerProduct,
   RetailFulfillmentMode,
@@ -164,79 +169,13 @@ function requestedFulfillmentFilter(mode: RetailFulfillmentMode) {
   return "sth";
 }
 
-const FAMILY_DOMAINS: Record<string, string> = {
-  KROGER: "www.kroger.com",
-  RALPHS: "www.ralphs.com",
-  "FRED MEYER": "www.fredmeyer.com",
-  "KING SOOPERS": "www.kingsoopers.com",
-  "FRY'S": "www.frysfood.com",
-  "SMITH'S": "www.smithsfoodanddrug.com",
-  QFC: "www.qfc.com",
-  DILLONS: "www.dillons.com",
-  "HARRIS TEETER": "www.harristeeter.com",
-  "MARIANO'S": "www.marianos.com",
-  "PICK 'N SAVE": "www.picknsave.com",
-  "FOOD 4 LESS": "www.food4less.com",
-  "CITY MARKET": "www.citymarket.com",
-  "BAKER'S": "www.bakersplus.com",
-  "BAKERS": "www.bakersplus.com",
-  "FOODS CO": "www.foodsco.net",
-  GERBES: "www.gerbes.com",
-  "JAY C": "www.jaycfoods.com",
-  "METRO MARKET": "www.metromarket.net",
-  "PAY-LESS": "www.pay-less.com",
-  "PAY LESS": "www.pay-less.com",
-  RULER: "www.rulerfoods.com",
-};
-
-function familyKey(value: string) {
-  return value.toUpperCase().replace(/[^A-Z0-9]+/g, "");
-}
-
-const FAMILY_DOMAIN_BY_KEY = new Map(
-  Object.entries(FAMILY_DOMAINS).map(([name, domain]) => [familyKey(name), domain]),
-);
-
-const FAMILY_DISPLAY_NAMES: Record<string, string> = {
-  KROGER: "Kroger",
-  RALPHS: "Ralphs",
-  FREDMEYER: "Fred Meyer",
-  KINGSOOPERS: "King Soopers",
-  FRYS: "Fry's",
-  SMITHS: "Smith's",
-  QFC: "QFC",
-  DILLONS: "Dillons",
-  HARRISTEETER: "Harris Teeter",
-  MARIANOS: "Mariano's",
-  PICKNSAVE: "Pick 'n Save",
-  FOOD4LESS: "Food 4 Less",
-  CITYMARKET: "City Market",
-  BAKERS: "Baker's",
-  FOODSCO: "Foods Co",
-  GERBES: "Gerbes",
-  JAYC: "Jay C",
-  METROMARKET: "Metro Market",
-  PAYLESS: "Pay-Less",
-  RULER: "Ruler",
-};
-
-const FAMILY_HOSTS = new Set(Object.values(FAMILY_DOMAINS));
-
-function familyDomain(chain?: string) {
-  return chain ? FAMILY_DOMAIN_BY_KEY.get(familyKey(chain)) : undefined;
-}
-
-function familyDisplayName(chain: string) {
-  return FAMILY_DISPLAY_NAMES[familyKey(chain)] ?? chain;
-}
-
 function safeProductLink(
   raw: UnknownRecord,
   chain: string | undefined,
   title: string,
   expectedIds: readonly string[],
 ) {
-  const domain = familyDomain(chain) ?? "www.kroger.com";
+  const domain = krogerFamilyDomain(chain) ?? "www.kroger.com";
   const supplied = textValue(raw.productPageURI, raw.productPageUri, raw.productPageUrl);
   if (supplied) {
     try {
@@ -244,7 +183,7 @@ function safeProductLink(
       const pathId = parsed.pathname.match(/\/p\/[^/]+\/(\d{8,14})\/?$/i)?.[1];
       if (
         parsed.protocol === "https:"
-        && FAMILY_HOSTS.has(parsed.hostname.toLowerCase())
+        && KROGER_FAMILY_HOSTS.has(parsed.hostname.toLowerCase())
         && pathId
         && expectedIds.includes(pathId)
       ) {
@@ -396,7 +335,7 @@ function normalizeLocation(value: unknown): KrogerLocation | null {
   const address = record(raw?.address);
   const locationId = textValue(raw?.locationId);
   const name = textValue(raw?.name);
-  const chain = familyDisplayName(textValue(raw?.chain) ?? "Kroger");
+  const chain = krogerFamilyDisplayName(textValue(raw?.chain) ?? "Kroger");
   const addressLine1 = textValue(address?.addressLine1);
   const city = textValue(address?.city);
   const state = textValue(address?.state);
@@ -650,20 +589,7 @@ export async function verifyKrogerCartItemsAtLocation(
   return results.every(Boolean);
 }
 
-export function krogerCartUrl(chain?: string) {
-  const domain = familyDomain(chain);
-  return `https://${domain ?? "www.kroger.com"}/cart`;
-}
-
-/**
- * A banner-safe public shopping destination. Anonymous clients must never be
- * sent to /cart because no cart mutation or customer authorization occurred.
- * Unknown or untrusted chain text fails closed to Kroger's public home page.
- */
-export function krogerShoppingUrl(chain?: string) {
-  const domain = familyDomain(chain);
-  return `https://${domain ?? "www.kroger.com"}/`;
-}
+export { krogerCartUrl, krogerShoppingUrl } from "./kroger-family-links";
 
 export async function addToKrogerCart(
   items: KrogerCartItem[],

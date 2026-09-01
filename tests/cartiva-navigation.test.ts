@@ -22,17 +22,23 @@ describe("Cartiva navigation", () => {
   it("links every workspace destination to a real page", () => {
     expect(cartivaAppRoutes.map((route) => route.href)).toEqual([
       "/compare",
-      "/lists",
-      "/baskets",
+      "/library",
       "/history",
     ]);
     for (const route of cartivaAppRoutes) {
       expect(existsSync(path.join(projectRoot, "app", route.href.slice(1), "page.tsx"))).toBe(true);
     }
+    for (const relatedRoute of ["/lists", "/baskets"]) {
+      expect(existsSync(path.join(projectRoot, "app", relatedRoute.slice(1), "page.tsx"))).toBe(true);
+    }
     const source = readFileSync(path.join(projectRoot, "components", "cartiva-app-navigation.tsx"), "utf8");
     expect(source).not.toContain('aria-disabled="true"');
     expect(source).not.toContain('href="#compare"');
     expect(source).toContain('aria-current={active ? "page" : undefined}');
+    expect(source).toContain('related: ["/lists", "/baskets"]');
+    const workspaceSource = readFileSync(path.join(projectRoot, "components", "cartiva-workspace.tsx"), "utf8");
+    expect(workspaceSource).not.toContain("CartivaUtilityRail");
+    expect(workspaceSource).not.toContain("styles.summaryBar");
   });
 
   it("renders a compact footer whose links all resolve", () => {

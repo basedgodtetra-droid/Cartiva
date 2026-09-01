@@ -111,6 +111,19 @@ describe("Cartiva Kroger cart readiness", () => {
     });
   });
 
+  it("keeps comparison available but disables transfer when the deployment has no cart capability", () => {
+    const readiness = getKrogerCartReadiness({
+      items,
+      results,
+      quantities: Object.fromEntries(items.map((entry) => [entry.id, 1])),
+      comparisonComplete: true,
+      customerConnected: false,
+      cartCapability: false,
+    });
+    expect(readiness).toMatchObject({ basketComplete: true, canAddToKroger: false });
+    expect(readiness.reason).toMatch(/transfer is unavailable/i);
+  });
+
   it("explains a missing cart UPC without logging or inventing one", () => {
     const missingUpc = result("0001111055555");
     missingUpc.recommended!.upc = "";
@@ -199,6 +212,21 @@ describe("pending Kroger basket", () => {
       items: [{ upc: "0001111011111", quantity: 100 }],
     }), 1_000_001)).toBeNull();
     expect(parsePendingKrogerCart("not-json", 1_000_001)).toBeNull();
+  });
+
+  it("resumes only a basket carrying an explicit shopper transfer intent", () => {
+    const pending = createPendingKrogerCart({
+      operationId: "cartiva_1234567890abcdef",
+      locationId: "01400912",
+      fulfillmentMode: "pickup",
+      items: [{ upc: "0001111011111", quantity: 1 }],
+      itemCount: 1,
+      createdAt: 1_000_000,
+    });
+    expect(pending.intent).toBe("shopper_transfer");
+    const withoutIntent: Partial<typeof pending> = { ...pending };
+    delete withoutIntent.intent;
+    expect(parsePendingKrogerCart(JSON.stringify(withoutIntent), 1_000_001)).toBeNull();
   });
 
   it("reuses an operation only when its exact frozen basket still matches", () => {

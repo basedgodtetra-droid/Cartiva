@@ -147,6 +147,70 @@ describe("serverless Kroger web OAuth", () => {
     ));
     expect(completed.status).toBe(400);
     expect(await completed.text()).toContain("could not be verified");
+    expect(completed.headers.get("set-cookie")).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("handles a verified Kroger cancellation without exchanging a code and clears the one-use state", async () => {
+    const start = await startPost(new Request(`${origin}/api/kroger/oauth/start`, {
+      method: "POST",
+      headers: { Origin: origin },
+    }));
+    const startBody = await start.json() as { authorizationUrl: string };
+    const state = new URL(startBody.authorizationUrl).searchParams.get("state");
+    const stateCookie = cookiePair(
+      start.headers.get("set-cookie") ?? "",
+      "__Host-cartiva-kroger-oauth-state",
+    );
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+
+    const cancelled = await callbackGet(new Request(
+      `${callback}?error=access_denied&state=${state}`,
+      { headers: { Cookie: stateCookie } },
+    ));
+    expect(cancelled.status).toBe(400);
+    expect(await cancelled.text()).toContain("cancelled or declined");
+    expect(cancelled.headers.get("set-cookie")).toContain("__Host-cartiva-kroger-oauth-state=");
+    expect(cancelled.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("does not clear a valid in-flight OAuth state for an unverified cancellation", async () => {
+    const start = await startPost(new Request(`${origin}/api/kroger/oauth/start`, {
+      method: "POST",
+      headers: { Origin: origin },
+    }));
+    const stateCookie = cookiePair(
+      start.headers.get("set-cookie") ?? "",
+      "__Host-cartiva-kroger-oauth-state",
+    );
+    const cancelled = await callbackGet(new Request(
+      `${callback}?error=access_denied&state=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`,
+      { headers: { Cookie: stateCookie } },
+    ));
+    expect(cancelled.status).toBe(400);
+    expect(await cancelled.text()).toContain("could not be verified");
+    expect(cancelled.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("distinguishes a verified provider failure from shopper cancellation", async () => {
+    const start = await startPost(new Request(`${origin}/api/kroger/oauth/start`, {
+      method: "POST",
+      headers: { Origin: origin },
+    }));
+    const startBody = await start.json() as { authorizationUrl: string };
+    const state = new URL(startBody.authorizationUrl).searchParams.get("state");
+    const stateCookie = cookiePair(
+      start.headers.get("set-cookie") ?? "",
+      "__Host-cartiva-kroger-oauth-state",
+    );
+    const failed = await callbackGet(new Request(
+      `${callback}?error=temporarily_unavailable&state=${state}`,
+      { headers: { Cookie: stateCookie } },
+    ));
+    expect(failed.status).toBe(400);
+    expect(await failed.text()).toContain("could not finish authorization");
+    expect(failed.headers.get("set-cookie")).toContain("Max-Age=0");
   });
 });

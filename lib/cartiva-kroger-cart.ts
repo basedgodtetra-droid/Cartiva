@@ -11,6 +11,7 @@ export interface KrogerCartLine {
 
 export interface PendingKrogerCart {
   version: 1;
+  intent: "shopper_transfer";
   operationId: string;
   locationId: string;
   fulfillmentMode: "pickup" | "delivery";
@@ -115,12 +116,13 @@ export function getKrogerCartReadiness({
   const basketComplete = comparisonComplete
     && totalLineCount > 0
     && acceptedLineCount === totalLineCount;
-  // Kroger connection is deliberately not a readiness prerequisite. A complete
-  // basket starts OAuth when needed, then continues with this same payload.
+  // Customer connection is deliberately not a readiness prerequisite. OAuth
+  // begins only after an explicit shopper transfer request.
   const canAddToKroger = basketComplete
     && cartEligibleLineCount === totalLineCount
     && upcLineCount === totalLineCount
-    && quantitiesValid;
+    && quantitiesValid
+    && cartCapability !== false;
 
   let reason = "Ready to connect to Kroger and add the exact verified UPCs.";
   if (!totalLineCount) reason = "Add groceries before starting a Kroger handoff.";
@@ -128,6 +130,7 @@ export function getKrogerCartReadiness({
   else if (upcLineCount !== totalLineCount) reason = "At least one accepted Kroger match is missing its cart UPC.";
   else if (!quantitiesValid) reason = "Every Kroger cart quantity must be a whole number from 1 to 99.";
   else if (cartEligibleLineCount !== totalLineCount) reason = "At least one accepted product is not eligible for this Kroger handoff.";
+  else if (cartCapability === false) reason = "Kroger basket transfer is unavailable on this Cartiva deployment.";
 
   return {
     basketComplete,
@@ -199,9 +202,10 @@ export function createPendingKrogerCart({
   itemCount,
   comparisonId,
   createdAt = Date.now(),
-}: Omit<PendingKrogerCart, "version" | "createdAt"> & { createdAt?: number }): PendingKrogerCart {
+}: Omit<PendingKrogerCart, "version" | "intent" | "createdAt"> & { createdAt?: number }): PendingKrogerCart {
   return {
     version: 1,
+    intent: "shopper_transfer",
     operationId,
     locationId,
     fulfillmentMode,
@@ -221,6 +225,7 @@ export function parsePendingKrogerCart(
     const value = JSON.parse(serialized) as Partial<PendingKrogerCart>;
     if (
       value.version !== 1
+      || value.intent !== "shopper_transfer"
       || typeof value.operationId !== "string"
       || !/^[A-Za-z0-9_-]{16,128}$/.test(value.operationId)
       || typeof value.locationId !== "string"
@@ -273,6 +278,7 @@ export function parsePendingKrogerCart(
 
     return {
       version: 1,
+      intent: "shopper_transfer",
       operationId: value.operationId,
       locationId: value.locationId,
       fulfillmentMode: value.fulfillmentMode,

@@ -3,23 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, Clock3, List, Menu, Plus, ReceiptText, X } from "lucide-react";
+import { Clock3, Library, List, Menu, Plus, X } from "lucide-react";
 import { CartivaLogo } from "@/components/cartiva-logo";
 import styles from "@/components/cartiva-workspace.module.css";
 
 export const cartivaAppRoutes = [
-  { href: "/compare", label: "Compare baskets", icon: List },
-  { href: "/lists", label: "My lists", icon: ReceiptText },
-  { href: "/baskets", label: "Saved baskets", icon: Bookmark },
-  { href: "/history", label: "Price history", icon: Clock3 },
+  { href: "/compare", label: "Compare", icon: List, related: ["/"] },
+  { href: "/library", label: "Library", icon: Library, related: ["/lists", "/baskets"] },
+  { href: "/history", label: "Price history", icon: Clock3, related: [] },
 ] as const;
 
 function AppLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <nav className={styles.navList} aria-label="Cartiva workspace navigation links">
-      {cartivaAppRoutes.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || (href === "/compare" && pathname === "/");
+      {cartivaAppRoutes.map(({ href, label, icon: Icon, related }) => {
+        const active = pathname === href || related.some((path) => path === pathname);
         return (
           <Link
             key={href}
@@ -41,9 +40,10 @@ interface CartivaAppNavigationProps {
   itemCount: number;
   currentListName: string;
   onNewList?: () => void;
+  newListDisabled?: boolean;
 }
 
-export function CartivaAppNavigation({ itemCount, currentListName, onNewList }: CartivaAppNavigationProps) {
+export function CartivaAppNavigation({ itemCount, currentListName, onNewList, newListDisabled = false }: CartivaAppNavigationProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLElement>(null);
   const countLabel = `${itemCount} ${itemCount === 1 ? "item" : "items"}`;
@@ -88,20 +88,9 @@ export function CartivaAppNavigation({ itemCount, currentListName, onNewList }: 
       <a href="#main-content" className={styles.skipLink}>Skip to content</a>
       <aside className={styles.sidebar} aria-label="Cartiva workspace navigation">
         <CartivaLogo className={styles.logo} markClassName={styles.logoMark} />
-        <p className={styles.navEyebrow}>Workspace</p>
+        <p className={styles.navEyebrow}>Shop</p>
         <AppLinks />
 
-        <p className={styles.navEyebrow}>Current list</p>
-        <div className={styles.weekCard}>
-          <span>{currentListName}</span>
-          <strong>{countLabel}</strong>
-          <small>{itemCount ? "Ready to save or compare" : "Start a list"}</small>
-        </div>
-
-        <div className={styles.sidebarFoot}>
-          <span className={styles.avatar}>C</span>
-          <span><strong>Your Cartiva</strong><small>Saved on this device</small></span>
-        </div>
       </aside>
 
       <div className={styles.mobileBar}>
@@ -117,7 +106,7 @@ export function CartivaAppNavigation({ itemCount, currentListName, onNewList }: 
         </button>
         <CartivaLogo className={styles.mobileLogo} markClassName={styles.mobileLogoMark} />
         {onNewList ? (
-          <button type="button" className={styles.mobileNewButton} onClick={onNewList}>
+          <button type="button" className={styles.mobileNewButton} onClick={onNewList} disabled={newListDisabled}>
             <Plus aria-hidden="true" /> New
           </button>
         ) : <span className={styles.mobileBarSpacer} aria-hidden="true" />}

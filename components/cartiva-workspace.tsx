@@ -14,7 +14,6 @@ import { CartivaComparison } from "@/components/cartiva-comparison";
 import { CartivaGroceryList } from "@/components/cartiva-grocery-list";
 import { useCartivaLibrary } from "@/components/cartiva-library-provider";
 import { CartivaShell } from "@/components/cartiva-shell";
-import { CartivaUtilityRail } from "@/components/cartiva-utility-rail";
 import type {
   CartState,
   CartivaLocation,
@@ -23,6 +22,7 @@ import type {
 import { getCompareReadiness } from "@/lib/cartiva-workspace-readiness";
 import {
   buildCartivaComparisonRecord,
+  money,
   type CartivaComparisonRecord,
   type CartivaListSnapshot,
 } from "@/lib/cartiva-library";
@@ -39,6 +39,8 @@ import {
   type PendingKrogerCart,
 } from "@/lib/cartiva-kroger-cart";
 import { trackCartivaEvent } from "@/lib/cartiva-product-events";
+import { getCartivaWorkspaceContext } from "@/lib/cartiva-workspace-context";
+import { isKrogerFamilyCartUrl, krogerCartUrl } from "@/lib/kroger-family-links";
 import styles from "@/components/cartiva-workspace.module.css";
 
 const WORKSPACE_KEY = "cartiva-web-workspace-v1";
@@ -109,7 +111,10 @@ async function responseError(response: Response, fallback: string) {
   }
 }
 
-async function cartResponseError(response: Response, fallback: string) {
+async function cartResponseError(
+  response: Response,
+  fallback: string,
+): Promise<{ message: string; code?: "outcome_unknown"; retrySafe: boolean }> {
   try {
     const body = await response.json() as {
       error?: unknown;
@@ -118,7 +123,7 @@ async function cartResponseError(response: Response, fallback: string) {
     };
     return {
       message: typeof body.error === "string" && body.error.trim() ? body.error : fallback,
-      code: typeof body.code === "string" ? body.code : undefined,
+      code: body.code === "outcome_unknown" ? body.code : undefined,
       retrySafe: body.retrySafe === true,
     };
   } catch {
@@ -141,26 +146,59 @@ async function postPendingKrogerCart(pending: PendingKrogerCart) {
 
 function clearPendingKrogerCartBeforeBasketChange() {
   const serialized = window.localStorage.getItem(KROGER_PENDING_CART_STORAGE_KEY);
-  if (!serialized) return;
+  if (!serialized) return true;
   const pending = parsePendingKrogerCart(serialized);
   if (!pending) {
     window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
-    return;
+    return true;
   }
-  if (pending.blocked) return;
+  if (pending.blocked) return false;
   if (pending.submittedAt !== undefined) {
     const message = "A Kroger cart request was already in progress. Check your retailer cart before starting another handoff.";
     window.localStorage.setItem(
       KROGER_PENDING_CART_STORAGE_KEY,
       JSON.stringify(blockPendingKrogerCart(pending, message)),
     );
-    return;
+    return false;
   }
   window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
+  return true;
 }
 
 function wait(milliseconds: number) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+class KrogerOAuthCancelledError extends Error {
+  constructor(message = "Your Cartiva basket is still ready. Kroger sign-in was cancelled.") {
+    super(message);
+    this.name = "KrogerOAuthCancelledError";
+  }
+}
+
+class KrogerOAuthFailedError extends Error {
+  constructor(message = "We couldn't connect Kroger. You can try again whenever you're ready.") {
+    super(message);
+    this.name = "KrogerOAuthFailedError";
+  }
+}
+
+function krogerOAuthPopupOutcome(authWindow: Window) {
+  if (authWindow.closed) return "closed" as const;
+  try {
+    const current = new URL(authWindow.location.href);
+    if (current.origin !== window.location.origin) return "open" as const;
+    const isCartivaCallback = current.pathname.endsWith("/api/retailers/kroger/oauth/callback")
+      || current.pathname.endsWith("/api/kroger/oauth/callback");
+    if (!isCartivaCallback) return "open" as const;
+    if (current.searchParams.has("error")) {
+      return current.searchParams.get("error") === "access_denied" ? "cancelled" as const : "failed" as const;
+    }
+    if (/wasn['’]t connected/i.test(authWindow.document.title)) return "failed" as const;
+  } catch {
+    // Kroger's authorization page is cross-origin until it returns to Cartiva.
+  }
+  return "open" as const;
 }
 
 export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceProps = {}) {
@@ -188,11 +226,14 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const [activeListId, setActiveListId] = useState<string>();
   const [lastComparisonRecord, setLastComparisonRecord] = useState<CartivaComparisonRecord | null>(null);
   const [krogerConnection, setKrogerConnection] = useState<{
+    checked?: boolean;
+    checking?: boolean;
     connected?: boolean;
     configured?: boolean;
   }>({});
   const comparisonRunRef = useRef(0);
   const cartTransferRef = useRef<string | undefined>(undefined);
+  const handoffAttemptRef = useRef<string | undefined>(undefined);
   const loadedRequestRef = useRef("");
   const previousClarificationCountRef = useRef<number | undefined>(undefined);
 
@@ -237,6 +278,23 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     customerConnected: krogerConnection.connected,
     cartCapability: krogerConnection.configured,
   });
+  const matchedCount = comparison.results.filter((result) => (
+    result?.status === "matched" && result.recommended
+  )).length;
+  const workspaceContext = getCartivaWorkspaceContext({
+    itemCount: interpretation.items.length,
+    unresolvedCount: interpretation.unresolvedCount,
+    canCompare: readiness.canCompare,
+    comparisonPhase: comparison.phase,
+    completedItems: comparison.completedItems,
+    matchedCount,
+    cartPhase: cart.phase,
+    subtotalLabel: lastComparisonRecord?.complete ? money(lastComparisonRecord.subtotalCents) : undefined,
+    locationName: selectedLocation?.name,
+  });
+  const handoffBusy = cart.phase === "adding"
+    || (cart.phase === "authorizing" && cart.code !== "oauth_required")
+    || (cart.phase === "error" && cart.retrySafe === false);
 
   const completePendingCart = useCallback(async (pending: PendingKrogerCart) => {
     const operationId = pending.operationId;
@@ -305,9 +363,12 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         setCart({
           phase: "error",
           message: failure.message,
-          code: failure.code,
+          code: failure.code ?? "cart_add_failed",
           retrySafe: failure.retrySafe,
         });
+        if (cartResponse.status === 401) {
+          setKrogerConnection({ checked: true, connected: false, configured: true });
+        }
         return;
       }
       let receipt: {
@@ -317,6 +378,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         addedCount?: number;
         itemCount?: number;
         message?: string;
+        selectedSearchLocation?: { locationId?: string; name?: string };
+        locationBoundByCartApi?: boolean;
       };
       try {
         receipt = await cartResponse.json() as typeof receipt;
@@ -338,10 +401,14 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         receipt.success !== true
         || receipt.operationId !== submitting.operationId
         || typeof receipt.cartUrl !== "string"
-        || !/^https:\/\//.test(receipt.cartUrl)
+        || !isKrogerFamilyCartUrl(receipt.cartUrl)
         || receipt.itemCount !== submitting.items.length
         || !Number.isInteger(receipt.addedCount)
-        || (receipt.addedCount ?? 0) < submitting.items.length
+        || receipt.addedCount !== submitting.items.reduce((sum, item) => sum + item.quantity, 0)
+        || receipt.selectedSearchLocation?.locationId !== submitting.locationId
+        || receipt.locationBoundByCartApi !== false
+        || typeof receipt.message !== "string"
+        || !receipt.message.trim()
       ) {
         const message = "Kroger accepted the request, but Cartiva could not verify the receipt. Check your retailer cart before starting another handoff.";
         window.localStorage.setItem(
@@ -363,7 +430,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         cartUrl: receipt.cartUrl,
         itemCount,
         retrySafe: false,
-        message: `${itemCount} matched products were added.`,
+        message: receipt.message,
       });
       trackCartivaEvent("kroger_cart_added", {
         retailer: "kroger",
@@ -434,18 +501,19 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         ? `basket:${loadBasketId}`
         : "";
     if (!requestKey || loadedRequestRef.current === requestKey) return;
-    loadedRequestRef.current = requestKey;
 
     const savedList = loadListId ? library.lists.find((list) => list.id === loadListId) : undefined;
     const savedBasket = loadBasketId ? library.baskets.find((basket) => basket.id === loadBasketId) : undefined;
     const snapshot = savedList ?? savedBasket?.listSnapshot;
     if (!snapshot) {
+      loadedRequestRef.current = requestKey;
       setComparison({ ...initialComparison, phase: "error", message: "That saved Cartiva item is no longer available on this device." });
       return;
     }
 
     comparisonRunRef.current += 1;
-    clearPendingKrogerCartBeforeBasketChange();
+    if (!clearPendingKrogerCartBeforeBasketChange()) return;
+    loadedRequestRef.current = requestKey;
     setRawInput(snapshot.rawInput);
     setProteinOrigins(sanitizeGroceryProteinOrigins(snapshot.proteinOrigins));
     setQuantities({ ...snapshot.quantities });
@@ -461,7 +529,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     setLastComparisonRecord(null);
     setComparison(initialComparison);
     setCart(initialCart);
-  }, [hydrated, library.baskets, library.lists, libraryHydrated, loadBasketId, loadListId]);
+  }, [cart.phase, cart.retrySafe, hydrated, library.baskets, library.lists, libraryHydrated, loadBasketId, loadListId]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -499,6 +567,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   useEffect(() => {
     if (comparison.phase !== "complete") return;
     const controller = new AbortController();
+    setKrogerConnection((current) => ({ ...current, checking: true }));
     void fetch("/api/kroger/auth/status", {
       cache: "no-store",
       signal: controller.signal,
@@ -508,14 +577,20 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         configured?: boolean;
       };
       if (!controller.signal.aborted) {
-        setKrogerConnection({
-          connected: Boolean(body.connected),
-          configured: body.configured !== false && response.ok,
-        });
+        setKrogerConnection(response.ok
+          ? {
+              checked: true,
+              checking: false,
+              connected: Boolean(body.connected),
+              configured: body.configured !== false,
+            }
+          : body.configured === false
+            ? { checked: true, checking: false, connected: false, configured: false }
+            : { checked: false, checking: false, connected: undefined, configured: undefined });
       }
     }).catch(() => {
       if (!controller.signal.aborted) {
-        setKrogerConnection({ connected: false, configured: false });
+        setKrogerConnection({ checked: false, checking: false, connected: undefined, configured: undefined });
       }
     });
     return () => controller.abort();
@@ -768,6 +843,10 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       return null;
     }
 
+    // A fresh comparison may produce different verified UPCs. Never let a
+    // retryable transfer from the previous result resume against this run.
+    if (!clearPendingKrogerCartBeforeBasketChange()) return null;
+
     trackCartivaEvent("comparison_started", {
       retailer: "kroger",
       fulfillmentMode,
@@ -957,6 +1036,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           });
     }
     if (!pending) return;
+    if (handoffAttemptRef.current === pending.operationId) return;
+    handoffAttemptRef.current = pending.operationId;
     trackCartivaEvent("kroger_handoff_started", {
       retailer: "kroger",
       fulfillmentMode: pending.fulfillmentMode,
@@ -964,52 +1045,79 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       retrySafe: true,
     });
     window.localStorage.setItem(KROGER_PENDING_CART_STORAGE_KEY, JSON.stringify(pending));
-    const authWindow = window.open("about:blank", "cartiva-kroger-oauth", "popup,width=560,height=760");
+    const alreadyConnected = krogerConnection.checked === true && krogerConnection.connected === true;
+    const authWindow = alreadyConnected
+      ? null
+      : window.open("about:blank", "cartiva-kroger-oauth", "popup,width=560,height=760");
     if (authWindow) {
       authWindow.document.title = "Connecting to Kroger";
       authWindow.document.body.textContent = "Cartiva is preparing Kroger sign-in…";
     }
     try {
-      setCart({ phase: "connecting", message: "Checking your Kroger connection…", retrySafe: true });
-      let authResponse = await fetch("/api/kroger/auth/status", { cache: "no-store" });
-      let auth = await authResponse.json().catch(() => ({})) as { connected?: boolean; configured?: boolean; error?: string };
-      setKrogerConnection({
-        connected: Boolean(auth.connected),
-        configured: auth.configured !== false && authResponse.ok,
-      });
-      if (!authResponse.ok) {
-        throw new Error(
-          auth.configured === false
-            ? "Kroger OAuth is not configured on this deployment."
-            : auth.error ?? "Cartiva could not verify the saved Kroger connection.",
-        );
+      if (alreadyConnected) {
+        await completePendingCart(pending);
+        return;
+      }
+      if (!authWindow) {
+        throw new KrogerOAuthFailedError("Your browser blocked the Kroger sign-in window. Allow pop-ups for Cartiva, then try again.");
+      }
+
+      setCart({ phase: "authorizing", message: "Checking your Kroger connection…", retrySafe: true });
+      let authResponse: Response | undefined;
+      let auth: { connected?: boolean; configured?: boolean; error?: string } = {
+        connected: krogerConnection.connected,
+        configured: krogerConnection.configured,
+      };
+      if (!krogerConnection.checked) {
+        authResponse = await fetch("/api/kroger/auth/status", { cache: "no-store" });
+        auth = await authResponse.json().catch(() => ({})) as typeof auth;
+        setKrogerConnection({
+          checked: true,
+          connected: Boolean(auth.connected),
+          configured: auth.configured !== false,
+        });
+        if (!authResponse.ok) {
+          throw new KrogerOAuthFailedError(
+            auth.configured === false
+              ? "Kroger OAuth is not configured on this deployment."
+              : auth.error ?? "Cartiva could not verify the saved Kroger connection.",
+          );
+        }
       }
 
       if (!auth.connected) {
         const startResponse = await fetch("/api/kroger/oauth/start", { method: "POST" });
-        if (!startResponse.ok) throw new Error(await responseError(startResponse, "Kroger sign-in could not start."));
+        if (!startResponse.ok) {
+          throw new KrogerOAuthFailedError(await responseError(startResponse, "Kroger sign-in could not start."));
+        }
         const start = await startResponse.json() as { authorizationUrl?: string };
-        if (!start.authorizationUrl) throw new Error("Kroger did not return an authorization link.");
-        if (!authWindow) throw new Error("Your browser blocked the Kroger sign-in window. Allow pop-ups for Cartiva, then try again.");
+        if (!start.authorizationUrl) throw new KrogerOAuthFailedError("Kroger did not return an authorization link.");
         authWindow.location.href = start.authorizationUrl;
         setCart({
-          phase: "connecting",
+          phase: "authorizing",
           message: "Finish signing in with Kroger in the new window. Cartiva will continue automatically.",
           retrySafe: true,
         });
 
         let connected = false;
-        for (let attempt = 0; attempt < 150; attempt += 1) {
-          await wait(2_000);
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          await wait(3_000);
           authResponse = await fetch("/api/kroger/auth/status", { cache: "no-store" });
           auth = await authResponse.json().catch(() => ({})) as { connected?: boolean };
           if (auth.connected) {
             connected = true;
-            setKrogerConnection({ connected: true, configured: true });
+            setKrogerConnection({ checked: true, connected: true, configured: true });
             break;
           }
+          const popupOutcome = krogerOAuthPopupOutcome(authWindow);
+          if (popupOutcome === "cancelled" || popupOutcome === "closed") {
+            throw new KrogerOAuthCancelledError();
+          }
+          if (popupOutcome === "failed") throw new KrogerOAuthFailedError();
         }
-        if (!connected) throw new Error("Kroger sign-in was not completed. Try the handoff again when you are ready.");
+        if (!connected) {
+          throw new KrogerOAuthFailedError("Kroger sign-in was not completed. Your Cartiva basket is still ready.");
+        }
       } else {
         authWindow?.close();
       }
@@ -1026,11 +1134,16 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         ? current
         : {
             phase: "error",
+            code: error instanceof KrogerOAuthCancelledError ? "oauth_cancelled" : "oauth_failed",
             retrySafe: true,
             message: error instanceof Error
               ? error.message
-              : "We couldn't add the basket yet. Your Cartiva basket is still saved.",
+              : "We couldn't connect Kroger. Your Cartiva basket is still ready.",
           });
+    } finally {
+      if (handoffAttemptRef.current === pending.operationId) {
+        handoffAttemptRef.current = undefined;
+      }
     }
   };
 
@@ -1062,6 +1175,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         setCart({ phase: "error", code: "outcome_unknown", retrySafe: false, message });
         return;
       }
+      if (handoffAttemptRef.current === pending.operationId) return;
       if (cartTransferRef.current === pending.operationId) return;
       try {
         const response = await fetch("/api/kroger/auth/status", { cache: "no-store" });
@@ -1071,6 +1185,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         };
         if (disposed || !response.ok) return;
         setKrogerConnection({
+          checked: true,
           connected: Boolean(status.connected),
           configured: status.configured !== false,
         });
@@ -1080,7 +1195,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           setCart((current) => current.phase === "adding" || current.retrySafe === false
             ? current
             : {
-                phase: "connecting",
+                phase: "authorizing",
                 code: "oauth_required",
                 retrySafe: true,
                 message: "Your exact Kroger basket is saved. Continue sign-in to finish the handoff.",
@@ -1106,27 +1221,34 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   }, [cart.phase, completePendingCart, hydrated]);
 
   const resolveCartReview = (itemsWereAdded: boolean) => {
-    const pending = parsePendingKrogerCart(
-      window.localStorage.getItem(KROGER_PENDING_CART_STORAGE_KEY),
-    );
     if (!itemsWereAdded) {
       window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
       setCart(initialCart);
       return;
     }
     const message = "You confirmed these items are already in the retailer cart. Cartiva will not send them again.";
-    if (pending) {
-      window.localStorage.setItem(
-        KROGER_PENDING_CART_STORAGE_KEY,
-        JSON.stringify(blockPendingKrogerCart(pending, message)),
-      );
+    window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
+    setCart({
+      phase: "reviewed",
+      cartUrl: krogerCartUrl(selectedLocation?.chain),
+      retrySafe: false,
+      message,
+    });
+  };
+
+  const continueWithoutTransfer = () => {
+    const pending = parsePendingKrogerCart(
+      window.localStorage.getItem(KROGER_PENDING_CART_STORAGE_KEY),
+    );
+    if (pending && pending.submittedAt === undefined && !pending.blocked) {
+      window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
     }
-    setCart({ phase: "error", code: "outcome_unknown", retrySafe: false, message });
+    if (cart.phase !== "success" && cart.retrySafe !== false) setCart(initialCart);
   };
 
   const newList = () => {
     if (rawInput.trim() && !window.confirm("Start a new list? This clears the groceries in this workspace.")) return;
-    clearPendingKrogerCartBeforeBasketChange();
+    if (!clearPendingKrogerCartBeforeBasketChange()) return;
     setRawInput("");
     setProteinOrigins({});
     setQuantities({});
@@ -1166,6 +1288,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       locationLabel={selectedLocation?.name}
       locationBusy={locationBusy}
       listSaved={listSaved}
+      handoffBusy={handoffBusy}
       onListName={(value) => setListName(value)}
       onSaveList={saveCurrentList}
       onZipInput={(value) => {
@@ -1183,21 +1306,10 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       <main className={styles.workspace} id="main-content">
         <div className={styles.workspaceLayout}>
           <div className={styles.primaryWorkspace}>
-            <div className={styles.pageIntro}>
-              <h2>Your list, compared as one cart</h2>
-              <p>Write groceries normally. Cartiva compares one complete basket and keeps checkout with the retailer.</p>
-            </div>
-            <div
-              className={styles.summaryBar}
-              aria-label={`${interpretation.items.length} items, ${interpretation.readyCount} ready, ${interpretation.unresolvedCount} ${interpretation.unresolvedCount === 1 ? "choice" : "choices"} needed, estimated savings require two complete retailer baskets`}
-            >
-              <span><strong>{interpretation.items.length}</strong> items</span>
-              <span data-tone="ready"><strong>{interpretation.readyCount}</strong> ready</span>
-              <span data-tone={interpretation.unresolvedCount ? "warning" : "ready"}>
-                <strong>{interpretation.unresolvedCount}</strong> {interpretation.unresolvedCount === 1 ? "choice" : "choices"} needed
-              </span>
-              <span className={styles.summarySavings}><strong>Estimated savings</strong><small>2+ baskets needed</small></span>
-            </div>
+            <header className={styles.contextHeader} data-state={workspaceContext.state}>
+              <h1>{workspaceContext.headline}</h1>
+              <p aria-live="polite">{workspaceContext.supporting}</p>
+            </header>
             <div className={styles.workspaceGrid}>
               <CartivaGroceryList
                 items={interpretation.items}
@@ -1206,6 +1318,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                 selectedLocationId={selectedLocationId}
                 fulfillmentMode={fulfillmentMode}
                 comparisonPhase={comparison.phase}
+                locked={handoffBusy}
                 canCompare={readiness.canCompare}
                 compareHint={readiness.reason}
                 onAdd={addItems}
@@ -1226,16 +1339,21 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                 cart={cart}
                 cartReadiness={cartReadiness}
                 basketSaved={Boolean(lastComparisonRecord && library.baskets.some((basket) => basket.id === lastComparisonRecord.id))}
+                connectionChecking={Boolean(
+                  comparison.phase === "complete"
+                  && cart.phase === "idle"
+                  && krogerConnection.checking,
+                )}
                 onChangeStore={changeStore}
                 onRetry={runComparison}
                 onReviewItem={reviewItem}
                 onSaveBasket={lastComparisonRecord?.complete ? () => saveBasket(lastComparisonRecord) : undefined}
                 onAddToKroger={addToKroger}
+                onContinueWithoutTransfer={continueWithoutTransfer}
                 onResolveCartReview={resolveCartReview}
               />
             </div>
           </div>
-          <CartivaUtilityRail />
         </div>
       </main>
     </CartivaShell>
