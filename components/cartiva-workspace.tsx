@@ -12,6 +12,12 @@ import {
 import type { KrogerMatchResult, KrogerSearchStreamEvent } from "@/lib/types";
 import { CartivaComparison } from "@/components/cartiva-comparison";
 import { CartivaGroceryList } from "@/components/cartiva-grocery-list";
+import {
+  CartivaCreationModeTabs,
+  CartivaPlanBuilder,
+  CartivaRecipeImporter,
+  type CartivaCreationMode,
+} from "@/components/cartiva-list-creation";
 import { useCartivaLibrary } from "@/components/cartiva-library-provider";
 import { CartivaShell } from "@/components/cartiva-shell";
 import type {
@@ -51,6 +57,7 @@ import {
 } from "@/lib/cartiva-kroger-receipt";
 import { krogerCartUrl } from "@/lib/kroger-family-links";
 import type { CartivaKrogerCartCode } from "@/lib/cartiva-kroger-handoff";
+import { MAX_CARTIVA_INGREDIENTS, type ConsolidatedIngredient } from "@/lib/cartiva-planning";
 import styles from "@/components/cartiva-workspace.module.css";
 
 const WORKSPACE_KEY = "cartiva-web-workspace-v1";
@@ -243,6 +250,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const [listName, setListName] = useState("Weekly groceries");
   const [activeListId, setActiveListId] = useState<string>();
   const [lastComparisonRecord, setLastComparisonRecord] = useState<CartivaComparisonRecord | null>(null);
+  const [creationMode, setCreationMode] = useState<CartivaCreationMode>("grocery-list");
+  const [creationDraftKey, setCreationDraftKey] = useState(0);
   const [krogerConnection, setKrogerConnection] = useState<{
     checked?: boolean;
     checking?: boolean;
@@ -654,7 +663,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     invalidateComparison();
   };
 
-  const addItems = (value: string, source: "single" | "paste") => {
+  const addItems = (value: string, source: "single" | "paste" | "plan" | "recipe") => {
     const nextRawInput = rawInput.trim() ? `${rawInput.trim()}\n${value.trim()}` : value.trim();
     const nextInterpretation = interpretGroceryInput(nextRawInput, { proteinOrigins });
     const addedCount = Math.max(0, nextInterpretation.items.length - interpretation.items.length);
@@ -678,6 +687,28 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       });
     }
     updateRawInput(nextRawInput);
+  };
+
+  const commitGeneratedIngredients = (
+    ingredients: ConsolidatedIngredient[],
+    suggestedName: string,
+    source: "plan" | "recipe",
+  ) => {
+    const remainingSlots = Math.max(0, MAX_CARTIVA_INGREDIENTS - interpretation.items.length);
+    if (!ingredients.length || ingredients.length > remainingSlots) return;
+    const wasEmpty = interpretation.items.length === 0;
+    addItems(ingredients.map((ingredient) => ingredient.shoppingText).join("\n"), source);
+    if (wasEmpty && suggestedName.trim()) {
+      setListName(suggestedName.replace(/\s+/g, " ").trim().slice(0, 80));
+      setActiveListId(undefined);
+    }
+    setCreationMode("grocery-list");
+    window.requestAnimationFrame(() => {
+      document.getElementById("grocery-list-heading")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
+    });
   };
 
   const editItem = (index: number, value: string) => {
@@ -1271,6 +1302,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     setQuantities({});
     setListName("Untitled list");
     setActiveListId(undefined);
+    setCreationMode("grocery-list");
+    setCreationDraftKey((current) => current + 1);
     comparisonRunRef.current += 1;
     setLastComparisonRecord(null);
     setComparison(initialComparison);
@@ -1323,54 +1356,94 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       <main className={styles.workspace} id="main-content">
         <div className={styles.workspaceLayout}>
           <div className={styles.primaryWorkspace}>
+            <CartivaCreationModeTabs mode={creationMode} onMode={setCreationMode} />
             <header className={styles.contextHeader} data-state={workspaceContext.state}>
-              <h1>{workspaceContext.headline}</h1>
-              <p aria-live="polite">{workspaceContext.supporting}</p>
+              <h1>{creationMode === "build-plan"
+                ? "Turn your goal into a cart"
+                : creationMode === "paste-recipe"
+                  ? "Bring a recipe. Leave with a list."
+                  : workspaceContext.headline}</h1>
+              <p aria-live="polite">{creationMode === "build-plan"
+                ? "Build an editable meal plan, review its ingredients, then send them through Cartiva’s normal comparison flow."
+                : creationMode === "paste-recipe"
+                  ? "Paste the recipe text and Cartiva will prepare a reviewable ingredient list."
+                  : workspaceContext.supporting}</p>
             </header>
-            <div className={styles.workspaceGrid}>
-              <CartivaGroceryList
-                items={interpretation.items}
-                quantities={quantities}
-                locations={locations}
-                selectedLocationId={selectedLocationId}
-                fulfillmentMode={fulfillmentMode}
-                comparisonPhase={comparison.phase}
-                locked={handoffBusy}
-                canCompare={readiness.canCompare}
-                compareHint={readiness.reason}
-                onAdd={addItems}
-                onEdit={editItem}
-                onRemove={removeItem}
-                onQuantity={updateQuantity}
-                onClarify={clarifyItem}
-                onLocation={selectLocation}
-                onFulfillment={selectFulfillment}
-                onCompare={runComparison}
+            <section
+              id="creation-panel-grocery-list"
+              role="tabpanel"
+              aria-labelledby="creation-tab-grocery-list"
+              hidden={creationMode !== "grocery-list"}
+            >
+              <div className={styles.workspaceGrid}>
+                <CartivaGroceryList
+                  items={interpretation.items}
+                  quantities={quantities}
+                  locations={locations}
+                  selectedLocationId={selectedLocationId}
+                  fulfillmentMode={fulfillmentMode}
+                  comparisonPhase={comparison.phase}
+                  locked={handoffBusy}
+                  canCompare={readiness.canCompare}
+                  compareHint={readiness.reason}
+                  onAdd={addItems}
+                  onEdit={editItem}
+                  onRemove={removeItem}
+                  onQuantity={updateQuantity}
+                  onClarify={clarifyItem}
+                  onLocation={selectLocation}
+                  onFulfillment={selectFulfillment}
+                  onCompare={runComparison}
+                />
+                <CartivaComparison
+                  items={interpretation.items}
+                  quantities={quantities}
+                  comparison={comparison}
+                  selectedLocation={selectedLocation}
+                  fulfillmentMode={fulfillmentMode}
+                  cart={cart}
+                  cartReadiness={cartReadiness}
+                  basketSaved={Boolean(lastComparisonRecord && library.baskets.some((basket) => basket.id === lastComparisonRecord.id))}
+                  connectionChecking={Boolean(
+                    comparison.phase === "complete"
+                    && cart.phase === "idle"
+                    && krogerConnection.checking,
+                  )}
+                  connectionState={krogerConnection.state}
+                  onChangeStore={changeStore}
+                  onRetry={runComparison}
+                  onReviewItem={reviewItem}
+                  onSaveBasket={lastComparisonRecord?.complete ? () => saveBasket(lastComparisonRecord) : undefined}
+                  onAddToKroger={addToKroger}
+                  onContinueWithoutTransfer={continueWithoutTransfer}
+                  onResolveCartReview={resolveCartReview}
+                />
+              </div>
+            </section>
+            <section
+              id="creation-panel-build-plan"
+              role="tabpanel"
+              aria-labelledby="creation-tab-build-plan"
+              hidden={creationMode !== "build-plan"}
+            >
+              <CartivaPlanBuilder
+                key={`plan-${creationDraftKey}`}
+                availableIngredientSlots={Math.max(0, MAX_CARTIVA_INGREDIENTS - interpretation.items.length)}
+                onCommit={(ingredients, suggestedName) => commitGeneratedIngredients(ingredients, suggestedName, "plan")}
               />
-              <CartivaComparison
-                items={interpretation.items}
-                quantities={quantities}
-                comparison={comparison}
-                selectedLocation={selectedLocation}
-                fulfillmentMode={fulfillmentMode}
-                cart={cart}
-                cartReadiness={cartReadiness}
-                basketSaved={Boolean(lastComparisonRecord && library.baskets.some((basket) => basket.id === lastComparisonRecord.id))}
-                connectionChecking={Boolean(
-                  comparison.phase === "complete"
-                  && cart.phase === "idle"
-                  && krogerConnection.checking,
-                )}
-                connectionState={krogerConnection.state}
-                onChangeStore={changeStore}
-                onRetry={runComparison}
-                onReviewItem={reviewItem}
-                onSaveBasket={lastComparisonRecord?.complete ? () => saveBasket(lastComparisonRecord) : undefined}
-                onAddToKroger={addToKroger}
-                onContinueWithoutTransfer={continueWithoutTransfer}
-                onResolveCartReview={resolveCartReview}
+            </section>
+            <section
+              id="creation-panel-paste-recipe"
+              role="tabpanel"
+              aria-labelledby="creation-tab-paste-recipe"
+              hidden={creationMode !== "paste-recipe"}
+            >
+              <CartivaRecipeImporter
+                key={`recipe-${creationDraftKey}`}
+                availableIngredientSlots={Math.max(0, MAX_CARTIVA_INGREDIENTS - interpretation.items.length)}
+                onCommit={(ingredients, suggestedName) => commitGeneratedIngredients(ingredients, suggestedName, "recipe")}
               />
-            </div>
+            </section>
           </div>
         </div>
       </main>

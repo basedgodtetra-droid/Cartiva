@@ -16,7 +16,7 @@ interface CartivaGroceryListProps {
   locked: boolean;
   canCompare: boolean;
   compareHint: string;
-  onAdd: (value: string, source: "single" | "paste") => void;
+  onAdd: (value: string, source: "single" | "paste" | "plan" | "recipe") => void;
   onEdit: (index: number, value: string) => void;
   onRemove: (index: number) => void;
   onQuantity: (id: string, quantity: number) => void;
@@ -135,7 +135,7 @@ export function CartivaGroceryList({
 
       <button type="button" className={styles.pasteToggle} onClick={() => setPasteOpen((current) => !current)} disabled={locked}>
         {pasteOpen ? <X aria-hidden="true" /> : <Package2 aria-hidden="true" />}
-        {pasteOpen ? "Close list paste" : "Paste a full list"}
+        {pasteOpen ? "Close grocery paste" : "Paste grocery list"}
       </button>
 
       {pasteOpen ? (

@@ -21,7 +21,7 @@ export type CartivaProductEventName = typeof CARTIVA_PRODUCT_EVENT_NAMES[number]
 
 export interface CartivaProductEventProperties {
   route?: string;
-  source?: "single" | "paste" | "automatic" | "manual";
+  source?: "single" | "paste" | "plan" | "recipe" | "automatic" | "manual";
   retailer?: "kroger";
   fulfillmentMode?: "pickup" | "delivery";
   itemCount?: number;

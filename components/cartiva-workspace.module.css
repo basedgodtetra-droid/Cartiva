@@ -3026,3 +3026,934 @@
     min-height: 36px;
   }
 }
+
+/* List creation modes: goal → plan → ingredients → Cartiva list. */
+.creationModeTabs {
+  display: grid;
+  width: min(100%, 620px);
+  min-height: 52px;
+  margin: 0 auto 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 14px;
+  padding: 4px;
+  background: var(--cartiva-surface);
+  box-shadow: 0 2px 8px rgba(23, 34, 29, 0.025);
+}
+
+.creationModeTabs button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 10px;
+  padding: 7px 12px;
+  background: transparent;
+  color: var(--cartiva-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.creationModeTabs button[data-active="true"] {
+  background: var(--cartiva-mint);
+  color: var(--cartiva-green-hover);
+}
+
+.creationModeTabs svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+
+.planWorkspace,
+.recipeWorkspace {
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+.planGoalCard,
+.recipePasteCard,
+.mealPlanPanel,
+.ingredientPanel {
+  border: 1px solid var(--cartiva-border);
+  border-radius: 16px;
+  background: var(--cartiva-surface);
+  box-shadow: 0 4px 16px rgba(23, 34, 29, 0.035);
+}
+
+.planGoalCard,
+.recipePasteCard {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 26px;
+}
+
+.planCardIntro {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.planIcon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--cartiva-mint);
+  color: var(--cartiva-green);
+}
+
+.planIcon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.planCardIntro > div > span,
+.planResultHeader > div > span,
+.planSectionHeading > div > span {
+  display: block;
+  margin: 1px 0 4px;
+  color: var(--cartiva-green-hover);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.planCardIntro h2,
+.planResultHeader h2,
+.planSectionHeading h2 {
+  margin: 0;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+}
+
+.planCardIntro h2,
+.planResultHeader h2 {
+  font-size: 22px;
+}
+
+.planSectionHeading h2 {
+  font-size: 19px;
+}
+
+.planCardIntro p,
+.planResultHeader p,
+.planSectionHeading p {
+  margin: 5px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.planFieldGrid {
+  display: grid;
+  margin-top: 24px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.planFieldGrid label,
+.planPromptField,
+.recipeTextField {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.planFieldGrid label > span,
+.planPromptField > span,
+.recipeTextField > span {
+  color: #34423b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.planFieldGrid small,
+.planPromptField small {
+  color: var(--cartiva-soft);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.planFieldGrid input,
+.planPromptField textarea,
+.recipeTextField textarea,
+.ingredientCopy input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #ced7d2;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--cartiva-text);
+}
+
+.planFieldGrid input {
+  height: 44px;
+  padding: 0 11px;
+}
+
+.planPromptField {
+  margin-top: 14px;
+}
+
+.planSafetyNote {
+  margin: 6px 2px 0;
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.planPromptField textarea,
+.recipeTextField textarea {
+  resize: vertical;
+  padding: 12px;
+  line-height: 1.5;
+}
+
+.inputWithSuffix,
+.inputWithPrefix {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  border: 1px solid #ced7d2;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.inputWithSuffix {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.inputWithPrefix {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.inputWithSuffix input,
+.inputWithPrefix input {
+  border: 0;
+}
+
+.inputWithSuffix > span,
+.inputWithPrefix > span {
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.inputWithSuffix > span {
+  padding-right: 9px;
+}
+
+.inputWithPrefix > span {
+  padding-left: 11px;
+}
+
+.inputWithSuffix:focus-within,
+.inputWithPrefix:focus-within {
+  border-color: #82958b;
+  box-shadow: 0 0 0 3px rgba(77, 91, 84, 0.12);
+}
+
+.planFieldGrid input:focus-visible,
+.planPromptField textarea:focus-visible,
+.recipeTextField textarea:focus-visible,
+.ingredientCopy input:focus-visible {
+  border-color: #82958b;
+  outline: 2px solid var(--cartiva-focus-ring);
+  outline-offset: 2px;
+}
+
+.inputWithSuffix input:focus,
+.inputWithPrefix input:focus {
+  outline: 0;
+}
+
+.examplePrompts {
+  margin-top: 16px;
+}
+
+.examplePrompts > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.examplePrompts > div,
+.planAdjustments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.examplePrompts button,
+.planAdjustments button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 18px;
+  padding: 0 12px;
+  background: #fff;
+  color: #46544c;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.examplePrompts button:hover,
+.planAdjustments button:hover {
+  border-color: #b8c9c1;
+  background: #f7faf8;
+  color: var(--cartiva-green-hover);
+}
+
+.planAdjustments svg {
+  width: 13px;
+  height: 13px;
+}
+
+.planPrimaryButton {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 23px;
+  margin-top: 20px;
+  padding: 0 22px;
+  background: var(--cartiva-green-hover);
+  color: #fff !important;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.planPrimaryButton:hover:not(:disabled) {
+  background: #0b654d;
+}
+
+.planPrimaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.planPrimaryButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.reviewFirstNote {
+  display: inline;
+  margin: 0 0 0 10px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+}
+
+.planResults {
+  display: grid;
+  margin-top: 18px;
+  grid-template-columns: minmax(0, 1.12fr) minmax(360px, 0.88fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.mealPlanPanel,
+.ingredientPanel {
+  min-width: 0;
+  padding: 22px;
+}
+
+.planResultHeader,
+.planSectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.estimateBadge {
+  flex: 0 0 auto;
+  border-radius: 12px;
+  padding: 5px 9px;
+  background: #eef2ef;
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.planEstimateNotice {
+  margin-top: 16px;
+  border: 1px solid #dce8e2;
+  border-radius: 11px;
+  padding: 13px 14px;
+  background: #f3f8f5;
+}
+
+.planEstimateNotice > strong {
+  display: block;
+  font-size: 13px;
+}
+
+.planEstimateNotice p {
+  margin: 4px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.planEstimateNotice p strong {
+  color: #315347;
+}
+
+.understoodConstraints {
+  margin-top: 12px;
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fafbf9;
+}
+
+.understoodConstraints > strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #405047;
+  font-size: 11px;
+}
+
+.understoodConstraints > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.understoodConstraints span {
+  border-radius: 12px;
+  padding: 4px 8px;
+  background: var(--cartiva-mint);
+  color: #315347;
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.understoodConstraints p {
+  margin: 7px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.planAdjustments {
+  margin-top: 12px;
+}
+
+.generationNote {
+  margin: 9px 0 0;
+  color: var(--cartiva-green-hover);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.mealDays {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.mealDay > h3 {
+  margin: 0 0 7px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.mealCard {
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 11px;
+  padding: 14px;
+  background: #fff;
+}
+
+.mealCard + .mealCard {
+  margin-top: 7px;
+}
+
+.mealCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mealSlot {
+  color: var(--cartiva-green-hover);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+}
+
+.mealCardActions,
+.ingredientActions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.mealCardActions button,
+.ingredientActions button {
+  display: inline-flex;
+  min-width: 36px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--cartiva-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.mealCardActions button:hover,
+.ingredientActions button:hover {
+  background: #f0f4f1;
+  color: var(--cartiva-green-hover);
+}
+
+.mealCardActions svg,
+.ingredientActions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.mealCard h4 {
+  margin: 7px 0 0;
+  font-size: 14px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
+.mealNutrition {
+  margin: 4px 0 0;
+  color: #38594c;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.mealIngredients {
+  margin: 5px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.servingControl,
+.recipeServings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid var(--cartiva-border-soft);
+  margin-top: 11px;
+  padding-top: 10px;
+}
+
+.servingControl > span,
+.recipeServings > span {
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.servingControl > div,
+.recipeServings > div {
+  display: grid;
+  grid-template-columns: 32px 30px 32px;
+  align-items: center;
+  text-align: center;
+}
+
+.servingControl button,
+.recipeServings button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: #f1f4f2;
+  cursor: pointer;
+}
+
+.servingControl button:disabled,
+.recipeServings button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.servingControl svg,
+.recipeServings svg {
+  width: 13px;
+  height: 13px;
+}
+
+.servingControl strong,
+.recipeServings strong {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.planSectionHeading > strong {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cartiva-mint);
+  color: var(--cartiva-green-hover);
+  font-size: 12px;
+}
+
+.ingredientList {
+  margin-top: 16px;
+  border-top: 1px solid var(--cartiva-border-soft);
+}
+
+.ingredientRow {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--cartiva-border-soft);
+  padding: 7px 0;
+}
+
+.ingredientCheck {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 9px;
+  background: #f0f6f3;
+  color: var(--cartiva-green);
+}
+
+.ingredientCheck svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ingredientCopy {
+  min-width: 0;
+}
+
+.ingredientCopy strong,
+.ingredientCopy span {
+  display: block;
+}
+
+.ingredientCopy strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ingredientCopy span {
+  margin-top: 3px;
+  color: var(--cartiva-muted);
+  font-size: 10px;
+}
+
+.ingredientCopy input {
+  height: 38px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.ingredientEmpty,
+.noMealsState {
+  color: var(--cartiva-muted);
+  text-align: center;
+}
+
+.ingredientEmpty {
+  margin: 18px 0 0;
+  border: 1px dashed var(--cartiva-border);
+  border-radius: 10px;
+  padding: 24px 14px;
+  font-size: 12px;
+}
+
+.noMealsState {
+  padding: 42px 16px 20px;
+}
+
+.noMealsState svg {
+  width: 24px;
+  height: 24px;
+}
+
+.noMealsState h3 {
+  margin: 8px 0 0;
+  color: var(--cartiva-text);
+  font-size: 14px;
+}
+
+.noMealsState p {
+  margin: 5px 0 0;
+  font-size: 11px;
+}
+
+.planWarning,
+.recipeError {
+  border: 1px solid #efd9ad;
+  border-radius: 9px;
+  margin: 12px 0 0;
+  padding: 10px 11px;
+  background: var(--cartiva-warning);
+  color: #74572d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ingredientCommit {
+  margin-top: 18px;
+}
+
+.ingredientCommit .planPrimaryButton {
+  width: 100%;
+  margin: 0;
+}
+
+.ingredientCommit > p {
+  margin: 7px 8px 0;
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.recipeTextField {
+  margin-top: 22px;
+}
+
+.recipeTextField textarea {
+  min-height: 250px;
+}
+
+.recipePasteCard > .planPrimaryButton {
+  width: 100%;
+}
+
+.recipeResult {
+  max-width: 720px;
+  margin: 18px auto 0;
+}
+
+.recipeFoundBanner {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid #cfe3d9;
+  border-radius: 13px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: #f2f8f5;
+}
+
+.recipeFoundBanner > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--cartiva-green);
+}
+
+.recipeFoundBanner svg {
+  width: 17px;
+  height: 17px;
+}
+
+.recipeFoundBanner strong,
+.recipeFoundBanner p {
+  display: block;
+  margin: 0;
+}
+
+.recipeFoundBanner strong {
+  font-size: 13px;
+}
+
+.recipeFoundBanner p {
+  margin-top: 3px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+}
+
+.recipeFoundBanner > button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cartiva-muted);
+  cursor: pointer;
+}
+
+.recipeServings {
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 10px;
+  margin-top: 15px;
+  padding: 9px 10px;
+  background: #fafbf9;
+}
+
+@media (max-width: 1140px) {
+  .planResults {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 780px) {
+  .planFieldGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planGoalCard,
+  .recipePasteCard,
+  .mealPlanPanel,
+  .ingredientPanel {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .creationModeTabs {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .creationModeTabs button {
+    min-height: 48px;
+    padding-inline: 7px;
+    font-size: 11px;
+  }
+
+  .creationModeTabs svg {
+    display: none;
+  }
+
+  .planFieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .planCardIntro {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 11px;
+  }
+
+  .planIcon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .planCardIntro h2,
+  .planResultHeader h2 {
+    font-size: 19px;
+  }
+
+  .planGoalCard,
+  .recipePasteCard,
+  .mealPlanPanel,
+  .ingredientPanel {
+    border-radius: 13px;
+    padding: 16px;
+  }
+
+  .planPrimaryButton,
+  .planGoalCard > .planPrimaryButton {
+    width: 100%;
+  }
+
+  .reviewFirstNote {
+    display: block;
+    margin: 8px 2px 0;
+    text-align: center;
+  }
+
+  .mealCardActions button,
+  .ingredientActions button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .servingControl button,
+  .recipeServings button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .servingControl > div,
+  .recipeServings > div {
+    grid-template-columns: 44px 34px 44px;
+  }
+
+  .mealCardActions button:first-child {
+    padding-inline: 9px;
+  }
+
+  .ingredientRow {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .creationModeTabs button {
+    white-space: normal;
+  }
+
+  .planResultHeader,
+  .planSectionHeading {
+    gap: 10px;
+  }
+
+  .mealCardTop {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mealCardActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
