@@ -54,7 +54,7 @@ export function getCartivaWorkspaceContext({
       }
       return {
         state: "basket_ready",
-        headline: "Your Kroger basket is ready",
+        headline: "Your Cartiva basket is ready",
         supporting: `${matchedCount} of ${itemCount} items matched${subtotalLabel ? ` · ${subtotalLabel}` : ""}.`,
       };
     }

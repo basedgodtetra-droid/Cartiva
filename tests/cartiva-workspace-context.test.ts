@@ -50,7 +50,7 @@ describe("Cartiva workspace context", () => {
       subtotalLabel: "$43.72",
     })).toEqual({
       state: "basket_ready",
-      headline: "Your Kroger basket is ready",
+      headline: "Your Cartiva basket is ready",
       supporting: "5 of 5 items matched · $43.72.",
     });
     expect(getCartivaWorkspaceContext({
