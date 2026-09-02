@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { KrogerAuthClient } from "@/lib/kroger-auth";
+import { KrogerAuthError, type KrogerAuthClient } from "@/lib/kroger-auth";
 import {
   findKrogerLocations,
   addToKrogerCart,
@@ -240,6 +240,21 @@ describe("Kroger provider normalization", () => {
       "/v1/cart/add",
       expect.objectContaining({ redirect: "manual" }),
     );
+  });
+
+  it("classifies a cart 401 as an expired connection", async () => {
+    const auth = {
+      fetchCustomer: vi.fn(async () => new Response(null, { status: 401 })),
+    } as unknown as KrogerAuthClient;
+    await expect(addToKrogerCart([{
+      upc: "0001111012345",
+      quantity: 1,
+      modality: "PICKUP",
+    }], auth)).rejects.toEqual(expect.objectContaining({
+      name: "KrogerAuthError",
+      code: "not_connected",
+      status: 401,
+    } satisfies Partial<KrogerAuthError>));
   });
 
   it("never follows Kroger redirects for reads or cart writes", async () => {

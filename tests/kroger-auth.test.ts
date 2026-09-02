@@ -177,7 +177,7 @@ describe("Kroger OAuth", () => {
       sessionFile,
     }, fetcher);
 
-    await expect(auth.connectionStatus()).resolves.toEqual({ connected: false });
+    await expect(auth.connectionStatus()).resolves.toEqual({ connected: false, expired: true });
     await expect(stat(sessionFile)).rejects.toMatchObject({ code: "ENOENT" });
     await expect(auth.getCustomerAccessToken()).rejects.toMatchObject({
       code: "not_connected",
@@ -208,7 +208,7 @@ describe("Kroger OAuth", () => {
       sessionFile,
     }, fetcher);
 
-    await expect(auth.connectionStatus()).resolves.toEqual({ connected: false });
+    await expect(auth.connectionStatus()).resolves.toEqual({ connected: false, expired: true });
     await expect(stat(sessionFile)).rejects.toMatchObject({ code: "ENOENT" });
     expect(fetcher).toHaveBeenCalledTimes(1);
   });

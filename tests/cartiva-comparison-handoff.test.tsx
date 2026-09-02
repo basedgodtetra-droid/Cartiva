@@ -5,6 +5,7 @@ import { CartivaComparison } from "@/components/cartiva-comparison";
 import { getKrogerCartReadiness } from "@/lib/cartiva-kroger-cart";
 import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
 import type { KrogerMatchResult, KrogerProduct } from "@/lib/types";
+import type { CartivaKrogerConnectionState } from "@/lib/cartiva-kroger-connection";
 
 const grocery: GroceryNotepadItem = {
   id: "eggs",
@@ -74,7 +75,11 @@ const result: KrogerMatchResult = {
   explanation: "Verified exact-store match.",
 };
 
-function markup(cart: Parameters<typeof CartivaComparison>[0]["cart"], connected = false) {
+function markup(
+  cart: Parameters<typeof CartivaComparison>[0]["cart"],
+  connected = false,
+  connectionState: CartivaKrogerConnectionState = connected ? "connected" : "required",
+) {
   const comparison = {
     phase: "complete" as const,
     results: [result],
@@ -103,6 +108,7 @@ function markup(cart: Parameters<typeof CartivaComparison>[0]["cart"], connected
     }),
     basketSaved: false,
     connectionChecking: false,
+    connectionState,
     onChangeStore: vi.fn(),
     onRetry: vi.fn(),
     onReviewItem: vi.fn(),
@@ -117,9 +123,9 @@ function markup(cart: Parameters<typeof CartivaComparison>[0]["cart"], connected
 describe("Cartiva comparison handoff UI", () => {
   it("stops at a reviewable Cartiva basket before any retailer authentication", () => {
     const html = markup({ phase: "idle" });
-    expect(html).toContain("Your Cartiva basket is ready");
+    expect(html).toContain("Connect to Kroger to add your items");
     expect(html).toContain("Kroger basket receipt");
-    expect(html).toContain("Add basket to Kroger");
+    expect(html).toContain("Connect Kroger");
     expect(html).toContain("Save this basket");
     expect(html).toContain("Open Kroger without transfer");
     expect(html).toContain("will not be transferred");
@@ -128,15 +134,29 @@ describe("Cartiva comparison handoff UI", () => {
 
   it("explains that an already-connected shopper can add immediately", () => {
     const html = markup({ phase: "idle" }, true);
-    expect(html).toContain("Kroger is already connected");
+    expect(html).toContain("Kroger API connection is active");
     expect(html).toContain("Add basket to Kroger");
+  });
+
+  it("shows an expired connection as reconnectable without claiming transfer success", () => {
+    const html = markup({
+      phase: "error",
+      code: "auth_expired",
+      retrySafe: true,
+      message: "Your Kroger connection expired.",
+    }, false, "expired");
+    expect(html).toContain("Your Kroger connection expired");
+    expect(html).toContain("Reconnect Kroger");
+    expect(html).toContain("Not transferred");
+    expect(html).not.toContain("Your Kroger cart is ready");
   });
 
   it("preserves the basket after OAuth cancellation and offers a safe retry", () => {
     const html = markup({ phase: "error", code: "oauth_cancelled", retrySafe: true, message: "Kroger sign-in was cancelled." });
     expect(html).toContain("Your Cartiva basket is still ready");
-    expect(html).toContain("Try again");
+    expect(html).toContain("Connect Kroger");
     expect(html).toContain("Kroger basket receipt");
+    expect(html).toContain("Not transferred");
   });
 
   it("does not offer a no-transfer exit while authorization or cart writing is active", () => {
@@ -153,9 +173,25 @@ describe("Cartiva comparison handoff UI", () => {
       message: "1 item was added to Kroger.",
     }, true);
     expect(html).toContain("Your Kroger cart is ready");
-    expect(html).toContain("Review Kroger cart");
+    expect(html).toContain("Open Kroger cart");
+    expect(html).toContain('href="https://www.kroger.com/cart"');
+    expect(html).toContain("Accepted by Kroger");
+    expect(html).toContain("If Kroger asks you to sign in in this browser");
     expect(html).toContain("confirm Kroger&#x27;s active store before checkout");
     expect(html).not.toContain("Add basket to Kroger");
+  });
+
+  it("fails closed when Kroger's batch outcome is unconfirmed", () => {
+    const html = markup({
+      phase: "error",
+      code: "outcome_unknown",
+      retrySafe: false,
+      message: "Cartiva could not confirm Kroger's response.",
+    }, true);
+    expect(html).toContain("Confirmation needed");
+    expect(html).toContain("Items are in Kroger");
+    expect(html).toContain("Items were not added");
+    expect(html).not.toContain("Your Kroger cart is ready");
   });
 
   it("records a shopper-resolved unknown outcome without claiming API-confirmed success", () => {

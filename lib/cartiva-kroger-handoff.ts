@@ -1,6 +1,8 @@
 export type CartivaKrogerHandoffStage =
   | "comparison"
   | "basket_ready"
+  | "auth_required"
+  | "auth_expired"
   | "authorizing"
   | "adding"
   | "transfer_success"
@@ -14,6 +16,8 @@ export type CartivaKrogerCartPhase = "idle" | "authorizing" | "adding" | "succes
 
 export type CartivaKrogerCartCode =
   | "oauth_required"
+  | "auth_required"
+  | "auth_expired"
   | "oauth_cancelled"
   | "oauth_failed"
   | "cart_add_failed"
@@ -34,6 +38,8 @@ export function getCartivaKrogerHandoffStage({
   if (cartPhase === "adding") return "adding";
   if (cartPhase === "authorizing") return "authorizing";
   if (cartPhase === "error") {
+    if (cartCode === "auth_required") return "auth_required";
+    if (cartCode === "auth_expired") return "auth_expired";
     if (cartCode === "oauth_cancelled") return "oauth_cancelled";
     if (cartCode === "oauth_failed" || cartCode === "oauth_required") return "oauth_failed";
     if (cartCode === "outcome_unknown") return "outcome_unknown";

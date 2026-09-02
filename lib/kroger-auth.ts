@@ -704,7 +704,7 @@ export class KrogerAuthClient {
           && error.code === "not_connected"
           && error.status === 401
         ) {
-          return { connected: false as const };
+          return { connected: false as const, expired: true as const };
         }
         throw error;
       }

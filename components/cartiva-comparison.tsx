@@ -6,6 +6,7 @@ import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
 import type { CartState, CartivaLocation, ComparisonState } from "@/components/cartiva-workspace-types";
 import type { KrogerCartReadiness } from "@/lib/cartiva-kroger-cart";
 import { getCartivaKrogerHandoffStage } from "@/lib/cartiva-kroger-handoff";
+import type { CartivaKrogerConnectionState } from "@/lib/cartiva-kroger-connection";
 import { krogerShoppingUrl } from "@/lib/kroger-family-links";
 import styles from "@/components/cartiva-workspace.module.css";
 
@@ -19,6 +20,7 @@ interface CartivaComparisonProps {
   cartReadiness: KrogerCartReadiness;
   basketSaved: boolean;
   connectionChecking: boolean;
+  connectionState?: CartivaKrogerConnectionState;
   onChangeStore: () => void;
   onRetry: () => void;
   onReviewItem: (index: number) => void;
@@ -58,6 +60,7 @@ export function CartivaComparison({
   cartReadiness,
   basketSaved,
   connectionChecking,
+  connectionState,
   onChangeStore,
   onRetry,
   onReviewItem,
@@ -88,31 +91,43 @@ export function CartivaComparison({
   const shoppingUrl = krogerShoppingUrl(selectedLocation?.chain);
   const oauthIssue = handoffStage === "oauth_cancelled" || handoffStage === "oauth_failed";
   const cartAddIssue = handoffStage === "cart_add_failed";
+  const authExpired = handoffStage === "auth_expired" || connectionState === "expired";
+  const authRequired = !authExpired && (
+    handoffStage === "auth_required"
+    || canResumeOAuth
+    || connectionState === "required"
+  );
   const handoffHeading = handoffStage === "transfer_success"
     ? "Your Kroger cart is ready"
     : handoffStage === "review_complete"
       ? "Cart review recorded"
+      : authExpired
+        ? "Your Kroger connection expired"
       : oauthIssue
         ? "Your Cartiva basket is still ready"
+        : authRequired
+          ? "Connect to Kroger to add your items"
         : cartAddIssue && cartReadiness.customerConnected
           ? "Kroger is connected, but we couldn't add the basket yet"
           : handoffStage === "outcome_unknown"
             ? "Review your Kroger cart before trying again"
             : "Your Cartiva basket is ready";
   const handoffDetail = handoffStage === "transfer_success"
-    ? cart.message ?? `${cart.itemCount ?? items.length} items were added to Kroger.`
+    ? `${cart.message ?? `${cart.itemCount ?? items.length} items were added to Kroger.`} If Kroger asks you to sign in in this browser, it will return you to the cart.`
     : handoffStage === "review_complete"
       ? cart.message ?? "Cartiva will not send this basket again."
       : handoffStage === "adding"
         ? `Adding ${items.length} ${items.length === 1 ? "item" : "items"} to Kroger…`
         : handoffStage === "authorizing"
           ? cart.message ?? "Finish signing in with Kroger. Cartiva will continue automatically."
+          : authExpired
+            ? cart.message ?? "Reconnect securely and Cartiva will resume this exact basket automatically."
+            : authRequired
+              ? cart.message ?? "Your matched products, quantities, comparison store, and fulfillment choice are preserved."
           : oauthIssue || cartAddIssue || handoffStage === "outcome_unknown"
             ? cart.message ?? "Your matched products, quantities, store, and subtotal are preserved."
             : "Review every matched product before you decide whether to transfer it.";
-  const transferButtonLabel = canResumeOAuth
-    ? "Continue Kroger sign-in"
-    : cart.phase === "authorizing"
+  const transferButtonLabel = cart.phase === "authorizing"
       ? "Finish Kroger sign-in…"
       : cart.phase === "adding"
         ? `Adding ${items.length} ${items.length === 1 ? "item" : "items"} to Kroger…`
@@ -120,27 +135,33 @@ export function CartivaComparison({
           ? "Checking Kroger connection…"
           : cart.retrySafe === false
             ? "Review your Kroger cart first"
-            : oauthIssue
-              ? "Try again"
+            : authExpired
+              ? "Reconnect Kroger"
+              : authRequired || oauthIssue
+                ? "Connect Kroger"
               : cartAddIssue
                 ? "Try adding again"
                 : "Add basket to Kroger";
   const transferRequirement = handoffStage === "review_complete"
     ? "Cartiva recorded your review and will not resend this basket."
+    : handoffStage === "transfer_success"
+      ? "Kroger accepted the verified UPCs and quantities. Kroger controls any website sign-in and final cart review."
     : cart.retrySafe === false
       ? "Cartiva will not send a second request until you review the retailer cart."
-      : canResumeOAuth
-        ? "Your exact UPCs and quantities are preserved. Finish sign-in and Cartiva will continue automatically."
+      : authExpired
+        ? "Your exact basket is preserved. Reconnect through Kroger's official flow and Cartiva will continue automatically."
+        : authRequired || canResumeOAuth
+          ? "Your exact basket is preserved. Connect through Kroger's official flow and Cartiva will continue automatically."
         : cart.phase === "authorizing"
           ? cart.message ?? "You'll sign in with Kroger before anything is added."
           : cart.phase === "adding"
             ? "Kroger is connected. Cartiva is sending the exact verified UPCs and quantities shown above."
             : connectionChecking
-              ? "Cartiva is checking whether this browser is already connected to Kroger."
+              ? "Cartiva is checking the saved Kroger API connection."
               : cartReady && cartReadiness.customerConnected
-                ? "Kroger is already connected. Cartiva will add the exact verified UPCs and quantities shown above."
+                ? "The Kroger API connection is active. Cartiva will add the exact verified UPCs and quantities shown above."
                 : cartReady
-                  ? "Sign in with Kroger only if you want Cartiva to add these matched products to your Kroger cart."
+                  ? "Connect to Kroger only if you want Cartiva to add these matched products to your Kroger cart."
                   : hasResults ? cartReadiness.reason : "Compare the basket before adding it to Kroger.";
   const unmatchedIndexes = comparison.results.flatMap((result, index) => (
     result?.status === "no_match" ? [index] : []
@@ -170,7 +191,13 @@ export function CartivaComparison({
             <span className={styles.basketReadyIcon}>
               {handoffStage === "authorizing" || handoffStage === "adding"
                 ? <RefreshCw className={styles.spin} aria-hidden="true" />
-                : <Check aria-hidden="true" />}
+                : handoffStage === "transfer_success" || handoffStage === "review_complete"
+                  ? <Check aria-hidden="true" />
+                  : authRequired || authExpired
+                    ? <LockKeyhole aria-hidden="true" />
+                    : cart.phase === "error"
+                      ? <AlertCircle aria-hidden="true" />
+                      : <Check aria-hidden="true" />}
             </span>
             <div>
               <p>{handoffStage === "transfer_success" ? "Transfer complete" : "Cartiva basket"}</p>
@@ -260,6 +287,15 @@ export function CartivaComparison({
             const product = result?.recommended;
             const quantity = quantities[item.id] ?? 1;
             const status = result?.status;
+            const transferStatus = cart.phase === "success"
+              ? "Accepted by Kroger"
+              : handoffStage === "outcome_unknown"
+                ? "Confirmation needed"
+                : cart.phase === "error"
+                  ? "Not transferred"
+                  : cart.phase === "adding"
+                    ? "Sending to Kroger…"
+                    : undefined;
             return (
               <div
                 className={styles.basketItem}
@@ -289,10 +325,10 @@ export function CartivaComparison({
                 </div>
                 <div className={styles.basketItemPrice}>
                   <strong>{product ? itemPrice(product.price, quantity) : "—"}</strong>
-                  <span data-tone={product?.cartEligible ? "success" : status === "no_match" ? "error" : "muted"}>
-                    {product?.cartEligible
+                  <span data-tone={transferStatus === "Accepted by Kroger" ? "success" : transferStatus ? "error" : product?.cartEligible ? "success" : status === "no_match" ? "error" : "muted"}>
+                    {transferStatus ?? (product?.cartEligible
                       ? product.availabilityStatus === "in_stock" ? "Available" : "Check at Kroger"
-                      : product ? "Review at Kroger" : status === "no_match" ? "No match" : "Pending"}
+                      : product ? "Review at Kroger" : status === "no_match" ? "No match" : "Pending")}
                   </span>
                 </div>
               </div>
@@ -310,13 +346,17 @@ export function CartivaComparison({
           {cart.phase === "error" ? (
             <div
               className={styles.cartNotice}
-              data-tone={oauthIssue ? "warning" : "error"}
+              data-tone={oauthIssue || authRequired || authExpired ? "warning" : "error"}
             >
               <AlertCircle aria-hidden="true" />
               <div className={styles.cartNoticeCopy}>
                 <strong>
                   {handoffStage === "outcome_unknown"
                     ? "Cartiva couldn't confirm what Kroger received."
+                    : authExpired
+                      ? "Your Kroger connection expired."
+                      : authRequired
+                        ? "Connect to Kroger to add your items."
                     : oauthIssue
                       ? "Your Cartiva basket is still ready."
                       : cartReadiness.customerConnected
@@ -337,7 +377,12 @@ export function CartivaComparison({
                       Items were not added
                     </button>
                   </div>
-                ) : cartAddIssue ? <a className={styles.reviewBasketLink} href="#basket-products">Review basket</a> : null}
+                ) : cart.retrySafe === true ? (
+                  <div className={styles.cartNoticeActions}>
+                    {cartAddIssue ? <a className={styles.reviewBasketLink} href="#basket-products">Review basket</a> : null}
+                    <a className={styles.reviewBasketLink} href="#main-content">Back to Cartiva</a>
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -357,7 +402,7 @@ export function CartivaComparison({
           {cart.phase === "success" && cart.cartUrl ? (
             <div className={styles.handoffActions}>
               <a className={styles.primaryButton} href={cart.cartUrl} target="_blank" rel="noreferrer">
-                Review Kroger cart <ExternalLink aria-hidden="true" />
+                Open Kroger cart <ExternalLink aria-hidden="true" />
               </a>
               <a className={styles.secondaryHandoffLink} href="#main-content">Back to Cartiva</a>
             </div>

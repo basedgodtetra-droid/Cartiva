@@ -40,7 +40,17 @@ import {
 } from "@/lib/cartiva-kroger-cart";
 import { trackCartivaEvent } from "@/lib/cartiva-product-events";
 import { getCartivaWorkspaceContext } from "@/lib/cartiva-workspace-context";
-import { isKrogerFamilyCartUrl, krogerCartUrl } from "@/lib/kroger-family-links";
+import {
+  getCartivaKrogerPreflight,
+  type CartivaKrogerAuthStatusBody,
+  type CartivaKrogerConnectionState,
+} from "@/lib/cartiva-kroger-connection";
+import {
+  verifiedKrogerCartReceipt,
+  type CartivaKrogerReceipt,
+} from "@/lib/cartiva-kroger-receipt";
+import { krogerCartUrl } from "@/lib/kroger-family-links";
+import type { CartivaKrogerCartCode } from "@/lib/cartiva-kroger-handoff";
 import styles from "@/components/cartiva-workspace.module.css";
 
 const WORKSPACE_KEY = "cartiva-web-workspace-v1";
@@ -114,7 +124,7 @@ async function responseError(response: Response, fallback: string) {
 async function cartResponseError(
   response: Response,
   fallback: string,
-): Promise<{ message: string; code?: "outcome_unknown"; retrySafe: boolean }> {
+): Promise<{ message: string; code?: CartivaKrogerCartCode; retrySafe: boolean }> {
   try {
     const body = await response.json() as {
       error?: unknown;
@@ -123,12 +133,20 @@ async function cartResponseError(
     };
     return {
       message: typeof body.error === "string" && body.error.trim() ? body.error : fallback,
-      code: body.code === "outcome_unknown" ? body.code : undefined,
+      code: body.code === "outcome_unknown" || body.code === "auth_expired"
+        ? body.code
+        : undefined,
       retrySafe: body.retrySafe === true,
     };
   } catch {
     return { message: fallback, retrySafe: false };
   }
+}
+
+async function checkKrogerConnection() {
+  const response = await fetch("/api/kroger/auth/status", { cache: "no-store" });
+  const body = await response.json().catch(() => ({})) as CartivaKrogerAuthStatusBody;
+  return getCartivaKrogerPreflight(response.ok, body);
 }
 
 async function postPendingKrogerCart(pending: PendingKrogerCart) {
@@ -230,6 +248,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     checking?: boolean;
     connected?: boolean;
     configured?: boolean;
+    state?: CartivaKrogerConnectionState;
   }>({});
   const comparisonRunRef = useRef(0);
   const cartTransferRef = useRef<string | undefined>(undefined);
@@ -366,21 +385,17 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           code: failure.code ?? "cart_add_failed",
           retrySafe: failure.retrySafe,
         });
-        if (cartResponse.status === 401) {
-          setKrogerConnection({ checked: true, connected: false, configured: true });
+        if (cartResponse.status === 401 || failure.code === "auth_expired") {
+          setKrogerConnection({
+            checked: true,
+            connected: false,
+            configured: true,
+            state: "expired",
+          });
         }
         return;
       }
-      let receipt: {
-        success?: boolean;
-        operationId?: string;
-        cartUrl?: string;
-        addedCount?: number;
-        itemCount?: number;
-        message?: string;
-        selectedSearchLocation?: { locationId?: string; name?: string };
-        locationBoundByCartApi?: boolean;
-      };
+      let receipt: CartivaKrogerReceipt;
       try {
         receipt = await cartResponse.json() as typeof receipt;
       } catch {
@@ -397,19 +412,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         });
         return;
       }
-      if (
-        receipt.success !== true
-        || receipt.operationId !== submitting.operationId
-        || typeof receipt.cartUrl !== "string"
-        || !isKrogerFamilyCartUrl(receipt.cartUrl)
-        || receipt.itemCount !== submitting.items.length
-        || !Number.isInteger(receipt.addedCount)
-        || receipt.addedCount !== submitting.items.reduce((sum, item) => sum + item.quantity, 0)
-        || receipt.selectedSearchLocation?.locationId !== submitting.locationId
-        || receipt.locationBoundByCartApi !== false
-        || typeof receipt.message !== "string"
-        || !receipt.message.trim()
-      ) {
+      const verifiedReceipt = verifiedKrogerCartReceipt(receipt, submitting);
+      if (!verifiedReceipt) {
         const message = "Kroger accepted the request, but Cartiva could not verify the receipt. Check your retailer cart before starting another handoff.";
         window.localStorage.setItem(
           KROGER_PENDING_CART_STORAGE_KEY,
@@ -427,10 +431,10 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       const itemCount = submitting.itemCount;
       setCart({
         phase: "success",
-        cartUrl: receipt.cartUrl,
+        cartUrl: verifiedReceipt.cartUrl,
         itemCount,
         retrySafe: false,
-        message: receipt.message,
+        message: verifiedReceipt.message,
       });
       trackCartivaEvent("kroger_cart_added", {
         retailer: "kroger",
@@ -443,6 +447,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           retailerLabel: lastComparisonRecord.retailerLabel,
         });
       }
+      return verifiedReceipt.cartUrl;
     } finally {
       if (cartTransferRef.current === pending.operationId) {
         cartTransferRef.current = undefined;
@@ -450,10 +455,9 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     }
     };
     if ("locks" in navigator) {
-      await navigator.locks.request(`cartiva-kroger-cart-${operationId}`, transfer);
-    } else {
-      await transfer();
+      return navigator.locks.request(`cartiva-kroger-cart-${operationId}`, transfer);
     }
+    return transfer();
   }, [lastComparisonRecord, recordCartAdded]);
 
   useEffect(() => {
@@ -568,29 +572,27 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     if (comparison.phase !== "complete") return;
     const controller = new AbortController();
     setKrogerConnection((current) => ({ ...current, checking: true }));
-    void fetch("/api/kroger/auth/status", {
-      cache: "no-store",
-      signal: controller.signal,
-    }).then(async (response) => {
-      const body = await response.json().catch(() => ({})) as {
-        connected?: boolean;
-        configured?: boolean;
-      };
+    void fetch("/api/kroger/auth/status", { cache: "no-store", signal: controller.signal }).then(async (response) => {
+      const body = await response.json().catch(() => ({})) as CartivaKrogerAuthStatusBody;
+      const preflight = getCartivaKrogerPreflight(response.ok, body);
       if (!controller.signal.aborted) {
-        setKrogerConnection(response.ok
-          ? {
-              checked: true,
-              checking: false,
-              connected: Boolean(body.connected),
-              configured: body.configured !== false,
-            }
-          : body.configured === false
-            ? { checked: true, checking: false, connected: false, configured: false }
-            : { checked: false, checking: false, connected: undefined, configured: undefined });
+        setKrogerConnection({
+          checked: preflight.state !== "unavailable" || preflight.configured === false,
+          checking: false,
+          connected: preflight.connected,
+          configured: preflight.configured,
+          state: preflight.state,
+        });
       }
     }).catch(() => {
       if (!controller.signal.aborted) {
-        setKrogerConnection({ checked: false, checking: false, connected: undefined, configured: undefined });
+        setKrogerConnection({
+          checked: false,
+          checking: false,
+          connected: undefined,
+          configured: undefined,
+          state: "unavailable",
+        });
       }
     });
     return () => controller.abort();
@@ -1045,8 +1047,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       retrySafe: true,
     });
     window.localStorage.setItem(KROGER_PENDING_CART_STORAGE_KEY, JSON.stringify(pending));
-    const alreadyConnected = krogerConnection.checked === true && krogerConnection.connected === true;
-    const authWindow = alreadyConnected
+    const cachedConnected = krogerConnection.checked === true && krogerConnection.connected === true;
+    const authWindow = cachedConnected
       ? null
       : window.open("about:blank", "cartiva-kroger-oauth", "popup,width=560,height=760");
     if (authWindow) {
@@ -1054,38 +1056,44 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       authWindow.document.body.textContent = "Cartiva is preparing Kroger sign-in…";
     }
     try {
-      if (alreadyConnected) {
+      setCart({ phase: "authorizing", message: "Checking your Kroger connection…", retrySafe: true });
+      // Always perform a fresh server-side token check immediately before a
+      // cart write. The comparison-time status is helpful UI state, but it can
+      // expire or be revoked while the shopper reviews the basket.
+      let preflight = await checkKrogerConnection();
+      setKrogerConnection({
+        checked: preflight.state !== "unavailable" || preflight.configured === false,
+        connected: preflight.connected,
+        configured: preflight.configured,
+        state: preflight.state,
+      });
+      if (preflight.state === "unavailable") {
+        throw new KrogerOAuthFailedError(preflight.message);
+      }
+
+      if (preflight.connected) {
+        authWindow?.close();
         await completePendingCart(pending);
         return;
       }
+
       if (!authWindow) {
-        throw new KrogerOAuthFailedError("Your browser blocked the Kroger sign-in window. Allow pop-ups for Cartiva, then try again.");
-      }
-
-      setCart({ phase: "authorizing", message: "Checking your Kroger connection…", retrySafe: true });
-      let authResponse: Response | undefined;
-      let auth: { connected?: boolean; configured?: boolean; error?: string } = {
-        connected: krogerConnection.connected,
-        configured: krogerConnection.configured,
-      };
-      if (!krogerConnection.checked) {
-        authResponse = await fetch("/api/kroger/auth/status", { cache: "no-store" });
-        auth = await authResponse.json().catch(() => ({})) as typeof auth;
-        setKrogerConnection({
-          checked: true,
-          connected: Boolean(auth.connected),
-          configured: auth.configured !== false,
-        });
-        if (!authResponse.ok) {
-          throw new KrogerOAuthFailedError(
-            auth.configured === false
-              ? "Kroger OAuth is not configured on this deployment."
-              : auth.error ?? "Cartiva could not verify the saved Kroger connection.",
-          );
+        if (!cachedConnected) {
+          throw new KrogerOAuthFailedError("Your browser blocked the Kroger sign-in window. Allow pop-ups for Cartiva, then try again.");
         }
+        const expired = preflight.state === "expired";
+        setCart({
+          phase: "error",
+          code: expired ? "auth_expired" : "auth_required",
+          retrySafe: true,
+          message: expired
+            ? "Your Kroger connection expired. Reconnect Kroger and Cartiva will resume this basket."
+            : "Connect to Kroger to add your items. Your exact basket is preserved.",
+        });
+        return;
       }
 
-      if (!auth.connected) {
+      if (!preflight.connected) {
         const startResponse = await fetch("/api/kroger/oauth/start", { method: "POST" });
         if (!startResponse.ok) {
           throw new KrogerOAuthFailedError(await responseError(startResponse, "Kroger sign-in could not start."));
@@ -1102,11 +1110,15 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         let connected = false;
         for (let attempt = 0; attempt < 100; attempt += 1) {
           await wait(3_000);
-          authResponse = await fetch("/api/kroger/auth/status", { cache: "no-store" });
-          auth = await authResponse.json().catch(() => ({})) as { connected?: boolean };
-          if (auth.connected) {
+          preflight = await checkKrogerConnection();
+          if (preflight.connected) {
             connected = true;
-            setKrogerConnection({ checked: true, connected: true, configured: true });
+            setKrogerConnection({
+              checked: true,
+              connected: true,
+              configured: true,
+              state: "connected",
+            });
             break;
           }
           const popupOutcome = krogerOAuthPopupOutcome(authWindow);
@@ -1118,16 +1130,21 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         if (!connected) {
           throw new KrogerOAuthFailedError("Kroger sign-in was not completed. Your Cartiva basket is still ready.");
         }
-      } else {
-        authWindow?.close();
       }
 
-      authWindow?.close();
       const preserved = parsePendingKrogerCart(
         window.localStorage.getItem(KROGER_PENDING_CART_STORAGE_KEY),
       );
       if (!preserved || preserved.operationId !== pending.operationId) return;
-      await completePendingCart(preserved);
+      const cartUrl = await completePendingCart(preserved);
+      if (cartUrl && !authWindow.closed) {
+        // Reuse the user-opened OAuth window. After Cartiva verifies Kroger's
+        // 204 response and signed receipt, send it only to the trusted banner
+        // cart route. Kroger controls any first-party website sign-in needed.
+        authWindow.location.replace(cartUrl);
+      } else {
+        authWindow.close();
+      }
     } catch (error) {
       authWindow?.close();
       setCart((current) => current.retrySafe === false || current.phase === "success"
@@ -1178,27 +1195,27 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       if (handoffAttemptRef.current === pending.operationId) return;
       if (cartTransferRef.current === pending.operationId) return;
       try {
-        const response = await fetch("/api/kroger/auth/status", { cache: "no-store" });
-        const status = await response.json().catch(() => ({})) as {
-          connected?: boolean;
-          configured?: boolean;
-        };
-        if (disposed || !response.ok) return;
+        const preflight = await checkKrogerConnection();
+        if (disposed || preflight.state === "unavailable") return;
         setKrogerConnection({
           checked: true,
-          connected: Boolean(status.connected),
-          configured: status.configured !== false,
+          connected: preflight.connected,
+          configured: preflight.configured,
+          state: preflight.state,
         });
-        if (status.connected) {
+        if (preflight.connected) {
           await completePendingCart(pending);
         } else {
+          const expired = preflight.state === "expired";
           setCart((current) => current.phase === "adding" || current.retrySafe === false
             ? current
             : {
-                phase: "authorizing",
-                code: "oauth_required",
+                phase: "error",
+                code: expired ? "auth_expired" : "auth_required",
                 retrySafe: true,
-                message: "Your exact Kroger basket is saved. Continue sign-in to finish the handoff.",
+                message: expired
+                  ? "Your Kroger connection expired. Reconnect Kroger and Cartiva will resume this basket."
+                  : "Connect to Kroger to add your items. Your exact basket is preserved.",
               });
         }
       } catch {
@@ -1344,6 +1361,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                   && cart.phase === "idle"
                   && krogerConnection.checking,
                 )}
+                connectionState={krogerConnection.state}
                 onChangeStore={changeStore}
                 onRetry={runComparison}
                 onReviewItem={reviewItem}

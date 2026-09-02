@@ -66,6 +66,13 @@ function cartErrorResponse(error: unknown) {
     : error instanceof KrogerProviderError ? error.status : 502;
   const ambiguous = error instanceof KrogerCartOutcomeUnknownError;
   const conflict = error instanceof KrogerCartOperationConflictError;
+  const authenticationExpired = (
+    error instanceof KrogerAuthError
+    && error.code === "not_connected"
+  ) || (
+    error instanceof KrogerProviderError
+    && error.status === 401
+  );
   return Response.json(
     ambiguous
       ? {
@@ -73,7 +80,13 @@ function cartErrorResponse(error: unknown) {
           code: "outcome_unknown",
           retrySafe: false,
         }
-      : { error: error instanceof Error ? error.message : "Kroger cart could not be updated.", retrySafe: true },
+      : authenticationExpired
+        ? {
+            error: "Your Kroger connection expired. Reconnect Kroger and Cartiva will resume this basket.",
+            code: "auth_expired",
+            retrySafe: true,
+          }
+        : { error: error instanceof Error ? error.message : "Kroger cart could not be updated.", retrySafe: true },
     { status: conflict ? 409 : status, headers: { "Cache-Control": "no-store" } },
   );
 }

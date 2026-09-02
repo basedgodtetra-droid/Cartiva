@@ -12,7 +12,7 @@ import {
   krogerCartItemsWereVerified,
 } from "@/lib/kroger-provider";
 import { KrogerProviderError } from "@/lib/kroger-provider";
-import { getKrogerAuthClient } from "@/lib/kroger-auth";
+import { getKrogerAuthClient, KrogerAuthError } from "@/lib/kroger-auth";
 import {
   clearKrogerCartOperations,
   resetKrogerCartOperationsForTests,
@@ -180,6 +180,29 @@ describe("Kroger extension routes", () => {
     expect(retry.status).toBe(502);
     expect(await retry.json()).toMatchObject({ code: "outcome_unknown", retrySafe: false });
     expect(addToKrogerCart).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a retryable reconnect state when authorization expires during the cart write", async () => {
+    vi.mocked(addToKrogerCart).mockRejectedValueOnce(new KrogerAuthError(
+      "Your Kroger connection expired or was revoked. Reconnect Kroger.",
+      "not_connected",
+      401,
+    ));
+    const response = await cartPost(new Request("http://localhost:3000/api/kroger/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: "expired_AB12CD34_01",
+        locationId: "AB12CD34",
+        fulfillmentMode: "pickup",
+        items: [{ upc: "0001111012345", quantity: 1 }],
+      }),
+    }));
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({
+      code: "auth_expired",
+      retrySafe: true,
+    });
   });
 
   it("persists cart intent before calling Kroger so a mid-request restart cannot duplicate it", async () => {

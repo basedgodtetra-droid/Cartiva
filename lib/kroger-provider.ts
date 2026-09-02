@@ -1,5 +1,5 @@
 import { extractMeasurement } from "./measurements";
-import { getKrogerAuthClient, KrogerAuthClient } from "./kroger-auth";
+import { getKrogerAuthClient, KrogerAuthClient, KrogerAuthError } from "./kroger-auth";
 import {
   KROGER_FAMILY_HOSTS,
   krogerFamilyDisplayName,
@@ -606,6 +606,13 @@ export async function addToKrogerCart(
     signal: AbortSignal.timeout(12_000),
   });
   if (response.status !== 204) {
+    if (response.status === 401) {
+      throw new KrogerAuthError(
+        "Your Kroger connection expired or was revoked. Reconnect Kroger.",
+        "not_connected",
+        401,
+      );
+    }
     if (![400, 401, 403, 404, 409, 422, 429].includes(response.status)) {
       throw new KrogerProviderError(
         "Kroger's cart response did not confirm whether items were added.",
@@ -614,11 +621,9 @@ export async function addToKrogerCart(
       );
     }
     throw new KrogerProviderError(
-      response.status === 401
-        ? "Reconnect Kroger before adding items to the cart."
-        : "Kroger could not add these items to the cart.",
+      "Kroger could not add these items to the cart.",
       "upstream",
-      response.status === 401 ? 401 : response.status === 429 ? 429 : 400,
+      response.status === 429 ? 429 : 400,
     );
   }
 }

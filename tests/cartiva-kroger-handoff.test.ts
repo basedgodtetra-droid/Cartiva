@@ -43,6 +43,30 @@ describe("Cartiva Kroger handoff state", () => {
     })).toBe("oauth_failed");
   });
 
+  it("keeps never-connected and expired authentication distinct", () => {
+    expect(getCartivaKrogerHandoffStage({
+      basketComplete: true,
+      cartPhase: "error",
+      cartCode: "auth_required",
+    })).toBe("auth_required");
+    expect(getCartivaKrogerHandoffStage({
+      basketComplete: true,
+      cartPhase: "error",
+      cartCode: "auth_expired",
+    })).toBe("auth_expired");
+  });
+
+  it("performs a fresh auth preflight before the authenticated cart write", () => {
+    const source = readFileSync(path.join(process.cwd(), "components", "cartiva-workspace.tsx"), "utf8");
+    const handoffBlock = source.slice(
+      source.indexOf("const addToKroger = async"),
+      source.indexOf("const resumeConnectedBasket = async"),
+    );
+    expect(handoffBlock.indexOf("await checkKrogerConnection()"))
+      .toBeLessThan(handoffBlock.indexOf("await completePendingCart(pending)"));
+    expect(handoffBlock).toContain("authWindow.location.replace(cartUrl)");
+  });
+
   it("keeps comparison free of popup, OAuth-start, and pending-transfer side effects", () => {
     const source = readFileSync(path.join(process.cwd(), "components", "cartiva-workspace.tsx"), "utf8");
     const comparisonBlock = source.slice(
