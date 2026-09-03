@@ -1,0 +1,2154 @@
+{
+  "suiteId": "cartiva-100",
+  "scoringPolicy": "shopper-outcome-v1",
+  "total": 100,
+  "scoreCounts": {
+    "0": 4,
+    "1": 0,
+    "2": 36,
+    "3": 60
+  },
+  "score2Or3Percent": 96,
+  "atLeast1Percent": 96,
+  "deadEndPercent": 4,
+  "unsafeSelectionCount": 0,
+  "stableOutcomeSha256": "f8c5f0398cf00fb356ba84a57e1856978947f4d7c849d9b7b862bc8173dc186a",
+  "targetMet": true,
+  "levels": {
+    "1": {
+      "useful": 20,
+      "score2Or3": 20,
+      "total": 20
+    },
+    "2": {
+      "useful": 17,
+      "score2Or3": 17,
+      "total": 20
+    },
+    "3": {
+      "useful": 20,
+      "score2Or3": 20,
+      "total": 20
+    },
+    "4": {
+      "useful": 19,
+      "score2Or3": 19,
+      "total": 20
+    },
+    "5": {
+      "useful": 20,
+      "score2Or3": 20,
+      "total": 20
+    }
+  },
+  "failureCategories": {
+    "QUANTITY_SEMANTICS": 3,
+    "TYPO_NORMALIZATION": 1
+  },
+  "performance": {
+    "averageParsingMs": 0.255,
+    "averageLocalMatchingMs": 2.204,
+    "averageSearchAttempts": 1.56,
+    "retailerCalls": 0
+  },
+  "cases": [
+    {
+      "id": "C100-L1-001",
+      "level": 1,
+      "input": "whole milk 1 gallon",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 6.424800000000005,
+          "matchMs": 6.97810000000004,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-002",
+      "level": 1,
+      "input": "white bread",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 2.1516000000000304,
+          "matchMs": 3.3401000000000067,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-003",
+      "level": 1,
+      "input": "large white eggs 18 count",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.24160000000000537,
+          "matchMs": 2.950499999999977,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-004",
+      "level": 1,
+      "input": "bananas",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.48329999999998563,
+          "matchMs": 2.7428999999999633,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-005",
+      "level": 1,
+      "input": "apples",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.26619999999996935,
+          "matchMs": 1.719099999999969,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-006",
+      "level": 1,
+      "input": "white rice 5 lb",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.21910000000002583,
+          "matchMs": 2.733099999999979,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-007",
+      "level": 1,
+      "input": "black beans 15 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.331799999999987,
+          "matchMs": 1.795500000000004,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-008",
+      "level": 1,
+      "input": "chickpeas 15 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.24239999999997508,
+          "matchMs": 2.776900000000012,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-009",
+      "level": 1,
+      "input": "creamy peanut butter 16 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.2604999999999791,
+          "matchMs": 1.768600000000049,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-010",
+      "level": 1,
+      "input": "extra virgin olive oil 16.9 fl oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.27089999999998327,
+          "matchMs": 1.6166000000000054,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-011",
+      "level": 1,
+      "input": "boneless skinless chicken breast 1 lb",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.5233000000000061,
+          "matchMs": 4.482500000000016,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-012",
+      "level": 1,
+      "input": "93/7 ground beef 1 lb",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.3707000000000562,
+          "matchMs": 3.9856999999999516,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-013",
+      "level": 1,
+      "input": "regular cut pork bacon 12 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.3602000000000771,
+          "matchMs": 1.6221000000000458,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-014",
+      "level": 1,
+      "input": "plain Greek yogurt 32 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.18380000000001928,
+          "matchMs": 2.870999999999981,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-015",
+      "level": 1,
+      "input": "orange juice 52 fl oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.2154000000000451,
+          "matchMs": 1.6225999999999203,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-016",
+      "level": 1,
+      "input": "Coca-Cola original 12 pack",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.2760000000000673,
+          "matchMs": 1.8425000000000864,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-017",
+      "level": 1,
+      "input": "Coke Zero 12 pack",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.23119999999994434,
+          "matchMs": 2.2305000000000064,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-018",
+      "level": 1,
+      "input": "sharp cheddar cheese block 8 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16660000000001673,
+          "matchMs": 1.8781000000000176,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-019",
+      "level": 1,
+      "input": "paper towels 6 rolls",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.18690000000003693,
+          "matchMs": 2.9944999999999027,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L1-020",
+      "level": 1,
+      "input": "toilet paper 12 rolls",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.177599999999984,
+          "matchMs": 1.4136000000000877,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-001",
+      "level": 2,
+      "input": "kidney beans 4 cans",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1913000000000693,
+          "matchMs": 2.9528999999999996,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-002",
+      "level": 2,
+      "input": "chickpeas 3 cans",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.17290000000002692,
+          "matchMs": 1.5426000000001068,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-003",
+      "level": 2,
+      "input": "diced tomatoes 8 cans",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1630999999999858,
+          "matchMs": 1.2752000000000407,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-004",
+      "level": 2,
+      "input": "light coconut milk 2 cans",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.20420000000001437,
+          "matchMs": 2.119699999999966,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-005",
+      "level": 2,
+      "input": "2 gallons of milk",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.24030000000004748,
+          "matchMs": 1.8345000000000482,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-006",
+      "level": 2,
+      "input": "6 bananas",
+      "score": 0,
+      "deadEnd": true,
+      "unsafeSelection": false,
+      "category": "QUANTITY_SEMANTICS",
+      "reason": "normal could not produce a safe result or recovery.",
+      "itemOutcomes": [
+        {
+          "score": 0,
+          "reason": "normal could not produce a safe result or recovery.",
+          "deadEnd": true,
+          "category": "QUANTITY_SEMANTICS",
+          "parseMs": 0.16690000000005512,
+          "matchMs": 0.40049999999996544,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-007",
+      "level": 2,
+      "input": "eggs 18 count",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.15760000000000218,
+          "matchMs": 1.205600000000004,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-008",
+      "level": 2,
+      "input": "ground turkey 3 lb",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.21749999999997272,
+          "matchMs": 3.2851000000000568,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-009",
+      "level": 2,
+      "input": "chicken breast 2 lb",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.2158999999999196,
+          "matchMs": 3.6870999999999867,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-010",
+      "level": 2,
+      "input": "Coke Zero 12 pack x2",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1813999999999396,
+          "matchMs": 1.5523000000000593,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-011",
+      "level": 2,
+      "input": "paper towels 6 rolls",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.19590000000005148,
+          "matchMs": 1.2028000000000247,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-012",
+      "level": 2,
+      "input": "trash bags 40 count",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.17610000000001946,
+          "matchMs": 1.1719000000000506,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-013",
+      "level": 2,
+      "input": "rice 5 lb",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1530999999999949,
+          "matchMs": 1.6603000000000065,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-014",
+      "level": 2,
+      "input": "Greek yogurt 32 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.189200000000028,
+          "matchMs": 1.3198999999999614,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-015",
+      "level": 2,
+      "input": "2 loaves white bread",
+      "score": 0,
+      "deadEnd": true,
+      "unsafeSelection": false,
+      "category": "QUANTITY_SEMANTICS",
+      "reason": "normal could not produce a safe result or recovery.",
+      "itemOutcomes": [
+        {
+          "score": 0,
+          "reason": "normal could not produce a safe result or recovery.",
+          "deadEnd": true,
+          "category": "QUANTITY_SEMANTICS",
+          "parseMs": 0.1671999999999798,
+          "matchMs": 0.3673999999999751,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-016",
+      "level": 2,
+      "input": "3 cans black beans",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.15170000000000528,
+          "matchMs": 1.3910999999999376,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-017",
+      "level": 2,
+      "input": "orange juice 2 bottles",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16620000000000346,
+          "matchMs": 1.5493000000000166,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-018",
+      "level": 2,
+      "input": "4 avocados",
+      "score": 0,
+      "deadEnd": true,
+      "unsafeSelection": false,
+      "category": "QUANTITY_SEMANTICS",
+      "reason": "normal could not produce a safe result or recovery.",
+      "itemOutcomes": [
+        {
+          "score": 0,
+          "reason": "normal could not produce a safe result or recovery.",
+          "deadEnd": true,
+          "category": "QUANTITY_SEMANTICS",
+          "parseMs": 0.16460000000006403,
+          "matchMs": 0.6013000000000375,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-019",
+      "level": 2,
+      "input": "2 dozen eggs",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.24879999999996016,
+          "matchMs": 1.0406000000000404,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L2-020",
+      "level": 2,
+      "input": "3 boxes pasta",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16270000000008622,
+          "matchMs": 2.1731999999999516,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-001",
+      "level": 3,
+      "input": "93/7 ground beef",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.24250000000006366,
+          "matchMs": 2.664099999999962,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-002",
+      "level": 3,
+      "input": "80/20 ground beef",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1793999999999869,
+          "matchMs": 3.0838999999999714,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-003",
+      "level": 3,
+      "input": "boneless skinless chicken breast",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1752999999999929,
+          "matchMs": 2.3396999999999935,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-004",
+      "level": 3,
+      "input": "chicken thighs",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.17619999999999436,
+          "matchMs": 1.5149000000000115,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-005",
+      "level": 3,
+      "input": "2% milk",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.20090000000004693,
+          "matchMs": 2.5048000000000457,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-006",
+      "level": 3,
+      "input": "whole milk",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.15789999999992688,
+          "matchMs": 1.616200000000049,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-007",
+      "level": 3,
+      "input": "gluten free bread",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.15219999999999345,
+          "matchMs": 2.421600000000012,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-008",
+      "level": 3,
+      "input": "whole wheat bread",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1348000000000411,
+          "matchMs": 2.6154999999999973,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-009",
+      "level": 3,
+      "input": "Coke Zero",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1893000000000029,
+          "matchMs": 1.4599999999999227,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-010",
+      "level": 3,
+      "input": "Diet Coke",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.129099999999994,
+          "matchMs": 1.1145999999999958,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-011",
+      "level": 3,
+      "input": "Coke original",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.13170000000002346,
+          "matchMs": 1.050200000000018,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-012",
+      "level": 3,
+      "input": "large brown eggs",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.13289999999994961,
+          "matchMs": 2.5306000000000495,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-013",
+      "level": 3,
+      "input": "cage free eggs",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16470000000003893,
+          "matchMs": 2.6105999999999767,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-014",
+      "level": 3,
+      "input": "light coconut milk",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.22039999999992688,
+          "matchMs": 3.0318999999999505,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-015",
+      "level": 3,
+      "input": "low sodium black beans",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16279999999994743,
+          "matchMs": 3.4840999999998985,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-016",
+      "level": 3,
+      "input": "plain Greek yogurt 32 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16420000000005075,
+          "matchMs": 2.8962999999999965,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-017",
+      "level": 3,
+      "input": "vanilla Greek yogurt 32 oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16570000000001528,
+          "matchMs": 2.8681000000000267,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-018",
+      "level": 3,
+      "input": "turkey bacon",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.17240000000003874,
+          "matchMs": 1.8453000000000657,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-019",
+      "level": 3,
+      "input": "large raw shrimp",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.19929999999999382,
+          "matchMs": 2.46329999999989,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L3-020",
+      "level": 3,
+      "input": "unscented laundry detergent",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.18509999999992033,
+          "matchMs": 2.6533000000000584,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-001",
+      "level": 4,
+      "input": "cok zero 12 pk",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.17190000000005057,
+          "matchMs": 1.325800000000072,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-002",
+      "level": 4,
+      "input": "chiken breast 2lbs",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.181699999999978,
+          "matchMs": 3.147699999999986,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-003",
+      "level": 4,
+      "input": "greek yogrt",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.2095000000000482,
+          "matchMs": 1.2443999999999278,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-004",
+      "level": 4,
+      "input": "eggs18ct",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16099999999994452,
+          "matchMs": 1.0085000000000264,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-005",
+      "level": 4,
+      "input": "milk gallon bread eggs",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.42686666666668316,
+          "matchMs": 7.720200000000091,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.42686666666668316,
+          "matchMs": 7.632100000000037,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.42686666666668316,
+          "matchMs": 5.22810000000004,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-006",
+      "level": 4,
+      "input": "eggs 18 count white bread milk gallon bananas",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.10804999999999154,
+          "matchMs": 3.4285999999999603,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        },
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.10804999999999154,
+          "matchMs": 6.101400000000012,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.10804999999999154,
+          "matchMs": 5.9846,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.10804999999999154,
+          "matchMs": 6.400700000000029,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-007",
+      "level": 4,
+      "input": "3 cans beans 2 milk gallon bread",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.12323333333332205,
+          "matchMs": 6.514300000000048,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.12323333333332205,
+          "matchMs": 6.428099999999972,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.12323333333332205,
+          "matchMs": 6.313199999999938,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-008",
+      "level": 4,
+      "input": "cokezero",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.17989999999997508,
+          "matchMs": 1.129099999999994,
+          "searchAttempts": 3,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-009",
+      "level": 4,
+      "input": "93 7 ground beef",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.2258000000000493,
+          "matchMs": 1.5399999999999636,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-010",
+      "level": 4,
+      "input": "paper towels 6rolls",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1514999999999418,
+          "matchMs": 1.1578999999999269,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-011",
+      "level": 4,
+      "input": "2%milk gallon",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.18700000000001182,
+          "matchMs": 2.569500000000062,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-012",
+      "level": 4,
+      "input": "banannas 6",
+      "score": 0,
+      "deadEnd": true,
+      "unsafeSelection": false,
+      "category": "TYPO_NORMALIZATION",
+      "reason": "normal could not produce a safe result or recovery.",
+      "itemOutcomes": [
+        {
+          "score": 0,
+          "reason": "normal could not produce a safe result or recovery.",
+          "deadEnd": true,
+          "category": "TYPO_NORMALIZATION",
+          "parseMs": 0.2240999999999076,
+          "matchMs": 0.38440000000002783,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-013",
+      "level": 4,
+      "input": "blackbeans 4 cans",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.16669999999999163,
+          "matchMs": 1.503099999999904,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-014",
+      "level": 4,
+      "input": "chickn thighs",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.147199999999998,
+          "matchMs": 1.5312000000000126,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-015",
+      "level": 4,
+      "input": "whitebread",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.15999999999996817,
+          "matchMs": 1.3740999999999985,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-016",
+      "level": 4,
+      "input": "orangejuice 52oz",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.19619999999997617,
+          "matchMs": 1.5716999999999643,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-017",
+      "level": 4,
+      "input": "groundturkey 3lb",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.18479999999999563,
+          "matchMs": 3.0021000000000413,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-018",
+      "level": 4,
+      "input": "coke zero eggs bread milk",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.083075000000008,
+          "matchMs": 6.474199999999996,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.083075000000008,
+          "matchMs": 3.8799000000000206,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.083075000000008,
+          "matchMs": 6.517399999999952,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        },
+        {
+          "score": 2,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.083075000000008,
+          "matchMs": 6.281499999999937,
+          "searchAttempts": 2,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-019",
+      "level": 4,
+      "input": "rice5lb",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.17459999999994125,
+          "matchMs": 1.4378000000000384,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L4-020",
+      "level": 4,
+      "input": "toiletpaper 12 rolls",
+      "score": 3,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "normal produced the oracle-valid product and fulfillment.",
+      "itemOutcomes": [
+        {
+          "score": 3,
+          "reason": "normal produced the oracle-valid product and fulfillment.",
+          "deadEnd": false,
+          "parseMs": 0.1934999999999718,
+          "matchMs": 1.1912000000000944,
+          "searchAttempts": 1,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-001",
+      "level": 5,
+      "input": "chicken",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.2357999999999265,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-002",
+      "level": 5,
+      "input": "beef",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.12029999999992924,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-003",
+      "level": 5,
+      "input": "steak",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.09569999999996526,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-004",
+      "level": 5,
+      "input": "fish",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.09259999999994761,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-005",
+      "level": 5,
+      "input": "beans",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08410000000003492,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-006",
+      "level": 5,
+      "input": "bread",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.07949999999993906,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-007",
+      "level": 5,
+      "input": "milk",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08010000000001583,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-008",
+      "level": 5,
+      "input": "yogurt",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08839999999997872,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-009",
+      "level": 5,
+      "input": "pasta",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08839999999997872,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-010",
+      "level": 5,
+      "input": "rice",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08720000000005257,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-011",
+      "level": 5,
+      "input": "shrimp",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.12860000000000582,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-012",
+      "level": 5,
+      "input": "sausage",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.1209999999999809,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-013",
+      "level": 5,
+      "input": "bacon",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.1308999999999969,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-014",
+      "level": 5,
+      "input": "cheese",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08899999999994179,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-015",
+      "level": 5,
+      "input": "cereal",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08410000000003492,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-016",
+      "level": 5,
+      "input": "juice",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08640000000002601,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-017",
+      "level": 5,
+      "input": "soda",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.09539999999992688,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-018",
+      "level": 5,
+      "input": "something for tacos",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.10050000000001091,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-019",
+      "level": 5,
+      "input": "breakfast food",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.09139999999990778,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    },
+    {
+      "id": "C100-L5-020",
+      "level": 5,
+      "input": "ground meat",
+      "score": 2,
+      "deadEnd": false,
+      "unsafeSelection": false,
+      "reason": "Asked the expected one-tap clarification and did not repeat it.",
+      "itemOutcomes": [
+        {
+          "score": 2,
+          "reason": "Asked the expected one-tap clarification and did not repeat it.",
+          "deadEnd": false,
+          "parseMs": 0.08590000000003783,
+          "matchMs": 0,
+          "searchAttempts": 0,
+          "unsafeSelection": false
+        }
+      ]
+    }
+  ]
+}

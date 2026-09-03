@@ -1,0 +1,130 @@
+{
+  "historySchemaVersion": 2,
+  "recordType": "deterministic",
+  "runId": "run-0004-verified-96-percent",
+  "recordedAt": "2026-09-03T04:29:26.265Z",
+  "observedAt": "2026-09-03T04:27:46.163Z",
+  "previousRunId": "run-0003-transcribed-98-percent",
+  "capture": {
+    "kind": "verified-command",
+    "rawReportPath": "raw/run-0004-verified-96-percent.report.json",
+    "rawReportHashAlgorithm": "json-stringify-utf8-sha256-v1",
+    "rawReportSha256": "694e6ed28d302ce59e62d5c876d6762910b0f73ad05c7a10cd3533b79f0b8e38"
+  },
+  "comparability": {
+    "status": "conditional",
+    "reason": "The request corpus, oracle revision, fixture schema, and scoring policy match run 0003, but run 0003 was transcribed without raw output, exact source capture, or an evaluated safety gate. Run 0004 is fully verifiable on its own."
+  },
+  "source": {
+    "gitBaseCommit": "8455435e4e306da8dc6bf54c10b9ff9d1729b42f",
+    "treeState": "tracked-files-match-commit; untracked-files-excluded",
+    "sourceManifestAlgorithm": "sha256-path-nul-bytes-nul-v1",
+    "sourceManifestSha256": "15180fe2cf571b726521b7ee2b85fc478c5948c2f7945c3dab7043499274dea5",
+    "sourceManifestEntryCount": 440,
+    "gitObjectAlgorithm": "sha1",
+    "gitBlobIds": {
+      "tests/fixtures/cartiva-100.json": "70acfca58c3001184558c90420b120519879d67d",
+      "tests/fixtures/cartiva-100-catalog.json": "62116f64d180e3b649b36171a9daebf99007ba6e",
+      "tests/support/cartiva-100.ts": "d6bbba925e34901e9c36cf25f50668756aa2c2e9",
+      "tests/cartiva-100.test.ts": "5e1fd891799f3d7cfbb88714870b2bc9b64069f8",
+      "tests/support/cartiva-100-live.ts": "9c527d71a4621ffdc34869cfd81f23e88dd3c466",
+      "tests/live/cartiva-100-kroger.test.ts": "8921129c6571f8d7c8dea4cbac78566d13fa6c32",
+      "tests/cartiva-100-live-oracle.test.ts": "fac02c4a96d39cba3d2294dae4db69b204b5dde9"
+    }
+  },
+  "benchmark": {
+    "suiteId": "cartiva-100",
+    "fixtureSchemaVersion": 1,
+    "scoringPolicy": "shopper-outcome-v1",
+    "oracleRevision": 2,
+    "fingerprintAlgorithm": "recursive-key-sort-json-sha256-v1",
+    "caseCount": 100,
+    "levelCounts": {
+      "1": 20,
+      "2": 20,
+      "3": 20,
+      "4": 20,
+      "5": 20
+    },
+    "hashes": {
+      "requestCorpusSha256": "94b9d695bc9c38442d8a3a51104f5160d212fd0e985551ac905c76d99a2ecc86",
+      "oracleSha256": "7be0f6317fcb9dbe2b8ccf7486968da24b83670347e776eb60770d337ef1a730",
+      "fixtureFileSha256": "95d470dedb0ba0e296edf81aaa9f2e60b54867f333c88dbaa3409b541d729c98",
+      "catalogFileSha256": "b7956db6701ebf88d90936dc47cf748393d799b058c15965c621cdcd1728a4b9",
+      "scorerFileSha256": "2650a6fe8aaf848e8787b3c85cf71b0917156f020348cf4496783c92f7749f20",
+      "testFileSha256": "bf1eab760e00e9444d6504bc0c231135ebacacc9c8742dea91d98e43369410f3",
+      "stableOutcomeSha256": "f8c5f0398cf00fb356ba84a57e1856978947f4d7c849d9b7b862bc8173dc186a"
+    }
+  },
+  "execution": {
+    "command": "CARTIVA100_REPORT_JSON=1 pnpm test:cartiva100",
+    "mode": "deterministic-local",
+    "retailerCalls": 0
+  },
+  "scores": {
+    "0": 4,
+    "1": 0,
+    "2": 36,
+    "3": 60,
+    "score2Or3Count": 96,
+    "score2Or3Percent": 96,
+    "atLeast1Count": 96,
+    "atLeast1Percent": 96,
+    "deadEndCount": 4,
+    "deadEndPercent": 4,
+    "unsafeSelectionCount": 0,
+    "safetyGateEvaluated": true,
+    "targetPolicy": "cartiva-100-targets-v1: score2Or3>=90%; atLeast1>=95%; deadEnd<5%; unsafeSelection=0",
+    "targetMet": true
+  },
+  "levels": {
+    "1": {
+      "useful": 20,
+      "score2Or3": 20,
+      "total": 20
+    },
+    "2": {
+      "useful": 17,
+      "score2Or3": 17,
+      "total": 20
+    },
+    "3": {
+      "useful": 20,
+      "score2Or3": 20,
+      "total": 20
+    },
+    "4": {
+      "useful": 19,
+      "score2Or3": 19,
+      "total": 20
+    },
+    "5": {
+      "useful": 20,
+      "score2Or3": 20,
+      "total": 20
+    }
+  },
+  "failureCategories": {
+    "QUANTITY_SEMANTICS": 3,
+    "TYPO_NORMALIZATION": 1
+  },
+  "score0CaseIds": [
+    "C100-L2-006",
+    "C100-L2-015",
+    "C100-L2-018",
+    "C100-L4-012"
+  ],
+  "score1CaseIds": [],
+  "deadEndCaseIds": [
+    "C100-L2-006",
+    "C100-L2-015",
+    "C100-L2-018",
+    "C100-L4-012"
+  ],
+  "performance": {
+    "averageParsingMs": 0.255,
+    "averageLocalMatchingMs": 2.204,
+    "averageSearchAttempts": 1.56,
+    "retailerCalls": 0
+  }
+}

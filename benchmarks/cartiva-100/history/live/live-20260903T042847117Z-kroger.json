@@ -1,0 +1,438 @@
+{
+  "historySchemaVersion": 2,
+  "recordType": "live-kroger",
+  "deterministicRunId": "run-0004-verified-96-percent",
+  "checkedAt": "2026-09-03T04:28:47.117Z",
+  "recordedAt": "2026-09-03T04:29:26.265Z",
+  "externalDataVolatile": true,
+  "validationScope": "retailer-handoff-readiness; identity and package validity are evaluated separately from confirmed in-stock availability",
+  "capture": {
+    "rawReportPath": "raw/live-20260903T042847117Z-kroger.report.json",
+    "rawReportHashAlgorithm": "json-stringify-utf8-sha256-v1",
+    "rawReportSha256": "6825f6daba0ba1a856c224a3d7269eb80588507fc9c917c278e8c442d0f4d6ed"
+  },
+  "store": {
+    "id": "03500529",
+    "name": "Kroger Fresh Fare - Capitol Ave",
+    "chain": "Kroger",
+    "zipCode": "75204"
+  },
+  "execution": {
+    "command": "CARTIVA100_LIVE_KROGER=1 CARTIVA100_LIVE_KROGER_REPORT_JSON=1 pnpm test:cartiva100:live",
+    "disposition": "COMPLETED",
+    "runnerStatus": "EXTERNAL_BLOCKED",
+    "retailerCalls": 19,
+    "credentialsConfigured": {
+      "krogerClientId": true,
+      "krogerClientSecret": true,
+      "krogerRedirectUri": true
+    }
+  },
+  "counts": {
+    "selected": 10,
+    "identityPackageVerified": 10,
+    "handoffReady": 4,
+    "matched": 4,
+    "availabilityUnconfirmed": 6,
+    "blocked": 6,
+    "failed": 0
+  },
+  "hashes": {
+    "rawReportSha256": "6825f6daba0ba1a856c224a3d7269eb80588507fc9c917c278e8c442d0f4d6ed",
+    "deterministicReportSha256": "694e6ed28d302ce59e62d5c876d6762910b0f73ad05c7a10cd3533b79f0b8e38",
+    "sourceManifestSha256": "15180fe2cf571b726521b7ee2b85fc478c5948c2f7945c3dab7043499274dea5",
+    "requestCorpusSha256": "94b9d695bc9c38442d8a3a51104f5160d212fd0e985551ac905c76d99a2ecc86",
+    "oracleSha256": "7be0f6317fcb9dbe2b8ccf7486968da24b83670347e776eb60770d337ef1a730",
+    "liveRunnerSha256": "e14b73d1e97045e448e4899eab570af7347968f946da1a2aedc3ef0f6e8ac999",
+    "liveTestSha256": "c943afdc16474f75246059d6f9a6781be369805a082caa7ab0a325a056014e7c",
+    "liveOracleTestSha256": "7dcb7590749443b626e51087145b880983d5cf85951381d30f6d1f6841cd1452"
+  },
+  "cases": [
+    {
+      "caseId": "C100-L1-002",
+      "status": "EXTERNAL_BLOCKED",
+      "checkedAt": "2026-09-03T04:28:11.304Z",
+      "attempts": [
+        {
+          "query": "White Bread",
+          "resultCount": 20
+        },
+        {
+          "query": "Bread",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 29,
+      "reason": "Kroger reported likely availability rather than confirmed stock; verified in-stock availability is required for retailer handoff.",
+      "selectedProduct": {
+        "productId": "0001111014423",
+        "upc": "0001111014423",
+        "description": "Smart Way™ White Bread",
+        "brand": "Smart Way",
+        "productType": "Bakery",
+        "size": {
+          "amount": 20,
+          "unit": "oz",
+          "kind": "weight",
+          "baseAmount": 20,
+          "baseUnit": "oz",
+          "label": "20 oz"
+        },
+        "priceCents": 149,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "likely_available",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:11.304Z",
+        "sourceUrl": "https://www.kroger.com/p/smart-way-white-bread/0001111014423?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L1-006",
+      "status": "HANDOFF_READY",
+      "checkedAt": "2026-09-03T04:28:15.658Z",
+      "attempts": [
+        {
+          "query": "White Rice",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 20,
+      "reason": "Handoff ready with exact-store Kroger metadata and safe fulfillment.",
+      "selectedProduct": {
+        "productId": "0001740010932",
+        "upc": "0001740010932",
+        "description": "Mahatma Extra Long Grain White Rice, Uncooked Rice, 80 oz (2.27kg)",
+        "brand": "Mahatma",
+        "productType": "Pasta, Sauces, Grain",
+        "size": {
+          "amount": 80,
+          "unit": "oz",
+          "kind": "weight",
+          "baseAmount": 80,
+          "baseUnit": "oz",
+          "label": "80 oz"
+        },
+        "priceCents": 549,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "in_stock",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:15.658Z",
+        "sourceUrl": "https://www.kroger.com/p/mahatma-extra-long-grain-white-rice-uncooked-rice-80-oz-2-27kg-/0001740010932?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L1-011",
+      "status": "EXTERNAL_BLOCKED",
+      "checkedAt": "2026-09-03T04:28:17.747Z",
+      "attempts": [
+        {
+          "query": "Boneless Skinless Chicken Breast",
+          "resultCount": 20
+        },
+        {
+          "query": "Chicken",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 33,
+      "reason": "Kroger reported likely availability rather than confirmed stock; verified in-stock availability is required for retailer handoff.",
+      "selectedProduct": {
+        "productId": "0020094700000",
+        "upc": "0020094700000",
+        "description": "Simple Truth® Natural Boneless Skinless Fresh Chicken Breast Family Pack BIG DEAL!",
+        "brand": "Simple Truth",
+        "productType": "Meat & Seafood",
+        "size": {
+          "amount": 1,
+          "unit": "lb",
+          "kind": "weight",
+          "baseAmount": 16,
+          "baseUnit": "oz",
+          "label": "1 lb"
+        },
+        "priceCents": 599,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "likely_available",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:17.747Z",
+        "sourceUrl": "https://www.kroger.com/p/simple-truth-natural-boneless-skinless-fresh-chicken-breast-family-pack-big-deal-/0020094700000?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L1-016",
+      "status": "EXTERNAL_BLOCKED",
+      "checkedAt": "2026-09-03T04:28:23.932Z",
+      "attempts": [
+        {
+          "query": "Coca-Cola Original",
+          "resultCount": 0
+        },
+        {
+          "query": "Coca-Cola Soda",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 20,
+      "reason": "Kroger reported likely availability rather than confirmed stock; verified in-stock availability is required for retailer handoff.",
+      "selectedProduct": {
+        "productId": "0004900002890",
+        "upc": "0004900002890",
+        "description": "Coca-Cola® Soda Cans",
+        "brand": "Coca-Cola",
+        "productType": "Beverages",
+        "size": {
+          "amount": 144,
+          "unit": "fl oz",
+          "kind": "volume",
+          "baseAmount": 144,
+          "baseUnit": "fl oz",
+          "packCount": 12,
+          "perPackageAmount": 12,
+          "label": "12 × 12 fl oz"
+        },
+        "priceCents": 1199,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "likely_available",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:23.932Z",
+        "sourceUrl": "https://www.kroger.com/p/coca-cola-soda-cans/0004900002890?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L1-017",
+      "status": "EXTERNAL_BLOCKED",
+      "checkedAt": "2026-09-03T04:28:25.989Z",
+      "attempts": [
+        {
+          "query": "Coke Zero",
+          "resultCount": 15
+        },
+        {
+          "query": "Coca-Cola Zero sugar Soda",
+          "resultCount": 14
+        },
+        {
+          "query": "Coca-Cola Soda",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 31,
+      "reason": "Kroger reported likely availability rather than confirmed stock; verified in-stock availability is required for retailer handoff.",
+      "selectedProduct": {
+        "productId": "0004900004255",
+        "upc": "0004900004255",
+        "description": "Coca-Cola® Zero Sugar Soda Cans",
+        "brand": "Coca-Cola",
+        "productType": "Beverages",
+        "size": {
+          "amount": 144,
+          "unit": "fl oz",
+          "kind": "volume",
+          "baseAmount": 144,
+          "baseUnit": "fl oz",
+          "packCount": 12,
+          "perPackageAmount": 12,
+          "label": "12 × 12 fl oz"
+        },
+        "priceCents": 1199,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "likely_available",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:25.989Z",
+        "sourceUrl": "https://www.kroger.com/p/coca-cola-zero-sugar-soda-cans/0004900004255?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L2-001",
+      "status": "HANDOFF_READY",
+      "checkedAt": "2026-09-03T04:28:32.443Z",
+      "attempts": [
+        {
+          "query": "Kidney Beans",
+          "resultCount": 13
+        }
+      ],
+      "returnedCandidateCount": 13,
+      "reason": "Handoff ready with exact-store Kroger metadata and safe fulfillment.",
+      "selectedProduct": {
+        "productId": "0001111071787",
+        "upc": "0001111071787",
+        "description": "Kroger® Dark Red Kidney Beans",
+        "brand": "Kroger",
+        "productType": "Canned & Packaged",
+        "size": {
+          "amount": 15.5,
+          "unit": "oz",
+          "kind": "weight",
+          "baseAmount": 15.5,
+          "baseUnit": "oz",
+          "label": "15.5 oz"
+        },
+        "priceCents": 100,
+        "quantity": 4,
+        "packageCount": 4,
+        "availability": "in_stock",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:32.443Z",
+        "sourceUrl": "https://www.kroger.com/p/kroger-dark-red-kidney-beans/0001111071787?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L2-002",
+      "status": "HANDOFF_READY",
+      "checkedAt": "2026-09-03T04:28:34.430Z",
+      "attempts": [
+        {
+          "query": "Chickpeas",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 20,
+      "reason": "Handoff ready with exact-store Kroger metadata and safe fulfillment.",
+      "selectedProduct": {
+        "productId": "0001111012143",
+        "upc": "0001111012143",
+        "description": "Kroger Garbanzo Beans Each",
+        "brand": "Kroger",
+        "productType": "Canned & Packaged",
+        "size": {
+          "amount": 15.5,
+          "unit": "oz",
+          "kind": "weight",
+          "baseAmount": 15.5,
+          "baseUnit": "oz",
+          "label": "15.5 oz"
+        },
+        "priceCents": 100,
+        "quantity": 3,
+        "packageCount": 3,
+        "availability": "in_stock",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:34.430Z",
+        "sourceUrl": "https://www.kroger.com/p/kroger-garbanzo-beans-each/0001111012143?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L2-008",
+      "status": "EXTERNAL_BLOCKED",
+      "checkedAt": "2026-09-03T04:28:36.648Z",
+      "attempts": [
+        {
+          "query": "Ground Turkey",
+          "resultCount": 15
+        },
+        {
+          "query": "Turkey",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 24,
+      "reason": "Kroger reported likely availability rather than confirmed stock; verified in-stock availability is required for retailer handoff.",
+      "selectedProduct": {
+        "productId": "0001111097993",
+        "upc": "0001111097993",
+        "description": "Kroger® 85/15 Fresh Ground Turkey Tray 3 LB",
+        "brand": "Kroger",
+        "productType": "Meat & Seafood",
+        "size": {
+          "amount": 3,
+          "unit": "lb",
+          "kind": "weight",
+          "baseAmount": 48,
+          "baseUnit": "oz",
+          "label": "3 lb"
+        },
+        "priceCents": 1000,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "likely_available",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:36.648Z",
+        "sourceUrl": "https://www.kroger.com/p/kroger-85-15-fresh-ground-turkey-tray-3-lb/0001111097993?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L3-001",
+      "status": "EXTERNAL_BLOCKED",
+      "checkedAt": "2026-09-03T04:28:40.871Z",
+      "attempts": [
+        {
+          "query": "Ground Beef 93 7",
+          "resultCount": 9
+        },
+        {
+          "query": "93 7 Ground Meat",
+          "resultCount": 9
+        },
+        {
+          "query": "Meat",
+          "resultCount": 19
+        }
+      ],
+      "returnedCandidateCount": 27,
+      "reason": "Kroger reported likely availability rather than confirmed stock; verified in-stock availability is required for retailer handoff.",
+      "selectedProduct": {
+        "productId": "0001111097975",
+        "upc": "0001111097975",
+        "description": "Kroger® 93/7 Ground Beef Roll 1 LB",
+        "brand": "Kroger",
+        "productType": "Meat & Seafood",
+        "size": {
+          "amount": 1,
+          "unit": "lb",
+          "kind": "weight",
+          "baseAmount": 16,
+          "baseUnit": "oz",
+          "label": "1 lb"
+        },
+        "priceCents": 979,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "likely_available",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:40.871Z",
+        "sourceUrl": "https://www.kroger.com/p/kroger-93-7-ground-beef-roll-1-lb/0001111097975?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    },
+    {
+      "caseId": "C100-L3-005",
+      "status": "HANDOFF_READY",
+      "checkedAt": "2026-09-03T04:28:47.107Z",
+      "attempts": [
+        {
+          "query": "2% Milk",
+          "resultCount": 20
+        }
+      ],
+      "returnedCandidateCount": 20,
+      "reason": "Handoff ready with exact-store Kroger metadata and safe fulfillment.",
+      "selectedProduct": {
+        "productId": "0001111041720",
+        "upc": "0001111041720",
+        "description": "Springdale® 2% Reduced Fat Milk Gallon",
+        "brand": "Springdale",
+        "productType": "Dairy",
+        "size": {
+          "amount": 128,
+          "unit": "fl oz",
+          "kind": "volume",
+          "baseAmount": 128,
+          "baseUnit": "fl oz",
+          "label": "1 gal"
+        },
+        "priceCents": 279,
+        "quantity": 1,
+        "packageCount": 1,
+        "availability": "in_stock",
+        "locationId": "03500529",
+        "checkedAt": "2026-09-03T04:28:47.107Z",
+        "sourceUrl": "https://www.kroger.com/p/springdale-2-reduced-fat-milk-gallon/0001111041720?cid=dis.api.tpi_products-api_20240521_b:all_c:p_t:cartiva-bbcgh2xk"
+      }
+    }
+  ]
+}
