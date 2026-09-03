@@ -18,23 +18,34 @@ describe("Cartiva list creation modes", () => {
     expect(markup).toContain('aria-selected="true"');
   });
 
-  it("keeps trust copy, review-before-add, and per-meal controls in the integrated UI", () => {
+  it("keeps trust copy, a compact tabbed workspace, pantry review, and per-meal controls in the integrated UI", () => {
     const source = readFileSync(path.join(process.cwd(), "components", "cartiva-list-creation.tsx"), "utf8");
     expect(source).toContain("Nutrition is estimated");
     expect(source).toContain("actual total comes from Cartiva");
     expect(source).toContain("review the meals and ingredients before anything is added");
-    expect(source).toContain("Increase protein");
-    expect(source).toContain("Use cheaper ingredients");
+    expect(source).toContain("More protein");
+    expect(source).toContain("Make this cheaper");
+    expect(source).toContain("Lower calories");
     expect(source).toContain("Replace");
-    expect(source).toContain("Regenerate");
-    expect(source).toContain("Add ${plan.ingredients.length}");
+    expect(source).toContain("Meals <span>");
+    expect(source).toContain("Grocery list <span>");
+    expect(source).toContain("I have all of these");
+    expect(source).toContain("I already have ${ingredient.name}");
+    expect(source).toContain("Use last week’s plan");
+    expect(source).toContain("Update ${count} plan ${count === 1 ? \"grocery\" : \"groceries\"} in my list");
+    expect(source).toContain("Remove this plan’s groceries from my list");
+    expect(source).toContain("allowEmptyCommit={committedPlanId === plan.id}");
   });
 
   it("bridges both generated paths back into the existing workspace instead of a second cart", () => {
     const workspace = readFileSync(path.join(process.cwd(), "components", "cartiva-workspace.tsx"), "utf8");
-    expect(workspace).toContain('commitGeneratedIngredients(ingredients, suggestedName, "plan")');
+    expect(workspace).toContain('onCommit={(ingredients, suggestedName, plan) => commitGeneratedIngredients(');
+    expect(workspace).toContain('"plan",');
     expect(workspace).toContain('commitGeneratedIngredients(ingredients, suggestedName, "recipe")');
     expect(workspace).toContain('setCreationMode("grocery-list")');
+    expect(workspace).toContain("reconcileCommittedPlanState");
+    expect(workspace).toContain("trackStoredPlanIngredientEdit");
+    expect(workspace).toContain("plannedBudgetDollars={activePlanBudgetDollars}");
     expect(workspace).not.toContain("separateShoppingEngine");
   });
 });

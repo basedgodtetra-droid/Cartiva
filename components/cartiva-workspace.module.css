@@ -1297,6 +1297,71 @@
   font-weight: 750;
 }
 
+.planBudgetReceipt {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 14px;
+  border: 1px solid #c9ddd4;
+  border-radius: 14px;
+  padding: 15px 18px;
+  background: #fff;
+}
+
+.planBudgetReceipt[data-status="over"] {
+  border-color: #ead9b9;
+  background: #fffaf0;
+}
+
+.planBudgetReceipt span {
+  display: block;
+  color: var(--cartiva-green);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.planBudgetReceipt h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.planBudgetReceipt p,
+.planBudgetReceipt small {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.planBudgetReceipt small {
+  max-width: 210px;
+  margin: 0;
+  text-align: right;
+}
+
+.planBudgetReceipt button {
+  min-height: 40px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 20px;
+  padding: 0 17px;
+  background: var(--cartiva-green);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.planBudgetReceipt button:hover {
+  background: var(--cartiva-green-hover);
+}
+
 .basketCard {
   overflow: hidden;
   margin-top: 14px;
@@ -2027,6 +2092,21 @@
   .evidenceBar button {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .planBudgetReceipt {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 15px 16px;
+  }
+
+  .planBudgetReceipt small {
+    max-width: none;
+    text-align: left;
+  }
+
+  .planBudgetReceipt button {
+    width: 100%;
   }
 
   .basketHeader {
@@ -3073,7 +3153,7 @@
 
 .planWorkspace,
 .recipeWorkspace {
-  max-width: 1160px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
@@ -3092,6 +3172,57 @@
   max-width: 840px;
   margin: 0 auto;
   padding: 26px;
+}
+
+.savedPlanPicker {
+  margin-top: 18px;
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 11px;
+  padding: 11px 12px;
+  background: #fafbf9;
+}
+
+.savedPlanPicker > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.savedPlanPicker > div {
+  display: flex;
+  max-height: 112px;
+  flex-wrap: wrap;
+  gap: 7px;
+  overflow-y: auto;
+}
+
+.savedPlanPicker button,
+.planQuietButton,
+.planGoalActions button {
+  min-height: 38px;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 19px;
+  padding: 0 13px;
+  background: #fff;
+  color: #3f4d45;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.savedPlanPicker button:hover,
+.planQuietButton:hover,
+.planGoalActions button:hover {
+  border-color: #aebfb7;
+  color: var(--cartiva-green-hover);
+}
+
+.savedPlanPicker button:disabled,
+.planGoalActions button:disabled {
+  cursor: default;
+  opacity: 0.62;
 }
 
 .planCardIntro {
@@ -3355,6 +3486,41 @@
   height: 16px;
 }
 
+.planFormActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planFormActions .planQuietButton {
+  margin-top: 20px;
+}
+
+.planGenerationError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #efd9ad;
+  border-radius: 10px;
+  margin-top: 14px;
+  padding: 11px 12px;
+  background: var(--cartiva-warning);
+  color: #74572d;
+  font-size: 12px;
+}
+
+.planGenerationError button {
+  min-height: 36px;
+  border: 1px solid #d8ba7f;
+  border-radius: 18px;
+  padding: 0 12px;
+  background: #fff;
+  color: #654619;
+  cursor: pointer;
+  font-weight: 680;
+}
+
 .reviewFirstNote {
   display: inline;
   margin: 0 0 0 10px;
@@ -3364,16 +3530,292 @@
 
 .planResults {
   display: grid;
+  height: clamp(520px, 70vh, 650px);
   margin-top: 18px;
-  grid-template-columns: minmax(0, 1.12fr) minmax(360px, 0.88fr);
-  align-items: start;
-  gap: 18px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 16px;
+  background: var(--cartiva-surface);
+  box-shadow: 0 4px 16px rgba(23, 34, 29, 0.035);
 }
 
 .mealPlanPanel,
 .ingredientPanel {
   min-width: 0;
   padding: 22px;
+}
+
+.planGoalSummary {
+  display: flex;
+  max-width: 960px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 14px;
+  margin: 0 auto;
+  padding: 15px 18px;
+  background: #fff;
+}
+
+.planGoalSummary > div:first-child {
+  min-width: 0;
+}
+
+.planGoalSummary > div:first-child > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--cartiva-green-hover);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.planGoalSummary h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.planGoalSummary p {
+  overflow: hidden;
+  margin: 4px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planGoalActions {
+  display: grid;
+  grid-template-columns: auto minmax(140px, 220px) auto;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.planGoalActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.planGoalActions button[data-saved="true"] {
+  border-color: #bad7ca;
+  background: var(--cartiva-mint);
+  color: var(--cartiva-green-hover);
+}
+
+.planSaveName input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 19px;
+  padding: 0 13px;
+  background: #fff;
+  color: var(--cartiva-text);
+  font-size: 12px;
+}
+
+.planSaveName input:focus-visible {
+  outline: 2px solid var(--cartiva-focus-ring);
+  outline-offset: 2px;
+}
+
+.planGoalActions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.planOverview {
+  border-bottom: 1px solid var(--cartiva-border-soft);
+  padding: 17px 20px 15px;
+}
+
+.planSummaryGrid {
+  display: grid;
+  margin-top: 13px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 10px;
+  background: var(--cartiva-border-soft);
+}
+
+.planSummaryGrid > span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.planSummaryGrid strong {
+  overflow: hidden;
+  color: var(--cartiva-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planSummaryGrid small {
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.planResultTabs {
+  display: flex;
+  min-height: 48px;
+  gap: 4px;
+  border-bottom: 1px solid var(--cartiva-border-soft);
+  padding: 5px 20px 0;
+  background: #fff;
+}
+
+.planResultTabs button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 13px;
+  background: transparent;
+  color: var(--cartiva-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.planResultTabs button[data-active="true"] {
+  border-bottom-color: var(--cartiva-green);
+  color: var(--cartiva-green-hover);
+}
+
+.planResultTabs button span {
+  border-radius: 10px;
+  padding: 2px 6px;
+  background: #eef2ef;
+  color: inherit;
+  font-size: 10px;
+}
+
+.planResultScroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.planResultScroll[data-tab="groceries"] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.planResultScroll[data-tab="groceries"] > [role="tabpanel"] {
+  min-height: 0;
+}
+
+.planResultScroll [hidden] {
+  display: none !important;
+}
+
+.planBudgetReview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.65fr);
+  gap: 14px;
+  margin: 16px 20px 0;
+  border: 1px solid #ead9b9;
+  border-radius: 11px;
+  padding: 13px 14px;
+  background: #fffaf0;
+}
+
+.planBudgetReview span {
+  color: #8a5b18;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.planBudgetReview h3 {
+  margin: 3px 0 0;
+  font-size: 15px;
+}
+
+.planBudgetReview p {
+  margin: 4px 0 0;
+  color: var(--cartiva-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.planBudgetReview > div:last-child {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.planBudgetReview button {
+  min-height: 34px;
+  border: 1px solid #dfcfb1;
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: #fff;
+  color: var(--cartiva-ink);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 680;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.planBudgetReview button:hover {
+  border-color: var(--cartiva-green);
+  color: var(--cartiva-green-hover);
+}
+
+.planResults .mealPlanPanel,
+.planResults .ingredientPanel {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.planResults .ingredientPanel[data-contained="true"] {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  padding: 0;
+}
+
+.planResults .ingredientPanel[data-contained="true"] > .planSectionHeading {
+  border-bottom: 1px solid var(--cartiva-border-soft);
+  padding: 15px 20px 12px;
+}
+
+.planResults .ingredientPanel[data-contained="true"] > .ingredientReviewBody {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 20px 20px;
+}
+
+.planResults .ingredientPanel[data-contained="true"] > .ingredientCommit {
+  position: static;
+  margin: 0;
+  padding: 12px 20px;
+  box-shadow: 0 -6px 16px rgba(23, 34, 29, 0.04);
 }
 
 .planResultHeader,
@@ -3476,12 +3918,53 @@
 }
 
 .mealDay > h3 {
-  margin: 0 0 7px;
+  margin: 0;
+}
+
+.mealDay > h3 button {
+  display: grid;
+  width: 100%;
+  min-height: 46px;
+  grid-template-columns: 18px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fafbf9;
+  color: var(--cartiva-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.mealDay > h3 button:hover {
+  border-color: #bfd0c8;
+  background: #f6f9f7;
+}
+
+.mealDay > h3 svg {
+  width: 15px;
+  height: 15px;
+  color: var(--cartiva-green);
+}
+
+.mealDay > h3 span {
+  font-size: 12px;
+  font-weight: 730;
+}
+
+.mealDay > h3 small {
+  overflow: hidden;
   color: var(--cartiva-muted);
   font-size: 11px;
-  font-weight: 720;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: 550;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mealDay > div {
+  margin-top: 7px;
 }
 
 .mealCard {
@@ -3551,6 +4034,73 @@
   font-size: 14px;
   font-weight: 680;
   letter-spacing: -0.01em;
+}
+
+.mealAlternatives,
+.mealActionMenu {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d6e4dd;
+  border-radius: 10px;
+  margin-top: 11px;
+  padding: 9px;
+  background: #f7faf8;
+}
+
+.mealAlternatives > strong {
+  padding: 1px 3px 3px;
+  color: #435149;
+  font-size: 11px;
+}
+
+.mealAlternatives button,
+.mealActionMenu button {
+  min-height: 40px;
+  border: 1px solid var(--cartiva-border-soft);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff;
+  color: var(--cartiva-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 640;
+  text-align: left;
+}
+
+.mealAlternatives button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mealAlternatives button:hover,
+.mealActionMenu button:hover {
+  border-color: #abc7ba;
+  color: var(--cartiva-green-hover);
+}
+
+.mealAlternatives small {
+  flex: 0 0 auto;
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  font-weight: 540;
+}
+
+.mealActionMenu {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mealActionMenu button:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #785147;
+}
+
+.mealActionMenu svg {
+  width: 14px;
+  height: 14px;
 }
 
 .mealNutrition {
@@ -3644,11 +4194,66 @@
 .ingredientRow {
   display: grid;
   min-height: 58px;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   border-bottom: 1px solid var(--cartiva-border-soft);
   padding: 7px 0;
+}
+
+.ingredientRow[data-owned="true"] {
+  background: #fafbf9;
+  color: var(--cartiva-muted);
+}
+
+.haveItControl {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.haveItControl input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.haveItControl > span {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  border: 1px solid #b9c6c0;
+  border-radius: 6px;
+  background: #fff;
+  color: #fff;
+}
+
+.haveItControl input:checked + span {
+  border-color: var(--cartiva-green);
+  background: var(--cartiva-green);
+}
+
+.haveItControl input:focus-visible + span {
+  outline: 2px solid var(--cartiva-focus-ring);
+  outline-offset: 2px;
+}
+
+.haveItControl svg {
+  width: 13px;
+  height: 13px;
+}
+
+.haveItControl em {
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 630;
 }
 
 .ingredientCheck {
@@ -3693,6 +4298,84 @@
   height: 38px;
   padding: 0 9px;
   font-size: 12px;
+}
+
+.ingredientEditFields {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(100px, 0.4fr);
+  gap: 7px;
+}
+
+.ingredientEditFields label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid #ced7d2;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.ingredientEditFields label input {
+  border: 0;
+}
+
+.ingredientEditFields label > span:last-child {
+  padding-right: 9px;
+  color: var(--cartiva-muted);
+  font-size: 10px;
+}
+
+.ingredientEditError {
+  margin: 5px 0 0;
+  color: #93453c;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.pantryCheck {
+  margin-top: 16px;
+  border: 1px solid #dbe7e1;
+  border-radius: 11px;
+  padding: 0 12px 2px;
+  background: #f7faf8;
+}
+
+.pantryCheck > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0 3px;
+}
+
+.pantryCheck > div:first-child span {
+  display: grid;
+  gap: 2px;
+}
+
+.pantryCheck > div:first-child strong {
+  font-size: 12px;
+}
+
+.pantryCheck > div:first-child small {
+  color: var(--cartiva-muted);
+  font-size: 10px;
+}
+
+.pantryCheck > div:first-child button {
+  min-height: 36px;
+  border: 1px solid #bfd4ca;
+  border-radius: 18px;
+  padding: 0 11px;
+  background: #fff;
+  color: var(--cartiva-green-hover);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 670;
+}
+
+.pantryCheck .ingredientList {
+  margin-top: 5px;
 }
 
 .ingredientEmpty,
@@ -3742,7 +4425,19 @@
 }
 
 .ingredientCommit {
-  margin-top: 18px;
+  position: sticky;
+  z-index: 3;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: auto minmax(260px, 0.55fr);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--cartiva-border);
+  margin: 18px -22px -22px;
+  padding: 13px 22px;
+  background: #fff;
+  box-shadow: 0 -8px 18px rgba(23, 34, 29, 0.05);
 }
 
 .ingredientCommit .planPrimaryButton {
@@ -3750,8 +4445,14 @@
   margin: 0;
 }
 
+.ingredientCommit > strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .ingredientCommit > p {
-  margin: 7px 8px 0;
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
   color: var(--cartiva-muted);
   font-size: 10px;
   line-height: 1.4;
@@ -3838,9 +4539,21 @@
   background: #fafbf9;
 }
 
+.confirmServingsButton {
+  min-height: 36px;
+  border: 0;
+  border-radius: 18px;
+  padding: 0 12px;
+  background: var(--cartiva-green-hover);
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 680;
+}
+
 @media (max-width: 1140px) {
   .planResults {
-    grid-template-columns: 1fr;
+    height: clamp(520px, 72vh, 650px);
   }
 }
 
@@ -3854,6 +4567,17 @@
   .mealPlanPanel,
   .ingredientPanel {
     padding: 20px;
+  }
+
+  .planSummaryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ingredientCommit {
+    margin-right: -20px;
+    margin-bottom: -20px;
+    margin-left: -20px;
+    padding-inline: 20px;
   }
 }
 
@@ -3900,6 +4624,93 @@
     padding: 16px;
   }
 
+  .planGoalSummary {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .planGoalSummary p {
+    white-space: normal;
+  }
+
+  .planGoalActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planSaveName {
+    order: -1;
+    grid-column: 1 / -1;
+  }
+
+  .planGoalActions button {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .planResults {
+    height: auto;
+    overflow: visible;
+    border-radius: 13px;
+  }
+
+  .planOverview {
+    padding: 15px 16px 13px;
+  }
+
+  .planSummaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planResultTabs {
+    padding-inline: 12px;
+  }
+
+  .planResultTabs button {
+    min-height: 46px;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .planResultScroll {
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+  }
+
+  .planResultScroll[data-tab="groceries"] {
+    overflow: visible;
+  }
+
+  .planResults .ingredientPanel[data-contained="true"] {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .planResults .ingredientPanel[data-contained="true"] > .ingredientReviewBody {
+    overflow: visible;
+    padding: 0 16px 16px;
+  }
+
+  .planResults .ingredientPanel[data-contained="true"] > .ingredientCommit {
+    position: sticky;
+    bottom: 0;
+    margin: 0;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .planBudgetReview {
+    grid-template-columns: 1fr;
+    margin-inline: 16px;
+  }
+
+  .planBudgetReview button {
+    min-height: 44px;
+  }
+
   .planPrimaryButton,
   .planGoalCard > .planPrimaryButton {
     width: 100%;
@@ -3909,6 +4720,22 @@
     display: block;
     margin: 8px 2px 0;
     text-align: center;
+  }
+
+  .planFormActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .planFormActions .planQuietButton {
+    min-height: 44px;
+    margin-top: 0;
+  }
+
+  .savedPlanPicker button,
+  .examplePrompts button,
+  .planAdjustments button {
+    min-height: 44px;
   }
 
   .mealCardActions button,
@@ -3933,7 +4760,48 @@
   }
 
   .ingredientRow {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+  }
+
+  .ingredientEditFields,
+  .mealActionMenu {
+    grid-template-columns: 1fr;
+  }
+
+  .mealAlternatives button {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .pantryCheck > div:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pantryCheck > div:first-child button {
+    min-height: 44px;
+  }
+
+  .ingredientCommit {
+    bottom: 0;
+    grid-template-columns: 1fr;
+    margin: 18px -16px -16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .ingredientCommit > p {
+    display: none;
+  }
+
+  .recipeServings {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .confirmServingsButton {
+    width: 100%;
+    min-height: 44px;
   }
 }
 
@@ -3955,5 +4823,22 @@
   .mealCardActions {
     width: 100%;
     justify-content: flex-end;
+  }
+}
+
+@media (min-width: 641px) and (max-height: 760px) {
+  .planResults {
+    height: min(520px, calc(100dvh - 170px));
+    min-height: 430px;
+  }
+}
+
+@media (pointer: coarse) {
+  .haveItControl,
+  .mealCardActions button,
+  .ingredientActions button,
+  .mealAlternatives button,
+  .mealActionMenu button {
+    min-height: 44px;
   }
 }

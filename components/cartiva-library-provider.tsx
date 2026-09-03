@@ -14,6 +14,7 @@ import {
   createLibraryId,
   deleteSavedBasket,
   deleteSavedList,
+  deleteSavedPlan,
   duplicateSavedList,
   emptyCartivaLibrary,
   parseCartivaLibrary,
@@ -22,11 +23,13 @@ import {
   renameSavedList,
   saveHistoricalBasket as appendHistoricalBasket,
   serializeCartivaLibrary,
+  upsertSavedPlan,
   upsertSavedList,
   type CartivaComparisonRecord,
   type CartivaLibraryState,
   type CartivaListSnapshot,
 } from "@/lib/cartiva-library";
+import type { MealPlan } from "@/lib/cartiva-planning";
 import { trackCartivaEvent } from "@/lib/cartiva-product-events";
 
 interface CartivaLibraryContextValue {
@@ -41,6 +44,13 @@ interface CartivaLibraryContextValue {
   renameList: (id: string, name: string) => void;
   duplicateList: (id: string) => string | undefined;
   deleteList: (id: string) => void;
+  savePlan: (input: {
+    id?: string;
+    name: string;
+    plan: MealPlan;
+    ownedIngredientIds: string[];
+  }) => string;
+  deletePlan: (id: string) => void;
   recordComparison: (comparison: CartivaComparisonRecord) => void;
   saveBasket: (comparison: CartivaComparisonRecord) => void;
   deleteBasket: (id: string) => void;
@@ -102,6 +112,18 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
     setState((current) => renameSavedList(current, id, name, now));
   }, []);
 
+  const savePlan = useCallback((input: {
+    id?: string;
+    name: string;
+    plan: MealPlan;
+    ownedIngredientIds: string[];
+  }) => {
+    const id = input.id ?? createLibraryId("plan");
+    const now = new Date().toISOString();
+    setState((current) => upsertSavedPlan(current, { ...input, id, now }));
+    return id;
+  }, []);
+
   const duplicateList = useCallback((id: string) => {
     if (!state.lists.some((list) => list.id === id)) return undefined;
     const duplicateId = createLibraryId("list");
@@ -117,6 +139,8 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
     renameList,
     duplicateList,
     deleteList: (id) => setState((current) => deleteSavedList(current, id)),
+    savePlan,
+    deletePlan: (id) => setState((current) => deleteSavedPlan(current, id)),
     recordComparison: (comparison) => setState((current) => appendComparison(current, comparison)),
     saveBasket: (comparison) => {
       const savedAt = new Date().toISOString();
@@ -134,7 +158,7 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
       const occurredAt = new Date().toISOString();
       setState((current) => appendCartActivity(current, { ...input, occurredAt }));
     },
-  }), [duplicateList, hydrated, renameList, saveList, state]);
+  }), [duplicateList, hydrated, renameList, saveList, savePlan, state]);
 
   return <CartivaLibraryContext.Provider value={value}>{children}</CartivaLibraryContext.Provider>;
 }

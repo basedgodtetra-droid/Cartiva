@@ -1,18 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { interpretGroceryInput } from "@/lib/grocery-notepad";
+import { parseRetailerPackageQuantity } from "@/packages/shared/src/comparison-session";
 import {
+  adjustPlanMeal,
+  comparePlanBudget,
+  confirmRecipeServings,
   consolidatePlanIngredients,
+  formatIngredientAmount,
   generateMealPlan,
   normalizePlannerGoal,
+  isPantryIngredient,
   parseRecipeText,
   planIngredientsAsText,
   preserveReviewedPlanIngredients,
+  regenerateMealPlan,
   removePlanMeal,
   replacePlanMeal,
   roundGeneratedPurchaseWeightOunces,
   scaleRecipeImport,
   updatePlanMealServings,
   updateConsolidatedIngredient,
+  updateConsolidatedIngredientAmount,
+  updateConsolidatedIngredientDetails,
+  type ConsolidatedIngredient,
   type PlannedMeal,
 } from "@/lib/cartiva-planning";
 
@@ -37,6 +47,18 @@ describe("Cartiva Build My Plan", () => {
     const work = normalizePlannerGoal({ notes: "Breakfast and lunch for work this week" });
     expect(work.days.value).toBe(7);
     expect(work.mealSlots).toEqual(["breakfast", "lunch"]);
+  });
+
+  it("understands the complete shopper goal without losing comma-formatted calories or a standalone person count", () => {
+    const goal = normalizePlannerGoal({
+      notes: "I want 1,800 calories per day, at least 160g protein, $80 budget, 5 days, one person. Easy meals, more chicken, beef is okay.",
+    });
+    expect(goal.dailyCalories).toEqual({ value: 1800, origin: "user-prompt" });
+    expect(goal.proteinGrams).toEqual({ value: 160, origin: "user-prompt" });
+    expect(goal.budgetDollars).toEqual({ value: 80, origin: "user-prompt" });
+    expect(goal.days).toEqual({ value: 5, origin: "user-prompt" });
+    expect(goal.people).toEqual({ value: 1, origin: "user-prompt" });
+    expect(goal.preferences).toEqual(expect.arrayContaining(["high-protein", "easy", "chicken", "ground-beef"]));
   });
 
   it("lets explicit fields override conflicting prompt values", () => {
@@ -74,6 +96,19 @@ describe("Cartiva Build My Plan", () => {
     expect(first.ingredients.length).toBeLessThanOrEqual(24);
   });
 
+  it("keeps one plan lineage when a shopper regenerates changed goals", () => {
+    const original = generateMealPlan({ notes: "5 cheap dinners", days: 5, budgetDollars: 60 });
+    const regenerated = regenerateMealPlan(original, {
+      notes: "5 high-protein dinners",
+      days: 5,
+      budgetDollars: 80,
+    });
+
+    expect(regenerated.id).toBe(original.id);
+    expect(regenerated.goal).not.toEqual(original.goal);
+    expect(regenerated.meals).not.toEqual(original.meals);
+  });
+
   it("honors supported exclusions instead of treating negated foods as preferences", () => {
     const noChicken = generateMealPlan({ notes: "No chicken dinners", days: 5 });
     expect(noChicken.meals.every((meal) => !/chicken/i.test(`${meal.name} ${meal.ingredients.map((item) => item.name).join(" ")}`))).toBe(true);
@@ -104,8 +139,33 @@ describe("Cartiva Build My Plan", () => {
     });
     expect(plan.estimatedDailyCalories).toBeGreaterThanOrEqual(1780);
     expect(plan.estimatedDailyCalories).toBeLessThanOrEqual(1820);
+    expect(plan.estimatedDailyProteinGrams).toBeGreaterThanOrEqual(160);
+    expect(plan.meals).toHaveLength(15);
+    expect(plan.meals.filter((meal) => meal.day === 1).map((meal) => meal.slot)).toEqual([
+      "breakfast",
+      "lunch",
+      "dinner",
+    ]);
     expect(plan.ingredients.length).toBeLessThanOrEqual(24);
     expect(plan.omittedIngredientCount).toBe(0);
+  });
+
+  it("builds the explicit seven-day, three-meal family plan as 21 structured meals", () => {
+    const plan = generateMealPlan({
+      notes: "7 days, 3 meals per day, family of four, easy meal prep",
+    });
+    expect(plan.meals).toHaveLength(21);
+    expect(new Set(plan.meals.map((meal) => meal.id)).size).toBe(21);
+    expect(new Set(plan.meals.map((meal) => meal.day))).toEqual(new Set([1, 2, 3, 4, 5, 6, 7]));
+    for (let day = 1; day <= 7; day += 1) {
+      expect(plan.meals.filter((meal) => meal.day === day).map((meal) => meal.slot)).toEqual([
+        "breakfast",
+        "lunch",
+        "dinner",
+      ]);
+    }
+    expect(plan.meals.every((meal) => meal.servings === 4)).toBe(true);
+    expect(plan.ingredients.length).toBeLessThanOrEqual(24);
   });
 
   it("combines duplicate ingredients and compatible weight units", () => {
@@ -132,6 +192,23 @@ describe("Cartiva Build My Plan", () => {
     expect(result.ingredients[0].sourceMealIds).toEqual(["one", "two", "three"]);
   });
 
+  it("merges only compatible chicken-breast name variants", () => {
+    const result = consolidatePlanIngredients([
+      {
+        id: "one", templateId: "one", day: 1, slot: "dinner", name: "One", servings: 1,
+        estimatedCaloriesPerServing: 400, estimatedProteinGramsPerServing: 40, estimatedCostPerServing: 3,
+        ingredients: [{ name: "Chicken breast", amount: 8, unit: "oz" }],
+      },
+      {
+        id: "two", templateId: "two", day: 2, slot: "dinner", name: "Two", servings: 1,
+        estimatedCaloriesPerServing: 400, estimatedProteinGramsPerServing: 40, estimatedCostPerServing: 3,
+        ingredients: [{ name: "Boneless skinless chicken breast", amount: 1, unit: "lb" }],
+      },
+    ]);
+    expect(result.ingredients).toHaveLength(1);
+    expect(result.ingredients[0]).toMatchObject({ amount: 24, unit: "oz", shoppingText: "Chicken breast 1.5 lb" });
+  });
+
   it("rounds generated weight totals upward to shopper-friendly purchase targets", () => {
     expect(roundGeneratedPurchaseWeightOunces(1.8 * 16)).toBe(32);
     const result = consolidatePlanIngredients([{
@@ -144,6 +221,7 @@ describe("Cartiva Build My Plan", () => {
       unit: "lb",
       shoppingText: "Red lentil pasta 2 lb",
     });
+    expect(formatIngredientAmount(result.ingredients[0])).toBe("2 lb");
   });
 
   it("converts common volume units instead of silently dropping an amount", () => {
@@ -160,7 +238,86 @@ describe("Cartiva Build My Plan", () => {
       },
     ]);
     expect(result.ingredients).toHaveLength(1);
-    expect(result.ingredients[0]).toMatchObject({ amount: 2, unit: "tbsp" });
+    expect(result.ingredients[0]).toMatchObject({ amount: 2, unit: "tbsp", shoppingText: "Olive oil" });
+    const item = interpretGroceryInput(planIngredientsAsText(result.ingredients)).items[0];
+    expect(item.name).toBe("Olive Oil");
+    expect(parseRetailerPackageQuantity(item.canonicalText)).toMatchObject({
+      searchText: "Olive Oil",
+      quantity: 1,
+    });
+    expect(formatIngredientAmount(result.ingredients[0])).toBe("2 tbsp");
+  });
+
+  it("sends product identities—not cooking measures—into the grocery pipeline", () => {
+    const plan = generateMealPlan({ notes: "5 cheap dinners", days: 5 });
+    const cookingMeasureIngredients = plan.ingredients.filter((ingredient) => (
+      ingredient.unit === "cup" || ingredient.unit === "tbsp" || ingredient.unit === "tsp"
+    ));
+
+    expect(cookingMeasureIngredients.length).toBeGreaterThan(0);
+    expect(cookingMeasureIngredients.every((ingredient) => ingredient.shoppingText === ingredient.name)).toBe(true);
+
+    const input = planIngredientsAsText(plan.ingredients);
+    const interpreted = interpretGroceryInput(input);
+    expect(input).not.toMatch(/\b(?:cups?|tbsp|tsp)\b/i);
+    expect(interpreted.items.every((item) => !/\b(?:cups?|tbsp|tsp)\b/i.test(item.canonicalText))).toBe(true);
+  });
+
+  it("edits shopper-reviewed quantities exactly and identifies pantry basics narrowly", () => {
+    const original = consolidatePlanIngredients([{
+      id: "one", templateId: "one", day: 1, slot: "dinner", name: "One", servings: 1,
+      estimatedCaloriesPerServing: 400, estimatedProteinGramsPerServing: 30, estimatedCostPerServing: 2,
+      ingredients: [{ name: "Red lentil pasta", amount: 1.8, unit: "lb" }],
+    }]).ingredients;
+    const edited = updateConsolidatedIngredientAmount(original, original[0].id, 1.8);
+    expect(edited[0]).toMatchObject({ amount: 1.8, shoppingText: "Red lentil pasta 1.8 lb" });
+    expect(updateConsolidatedIngredientAmount(edited, original[0].id, 0)).toBe(edited);
+
+    for (const name of ["Salt", "Black pepper", "Olive oil", "Garlic powder", "Soy sauce"]) {
+      expect(isPantryIngredient({ name })).toBe(true);
+    }
+    for (const name of ["Chicken breast", "Bell pepper", "Pepper jack cheese", "Oil-packed tuna", "Fresh garlic", "Rice"]) {
+      expect(isPantryIngredient({ name })).toBe(false);
+    }
+  });
+
+  it("keeps an amount edit when the same save also merges a renamed ingredient", () => {
+    const ingredients: ConsolidatedIngredient[] = [
+      {
+        id: "ingredient-rice",
+        name: "Rice",
+        amount: 2,
+        unit: "lb",
+        sourceMealIds: ["meal-1"],
+        optional: false,
+        shoppingText: "Rice 2 lb",
+      },
+      {
+        id: "ingredient-beans",
+        name: "Beans",
+        amount: 1,
+        unit: "lb",
+        sourceMealIds: ["meal-2"],
+        optional: false,
+        shoppingText: "Beans 1 lb",
+      },
+    ];
+
+    const edited = updateConsolidatedIngredientDetails(
+      ingredients,
+      "ingredient-beans",
+      "Rice",
+      9,
+    );
+
+    expect(edited).toHaveLength(1);
+    expect(edited[0]).toMatchObject({
+      id: "ingredient-rice",
+      name: "Rice",
+      amount: 176,
+      unit: "oz",
+      shoppingText: "Rice 11 lb",
+    });
   });
 
   it("recalculates ingredients after one-meal edits without replacing the plan", () => {
@@ -182,6 +339,44 @@ describe("Cartiva Build My Plan", () => {
     const removed = removePlanMeal(plan, target.id);
     expect(removed.meals).toHaveLength(plan.meals.length - 1);
     expect(removed.meals.some((meal) => meal.id === target.id)).toBe(false);
+  });
+
+  it("changes only the selected meal for cheaper, protein, and calorie actions", () => {
+    const plan = generateMealPlan({
+      notes: "High protein, easy air-fryer meals, mostly chicken, beef is okay",
+      dailyCalories: 1800,
+      proteinGrams: 160,
+      budgetDollars: 80,
+      days: 5,
+      people: 1,
+    });
+    const changed = (["cheaper", "higher-protein", "lower-calorie"] as const).map((adjustment) => {
+      const target = plan.meals.find((meal) => {
+        const next = adjustPlanMeal(plan, meal.id, adjustment).meals.find((candidate) => candidate.id === meal.id);
+        return next?.templateId !== meal.templateId;
+      });
+      expect(target, `${adjustment} should have at least one useful option`).toBeDefined();
+      const nextPlan = adjustPlanMeal(plan, target!.id, adjustment);
+      const nextMeal = nextPlan.meals.find((meal) => meal.id === target!.id)!;
+      expect(nextPlan.meals.filter((meal) => meal.id !== target!.id)).toEqual(
+        plan.meals.filter((meal) => meal.id !== target!.id),
+      );
+      if (adjustment === "cheaper") expect(nextMeal.estimatedCostPerServing).toBeLessThan(target!.estimatedCostPerServing);
+      if (adjustment === "higher-protein") expect(nextMeal.estimatedProteinGramsPerServing).toBeGreaterThan(target!.estimatedProteinGramsPerServing);
+      if (adjustment === "lower-calorie") expect(nextMeal.estimatedCaloriesPerServing).toBeLessThan(target!.estimatedCaloriesPerServing);
+      if (adjustment !== "higher-protein") {
+        expect(nextMeal.estimatedProteinGramsPerServing).toBeGreaterThanOrEqual(target!.estimatedProteinGramsPerServing * 0.85);
+      }
+      return nextPlan;
+    });
+    expect(changed.every((nextPlan) => nextPlan.ingredients.length > 0)).toBe(true);
+  });
+
+  it("compares a verified retailer subtotal with the planning budget", () => {
+    expect(comparePlanBudget(80, 7642)).toMatchObject({ status: "under", differenceCents: -358, label: "$3.58 under budget" });
+    expect(comparePlanBudget(80, 8730)).toMatchObject({ status: "over", differenceCents: 730, label: "$7.30 over budget" });
+    expect(comparePlanBudget(80, 8000)).toMatchObject({ status: "on-target", differenceCents: 0, label: "On budget" });
+    expect(comparePlanBudget(undefined, 8000)).toBeUndefined();
   });
 
   it("preserves shopper ingredient removals and renames across one-meal edits", () => {
@@ -254,6 +449,7 @@ Cook the chicken and serve.
     `);
     expect(recipe.title).toBe("Chicken Taco Bowls");
     expect(recipe.baseServings).toBe(4);
+    expect(recipe.servingsConfirmed).toBe(true);
     expect(recipe.ingredients.map((ingredient) => ingredient.name)).toEqual([
       "Black Beans",
       "Chicken Breast",
@@ -307,6 +503,47 @@ Bake for 30 minutes.
     const six = scaleRecipeImport(scaleRecipeImport(base, 5), 6);
     expect(six.servings).toBe(6);
     expect(six.ingredients.find((ingredient) => ingredient.name === "Chicken Breast")?.amount).toBe(3);
-    expect(six.ingredients.find((ingredient) => ingredient.name === "Rice")?.amount).toBe(3);
+    expect(six.ingredients.find((ingredient) => ingredient.name === "Rice")).toMatchObject({
+      amount: 3,
+      unit: "cup",
+      shoppingText: "Rice",
+    });
+  });
+
+  it("rounds fractional sellable containers up before they enter the grocery parser", () => {
+    const recipe = parseRecipeText("Ingredients\n1/2 can coconut milk\n1/2 jar pasta sauce");
+    const coconutMilk = recipe.ingredients.find((ingredient) => ingredient.name === "Coconut Milk");
+    const pastaSauce = recipe.ingredients.find((ingredient) => ingredient.name === "Pasta Sauce");
+
+    expect(coconutMilk).toMatchObject({ amount: 0.5, unit: "can", shoppingText: "Coconut Milk 1 can" });
+    expect(pastaSauce).toMatchObject({ amount: 0.5, unit: "jar", shoppingText: "Pasta Sauce 1 jar" });
+    expect(formatIngredientAmount(coconutMilk!)).toBe("1 can");
+
+    const interpreted = interpretGroceryInput(planIngredientsAsText(recipe.ingredients));
+    expect(interpreted.items.map((item) => parseRetailerPackageQuantity(item.canonicalText))).toEqual([
+      expect.objectContaining({ searchText: "Coconut Milk", quantity: 1 }),
+      expect.objectContaining({ searchText: "Pasta Sauce", quantity: 1 }),
+    ]);
+
+    const edited = updateConsolidatedIngredientAmount(recipe.ingredients, coconutMilk!.id, 0.1);
+    expect(edited.find((ingredient) => ingredient.id === coconutMilk!.id)).toMatchObject({
+      amount: 0.1,
+      shoppingText: "Coconut Milk 1 can",
+    });
+  });
+
+  it("asks for unknown servings and preserves explicit recipe quantities", () => {
+    const recipe = parseRecipeText("Ingredients\n1.8 lb red lentil pasta\n2 cups rice");
+    expect(recipe.servings).toBe(4);
+    expect(recipe.servingsConfirmed).toBe(false);
+    expect(recipe.ingredients.find((ingredient) => ingredient.name === "Red Lentil Pasta")?.shoppingText).toBe("Red Lentil Pasta 1.8 lb");
+    const confirmed = confirmRecipeServings(recipe);
+    expect(confirmed.servingsConfirmed).toBe(true);
+    expect(confirmed.ingredients).toEqual(recipe.ingredients);
+    const scaled = scaleRecipeImport(recipe, 8);
+    expect(scaled.ingredients.find((ingredient) => ingredient.name === "Red Lentil Pasta")).toMatchObject({
+      amount: 3.6,
+      shoppingText: "Red Lentil Pasta 3.6 lb",
+    });
   });
 });

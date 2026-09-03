@@ -11,6 +11,7 @@ import {
 import { getCartivaKrogerHandoffStage } from "@/lib/cartiva-kroger-handoff";
 import type { CartivaKrogerConnectionState } from "@/lib/cartiva-kroger-connection";
 import { krogerShoppingUrl } from "@/lib/kroger-family-links";
+import { comparePlanBudget } from "@/lib/cartiva-planning";
 import styles from "@/components/cartiva-workspace.module.css";
 
 interface CartivaComparisonProps {
@@ -31,6 +32,9 @@ interface CartivaComparisonProps {
   onAddToKroger: () => void;
   onContinueWithoutTransfer: () => void;
   onResolveCartReview: (itemsWereAdded: boolean) => void;
+  plannedBudgetDollars?: number;
+  plannedItemIds?: ReadonlySet<string>;
+  onReviewPlan?: () => void;
 }
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
@@ -71,6 +75,9 @@ export function CartivaComparison({
   onAddToKroger,
   onContinueWithoutTransfer,
   onResolveCartReview,
+  plannedBudgetDollars,
+  plannedItemIds,
+  onReviewPlan,
 }: CartivaComparisonProps) {
   const cartNoticeRef = useRef<HTMLDivElement | null>(null);
   const cartActionRef = useRef<HTMLButtonElement | null>(null);
@@ -90,7 +97,23 @@ export function CartivaComparison({
       ? Math.round(product.price * 100) * quantity
       : 0);
   }, 0);
+  const plannedSubtotalCents = plannedItemIds?.size
+    ? comparison.results.reduce((sum, result, index) => {
+        if (!plannedItemIds.has(items[index]?.id)) return sum;
+        const product = result?.status === "matched" ? result.recommended : null;
+        const quantity = resolvedKrogerCartQuantity(
+          result,
+          quantities[items[index]?.id] ?? 1,
+        );
+        return sum + (product && quantity !== undefined
+          ? Math.round(product.price * 100) * quantity
+          : 0);
+      }, 0)
+    : undefined;
   const hasResults = comparison.results.some(Boolean);
+  const planBudget = complete && plannedSubtotalCents !== undefined
+    ? comparePlanBudget(plannedBudgetDollars, plannedSubtotalCents)
+    : undefined;
   const busy = comparison.phase === "searching" || comparison.phase === "finding-store";
   const canResumeOAuth = cart.code === "oauth_required";
   const transferring = (cart.phase === "authorizing" || cart.phase === "adding") && !canResumeOAuth;
@@ -276,6 +299,23 @@ export function CartivaComparison({
           </div>
         </>
       )}
+
+      {planBudget ? (
+        <section className={styles.planBudgetReceipt} data-status={planBudget.status} aria-labelledby="plan-budget-heading">
+          <div>
+            <span>Plan budget check</span>
+            <h2 id="plan-budget-heading">{planBudget.label}</h2>
+            <p>
+              Planned {money.format(planBudget.targetCents / 100)} · matched plan groceries {money.format(planBudget.actualCents / 100)}
+            </p>
+          </div>
+          {planBudget.status === "over" && onReviewPlan ? (
+            <button type="button" onClick={onReviewPlan}>Lower my basket</button>
+          ) : (
+            <small>Retailer prices are the source of truth. Taxes, fees, and substitutions are not included.</small>
+          )}
+        </section>
+      ) : null}
 
       <article className={styles.basketCard} data-complete={complete} aria-labelledby="basket-heading">
         <div className={styles.basketHeader}>

@@ -4,6 +4,7 @@ import {
   type GroceryProteinOriginMap,
 } from "@/lib/grocery-notepad";
 import { resolvedKrogerCartQuantity } from "@/lib/cartiva-kroger-cart";
+import type { MealPlan } from "@/lib/cartiva-planning";
 import type { KrogerMatchResult } from "@/lib/types";
 
 export const CARTIVA_LIBRARY_KEY = "cartiva-local-library-v1";
@@ -20,6 +21,15 @@ export interface CartivaSavedList extends CartivaListSnapshot {
   id: string;
   name: string;
   itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CartivaSavedPlan {
+  id: string;
+  name: string;
+  plan: MealPlan;
+  ownedIngredientIds: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -101,7 +111,7 @@ export interface CartivaProductObservation extends CartivaSavedProduct {
   fulfillmentMode: "pickup" | "delivery";
 }
 
-export type CartivaActivityType = "list_saved" | "comparison_completed" | "basket_saved" | "cart_added";
+export type CartivaActivityType = "list_saved" | "plan_saved" | "comparison_completed" | "basket_saved" | "cart_added";
 
 export interface CartivaActivity {
   id: string;
@@ -115,6 +125,7 @@ export interface CartivaActivity {
 export interface CartivaLibraryState {
   version: 1;
   lists: CartivaSavedList[];
+  plans: CartivaSavedPlan[];
   baskets: CartivaSavedBasket[];
   basketHistory: CartivaBasketObservation[];
   productHistory: CartivaProductObservation[];
@@ -139,6 +150,7 @@ export interface CartivaComparisonRecordInput {
 }
 
 const MAX_LISTS = 50;
+const MAX_PLANS = 20;
 const MAX_BASKETS = 50;
 const MAX_BASKET_HISTORY = 250;
 const MAX_PRODUCT_HISTORY = 1_000;
@@ -187,6 +199,132 @@ function isSavedList(value: unknown): value is CartivaSavedList {
     && (value.fulfillmentMode === "pickup" || value.fulfillmentMode === "delivery")
     && typeof value.zipCode === "string"
     && Number.isInteger(value.itemCount)
+    && validDate(value.createdAt)
+    && validDate(value.updatedAt);
+}
+
+function isGoalValue(value: unknown): value is { value: number; origin: "user-field" | "user-prompt" | "default" } {
+  return isRecord(value)
+    && typeof value.value === "number"
+    && Number.isFinite(value.value)
+    && ["user-field", "user-prompt", "default"].includes(String(value.origin));
+}
+
+function isGoalValueBetween(value: unknown, minimum: number, maximum: number) {
+  return isGoalValue(value)
+    && Number.isInteger(value.value)
+    && value.value >= minimum
+    && value.value <= maximum;
+}
+
+const PLAN_INGREDIENT_UNITS = new Set([
+  "oz", "lb", "g", "kg", "cup", "tbsp", "tsp", "ml", "count", "can",
+  "each", "gallon", "package", "jar", "box", "clove", "bunch", "slice",
+]);
+
+function isPlanIngredient(value: unknown) {
+  return isRecord(value)
+    && typeof value.name === "string"
+    && value.name.length > 0
+    && value.name.length <= 100
+    && typeof value.amount === "number"
+    && Number.isFinite(value.amount)
+    && value.amount > 0
+    && value.amount <= 10_000
+    && typeof value.unit === "string"
+    && PLAN_INGREDIENT_UNITS.has(value.unit)
+    && (value.optional === undefined || typeof value.optional === "boolean");
+}
+
+function isMealPlan(value: unknown): value is MealPlan {
+  if (!isRecord(value) || !isRecord(value.goal)) return false;
+  const goal = value.goal;
+  const meals = Array.isArray(value.meals) ? value.meals : [];
+  const ingredients = Array.isArray(value.ingredients) ? value.ingredients : [];
+  const validGoal = isGoalValueBetween(goal.days, 1, 7)
+    && isGoalValueBetween(goal.people, 1, 8)
+    && (goal.dailyCalories === undefined || isGoalValueBetween(goal.dailyCalories, 900, 5000))
+    && (goal.proteinGrams === undefined || isGoalValueBetween(goal.proteinGrams, 20, 350))
+    && (goal.budgetDollars === undefined || isGoalValueBetween(goal.budgetDollars, 10, 2000))
+    && Array.isArray(goal.mealSlots)
+    && goal.mealSlots.every((slot) => ["breakfast", "lunch", "dinner", "snack"].includes(String(slot)))
+    && Array.isArray(goal.preferences)
+    && goal.preferences.every((preference) => typeof preference === "string")
+    && Array.isArray(goal.exclusions)
+    && goal.exclusions.every((exclusion) => typeof exclusion === "string")
+    && typeof goal.originalPrompt === "string";
+  const validMeals = meals.length <= 32 && meals.every((meal) => (
+    isRecord(meal)
+    && typeof meal.id === "string"
+    && typeof meal.templateId === "string"
+    && typeof meal.name === "string"
+    && integerBetween(meal.day, 1, 7)
+    && ["breakfast", "lunch", "dinner", "snack"].includes(String(meal.slot))
+    && integerBetween(meal.servings, 1, 12)
+    && typeof meal.estimatedCaloriesPerServing === "number"
+    && Number.isFinite(meal.estimatedCaloriesPerServing)
+    && meal.estimatedCaloriesPerServing >= 0
+    && typeof meal.estimatedProteinGramsPerServing === "number"
+    && Number.isFinite(meal.estimatedProteinGramsPerServing)
+    && meal.estimatedProteinGramsPerServing >= 0
+    && typeof meal.estimatedCostPerServing === "number"
+    && Number.isFinite(meal.estimatedCostPerServing)
+    && meal.estimatedCostPerServing >= 0
+    && Array.isArray(meal.ingredients)
+    && meal.ingredients.length <= 12
+    && meal.ingredients.every(isPlanIngredient)
+  ));
+  const validIngredients = ingredients.length <= 40 && ingredients.every((ingredient) => (
+    isPlanIngredient(ingredient)
+    && typeof ingredient.id === "string"
+    && typeof ingredient.shoppingText === "string"
+    && ingredient.shoppingText.length <= 180
+    && Array.isArray(ingredient.sourceMealIds)
+    && ingredient.sourceMealIds.length <= 32
+    && ingredient.sourceMealIds.every((id: unknown) => typeof id === "string")
+    && typeof ingredient.optional === "boolean"
+  ));
+  const validWarnings = value.goalWarnings === undefined || (
+    Array.isArray(value.goalWarnings)
+    && value.goalWarnings.length <= 8
+    && value.goalWarnings.every((warning) => typeof warning === "string" && warning.length <= 300)
+  );
+  const validBudgetIntent = value.budgetIntent === undefined || (
+    isRecord(value.budgetIntent)
+    && typeof value.budgetIntent.targetDollars === "number"
+    && Number.isFinite(value.budgetIntent.targetDollars)
+    && value.budgetIntent.targetDollars >= 10
+    && value.budgetIntent.targetDollars <= 2000
+    && typeof value.budgetIntent.estimatedTemplateCost === "number"
+    && Number.isFinite(value.budgetIntent.estimatedTemplateCost)
+    && value.budgetIntent.estimatedTemplateCost >= 0
+    && typeof value.budgetIntent.likelyWithinTarget === "boolean"
+    && value.budgetIntent.kind === "design-target"
+  );
+  return value.schemaVersion === 1
+    && typeof value.id === "string"
+    && typeof value.title === "string"
+    && validGoal
+    && validMeals
+    && validIngredients
+    && integerBetween(value.omittedIngredientCount, 0, 100)
+    && typeof value.estimatedDailyCalories === "number"
+    && Number.isFinite(value.estimatedDailyCalories)
+    && value.estimatedDailyCalories >= 0
+    && typeof value.estimatedDailyProteinGrams === "number"
+    && Number.isFinite(value.estimatedDailyProteinGrams)
+    && value.estimatedDailyProteinGrams >= 0
+    && validWarnings
+    && validBudgetIntent;
+}
+
+function isSavedPlan(value: unknown): value is CartivaSavedPlan {
+  if (!isRecord(value) || !isMealPlan(value.plan) || !Array.isArray(value.ownedIngredientIds)) return false;
+  const ingredientIds = new Set(value.plan.ingredients.map((ingredient) => ingredient.id));
+  return typeof value.id === "string"
+    && typeof value.name === "string"
+    && value.ownedIngredientIds.length <= 40
+    && value.ownedIngredientIds.every((id) => typeof id === "string" && ingredientIds.has(id))
     && validDate(value.createdAt)
     && validDate(value.updatedAt);
 }
@@ -290,7 +428,7 @@ function isProductObservation(value: unknown): value is CartivaProductObservatio
 function isActivity(value: unknown): value is CartivaActivity {
   if (!isRecord(value)) return false;
   return typeof value.id === "string"
-    && ["list_saved", "comparison_completed", "basket_saved", "cart_added"].includes(String(value.type))
+    && ["list_saved", "plan_saved", "comparison_completed", "basket_saved", "cart_added"].includes(String(value.type))
     && validDate(value.occurredAt)
     && typeof value.title === "string"
     && typeof value.detail === "string"
@@ -327,6 +465,7 @@ export function emptyCartivaLibrary(): CartivaLibraryState {
   return {
     version: 1,
     lists: [],
+    plans: [],
     baskets: [],
     basketHistory: [],
     productHistory: [],
@@ -342,6 +481,7 @@ export function parseCartivaLibrary(serialized: string | null): CartivaLibrarySt
     return {
       version: 1,
       lists: safeArray(value.lists, MAX_LISTS, isSavedList),
+      plans: safeArray(value.plans, MAX_PLANS, isSavedPlan),
       baskets: safeArray(value.baskets, MAX_BASKETS, isSavedBasket),
       basketHistory: safeArray(value.basketHistory, MAX_BASKET_HISTORY, isBasketObservation),
       productHistory: safeArray(value.productHistory, MAX_PRODUCT_HISTORY, isProductObservation),
@@ -448,6 +588,47 @@ export function duplicateSavedList(
 
 export function deleteSavedList(state: CartivaLibraryState, id: string) {
   return { ...state, lists: state.lists.filter((list) => list.id !== id) };
+}
+
+export function upsertSavedPlan(
+  state: CartivaLibraryState,
+  input: {
+    id: string;
+    name: string;
+    plan: MealPlan;
+    ownedIngredientIds: string[];
+    now: string;
+  },
+) {
+  const existing = state.plans.find((plan) => plan.id === input.id);
+  const validIngredientIds = new Set(input.plan.ingredients.map((ingredient) => ingredient.id));
+  const plan: CartivaSavedPlan = {
+    id: input.id,
+    name: cleanName(input.name),
+    plan: JSON.parse(JSON.stringify(input.plan)) as MealPlan,
+    ownedIngredientIds: [...new Set(input.ownedIngredientIds)]
+      .filter((id) => validIngredientIds.has(id))
+      .slice(0, 40),
+    createdAt: existing?.createdAt ?? input.now,
+    updatedAt: input.now,
+  };
+  const activity: CartivaActivity = {
+    id: `activity_plan_${plan.id}_${hash(input.now)}`,
+    type: "plan_saved",
+    occurredAt: input.now,
+    title: existing ? "Plan updated" : "Plan saved",
+    detail: `${plan.name} · ${plan.plan.goal.days.value} days · ${plan.plan.meals.length} meals`,
+    href: "/compare",
+  };
+  return {
+    ...state,
+    plans: prependUnique(state.plans, plan, MAX_PLANS),
+    activities: prependUnique(state.activities, activity, MAX_ACTIVITIES),
+  };
+}
+
+export function deleteSavedPlan(state: CartivaLibraryState, id: string) {
+  return { ...state, plans: state.plans.filter((plan) => plan.id !== id) };
 }
 
 export function buildCartivaComparisonRecord(

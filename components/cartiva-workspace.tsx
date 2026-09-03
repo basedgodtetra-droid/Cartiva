@@ -42,6 +42,7 @@ import {
   markPendingKrogerCartSubmitting,
   parsePendingKrogerCart,
   pendingKrogerCartMatches,
+  resolvedKrogerCartQuantity,
   type PendingKrogerCart,
 } from "@/lib/cartiva-kroger-cart";
 import { trackCartivaEvent } from "@/lib/cartiva-product-events";
@@ -56,6 +57,12 @@ import {
   type CartivaKrogerReceipt,
 } from "@/lib/cartiva-kroger-receipt";
 import { krogerCartUrl } from "@/lib/kroger-family-links";
+import {
+  matchedCommittedPlanItemIndexes,
+  reconcileCommittedPlanState,
+  trackStoredPlanIngredientEdit,
+  type StoredPlanIngredient,
+} from "@/lib/cartiva-plan-reconciliation";
 import type { CartivaKrogerCartCode } from "@/lib/cartiva-kroger-handoff";
 import { MAX_CARTIVA_INGREDIENTS, type ConsolidatedIngredient } from "@/lib/cartiva-planning";
 import { parseRetailerPackageQuantity } from "@/packages/shared/src";
@@ -77,6 +84,10 @@ interface StoredWorkspace {
   listName?: string;
   activeListId?: string;
   proteinOrigins?: GroceryProteinOriginMap;
+  creationMode?: CartivaCreationMode;
+  activePlanBudgetDollars?: number;
+  activePlanListOwnerId?: string;
+  activePlanIngredients?: StoredPlanIngredient[];
 }
 
 interface CartivaWorkspaceProps {
@@ -118,6 +129,36 @@ function moveProteinOrigins(
   };
   if (Object.keys(merged).length) next[nextKey] = merged;
   return sanitizeGroceryProteinOrigins(next);
+}
+
+function remapItemStateAfterPlanReconcile(
+  currentItems: GroceryNotepadItem[],
+  nextRawInput: string,
+  currentQuantities: Record<string, number>,
+  currentOrigins: GroceryProteinOriginMap,
+) {
+  const availableByRaw = new Map<string, number[]>();
+  currentItems.forEach((item, index) => {
+    const key = item.raw.trim().toLowerCase();
+    availableByRaw.set(key, [...(availableByRaw.get(key) ?? []), index]);
+  });
+  const nextInterpretation = interpretGroceryInput(nextRawInput, { proteinOrigins: currentOrigins });
+  const nextQuantities: Record<string, number> = {};
+  const nextOrigins: GroceryProteinOriginMap = {};
+  nextInterpretation.items.forEach((item, nextIndex) => {
+    const candidates = availableByRaw.get(item.raw.trim().toLowerCase());
+    const previousIndex = candidates?.shift();
+    if (previousIndex === undefined) return;
+    const previousItem = currentItems[previousIndex];
+    const quantity = currentQuantities[previousItem.id];
+    if (quantity !== undefined) nextQuantities[item.id] = quantity;
+    const origins = proteinOriginsForItem(currentOrigins, previousItem, previousIndex);
+    if (origins) nextOrigins[groceryProteinOriginKey(item.raw, nextIndex)] = origins;
+  });
+  return {
+    quantities: nextQuantities,
+    proteinOrigins: sanitizeGroceryProteinOrigins(nextOrigins),
+  };
 }
 
 async function responseError(response: Response, fallback: string) {
@@ -232,6 +273,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     state: library,
     hydrated: libraryHydrated,
     saveList,
+    savePlan,
     recordComparison: saveComparisonHistory,
     saveBasket,
     recordCartAdded,
@@ -253,6 +295,9 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const [lastComparisonRecord, setLastComparisonRecord] = useState<CartivaComparisonRecord | null>(null);
   const [creationMode, setCreationMode] = useState<CartivaCreationMode>("grocery-list");
   const [creationDraftKey, setCreationDraftKey] = useState(0);
+  const [activePlanBudgetDollars, setActivePlanBudgetDollars] = useState<number>();
+  const [activePlanListOwnerId, setActivePlanListOwnerId] = useState<string>();
+  const [activePlanIngredients, setActivePlanIngredients] = useState<StoredPlanIngredient[]>([]);
   const [krogerConnection, setKrogerConnection] = useState<{
     checked?: boolean;
     checking?: boolean;
@@ -287,6 +332,38 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const activeSavedList = activeListId
     ? library.lists.find((list) => list.id === activeListId)
     : undefined;
+  const activePlanMatch = activePlanListOwnerId
+    ? matchedCommittedPlanItemIndexes(interpretation.items, activePlanIngredients)
+    : undefined;
+  const activePlanMatchedItemCount = activePlanMatch?.matchedIndexes.size ?? 0;
+  const activePlanOwnershipComplete = Boolean(
+    activePlanIngredients.length
+    && activePlanMatchedItemCount === activePlanIngredients.length,
+  );
+  const activePlanItemIds = activePlanOwnershipComplete
+    ? new Set([...activePlanMatch!.matchedIndexes].map((index) => interpretation.items[index].id))
+    : undefined;
+  const activePlanSubtotalCents = comparison.phase === "complete" && activePlanOwnershipComplete
+    ? [...activePlanMatch!.matchedIndexes].reduce<number | undefined>((subtotal, index) => {
+        if (subtotal === undefined) return undefined;
+        const result = comparison.results[index];
+        const product = result?.status === "matched" ? result.recommended : null;
+        const quantity = resolvedKrogerCartQuantity(
+          result,
+          effectiveQuantities[interpretation.items[index]?.id] ?? 1,
+        );
+        return product && quantity !== undefined
+          ? subtotal + Math.round(product.price * 100) * quantity
+          : undefined;
+      }, 0)
+    : undefined;
+  const planReplacementIngredientSlots = activePlanListOwnerId
+    ? Math.max(
+        0,
+        MAX_CARTIVA_INGREDIENTS
+          - (interpretation.items.length - activePlanMatchedItemCount),
+      )
+    : Math.max(0, MAX_CARTIVA_INGREDIENTS - interpretation.items.length);
   const normalizedListName = listName.replace(/\s+/g, " ").trim() || "Untitled list";
   const listSaved = Boolean(
     activeSavedList
@@ -491,6 +568,38 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         }
         if (typeof value.listName === "string") setListName(value.listName.slice(0, 80));
         if (typeof value.activeListId === "string") setActiveListId(value.activeListId);
+        if (value.creationMode === "grocery-list" || value.creationMode === "build-plan" || value.creationMode === "paste-recipe") {
+          setCreationMode(value.creationMode);
+        }
+        if (
+          typeof value.activePlanBudgetDollars === "number"
+          && Number.isFinite(value.activePlanBudgetDollars)
+          && value.activePlanBudgetDollars >= 10
+          && value.activePlanBudgetDollars <= 2000
+        ) {
+          setActivePlanBudgetDollars(value.activePlanBudgetDollars);
+        }
+        if (typeof value.activePlanListOwnerId === "string" && value.activePlanListOwnerId.length <= 100) {
+          setActivePlanListOwnerId(value.activePlanListOwnerId);
+        }
+        if (Array.isArray(value.activePlanIngredients)) {
+          setActivePlanIngredients(value.activePlanIngredients.filter((ingredient): ingredient is StoredPlanIngredient => (
+            Boolean(ingredient)
+            && typeof ingredient === "object"
+            && typeof ingredient.id === "string"
+            && typeof ingredient.name === "string"
+            && typeof ingredient.shoppingText === "string"
+            && (ingredient.currentRaw === undefined || (
+              typeof ingredient.currentRaw === "string"
+              && ingredient.currentRaw.length <= 500
+            ))
+            && (ingredient.position === undefined || (
+              Number.isSafeInteger(ingredient.position)
+              && ingredient.position >= 0
+              && ingredient.position < MAX_CARTIVA_INGREDIENTS
+            ))
+          )).slice(0, MAX_CARTIVA_INGREDIENTS));
+        }
         setProteinOrigins(sanitizeGroceryProteinOrigins(value.proteinOrigins));
       }
     } catch {
@@ -510,8 +619,12 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       listName,
       activeListId,
       proteinOrigins,
+      creationMode,
+      activePlanBudgetDollars,
+      activePlanListOwnerId,
+      activePlanIngredients,
     } satisfies StoredWorkspace));
-  }, [activeListId, effectiveQuantities, fulfillmentMode, hydrated, listName, proteinOrigins, rawInput, zipInput]);
+  }, [activeListId, activePlanBudgetDollars, activePlanIngredients, activePlanListOwnerId, creationMode, effectiveQuantities, fulfillmentMode, hydrated, listName, proteinOrigins, rawInput, zipInput]);
 
   useEffect(() => {
     if (!hydrated || !libraryHydrated) return;
@@ -547,6 +660,9 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       ? savedBasket.listId
       : undefined));
     setLastComparisonRecord(null);
+    setActivePlanBudgetDollars(undefined);
+    setActivePlanListOwnerId(undefined);
+    setActivePlanIngredients([]);
     setComparison(initialComparison);
     setCart(initialCart);
   }, [cart.phase, cart.retrySafe, hydrated, library.baskets, library.lists, libraryHydrated, loadBasketId, loadListId]);
@@ -568,6 +684,18 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     readiness.storeSelected,
     readiness.zipValid,
   ]);
+
+  useEffect(() => {
+    if (!hydrated || !activePlanListOwnerId) return;
+    if (!activePlanIngredients.length) {
+      setActivePlanBudgetDollars(undefined);
+      setActivePlanListOwnerId(undefined);
+      return;
+    }
+    if (activePlanMatchedItemCount < activePlanIngredients.length) {
+      setActivePlanBudgetDollars(undefined);
+    }
+  }, [activePlanIngredients.length, activePlanListOwnerId, activePlanMatchedItemCount, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -700,11 +828,49 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     ingredients: ConsolidatedIngredient[],
     suggestedName: string,
     source: "plan" | "recipe",
+    plannedBudgetDollars?: number,
+    planId?: string,
   ) => {
-    const remainingSlots = Math.max(0, MAX_CARTIVA_INGREDIENTS - interpretation.items.length);
-    if (!ingredients.length || ingredients.length > remainingSlots) return;
+    const replacingCommittedPlan = source === "plan" && Boolean(planId) && activePlanListOwnerId === planId;
+    const remainingSlots = replacingCommittedPlan
+      ? planReplacementIngredientSlots
+      : Math.max(0, MAX_CARTIVA_INGREDIENTS - interpretation.items.length);
+    if ((!ingredients.length && !replacingCommittedPlan) || ingredients.length > remainingSlots) return;
     const wasEmpty = interpretation.items.length === 0;
-    addItems(ingredients.map((ingredient) => ingredient.shoppingText).join("\n"), source);
+    const generatedText = ingredients.map((ingredient) => ingredient.shoppingText).join("\n");
+    let storedPlanIngredients = ingredients.map((ingredient, index) => ({
+      id: ingredient.id,
+      name: ingredient.name,
+      shoppingText: ingredient.shoppingText,
+      currentRaw: ingredient.shoppingText,
+      position: interpretation.items.length + index,
+    } satisfies StoredPlanIngredient));
+    if (replacingCommittedPlan) {
+      const reconciled = reconcileCommittedPlanState(
+        interpretation.items,
+        activePlanIngredients,
+        ingredients,
+      );
+      const nextRawInput = reconciled.rawInput;
+      storedPlanIngredients = reconciled.storedIngredients;
+      const remapped = remapItemStateAfterPlanReconcile(
+        interpretation.items,
+        nextRawInput,
+        quantities,
+        proteinOrigins,
+      );
+      setRawInput(nextRawInput);
+      setProteinOrigins(remapped.proteinOrigins);
+      setQuantities(remapped.quantities);
+      invalidateComparison();
+    } else {
+      addItems(generatedText, source);
+    }
+    if (source === "plan") {
+      setActivePlanBudgetDollars(ingredients.length ? plannedBudgetDollars : undefined);
+      setActivePlanListOwnerId(ingredients.length && planId ? planId : undefined);
+      setActivePlanIngredients(storedPlanIngredients);
+    }
     if (wasEmpty && suggestedName.trim()) {
       setListName(suggestedName.replace(/\s+/g, " ").trim().slice(0, 80));
       setActiveListId(undefined);
@@ -723,10 +889,32 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     if (item) {
       setProteinOrigins((current) => moveProteinOrigins(current, item, index, value));
     }
+    const trackedPlan = trackStoredPlanIngredientEdit(
+      interpretation.items,
+      activePlanIngredients,
+      index,
+      value,
+    );
+    if (trackedPlan.tracked) {
+      setActivePlanIngredients(trackedPlan.ingredients);
+      setActivePlanBudgetDollars(undefined);
+      if (!trackedPlan.ingredients.length) setActivePlanListOwnerId(undefined);
+    }
     updateRawInput(replaceItem(interpretation.items, index, value));
   };
 
   const removeItem = (index: number) => {
+    const trackedPlan = trackStoredPlanIngredientEdit(
+      interpretation.items,
+      activePlanIngredients,
+      index,
+      null,
+    );
+    if (trackedPlan.tracked) {
+      setActivePlanIngredients(trackedPlan.ingredients);
+      setActivePlanBudgetDollars(undefined);
+      if (!trackedPlan.ingredients.length) setActivePlanListOwnerId(undefined);
+    }
     setProteinOrigins((current) => {
       const next: GroceryProteinOriginMap = {};
       for (const [itemIndex, item] of interpretation.items.entries()) {
@@ -745,6 +933,12 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     const item = interpretation.items[index];
     if (!item) return;
     const resolved = resolveGroceryClarification(item.raw, clarificationId, value);
+    setActivePlanIngredients((current) => trackStoredPlanIngredientEdit(
+      interpretation.items,
+      current,
+      index,
+      resolved.raw,
+    ).ingredients);
     let nextProteinOrigins = proteinOrigins;
     if (resolved.selectedAttribute) {
       nextProteinOrigins = moveProteinOrigins(
@@ -1330,6 +1524,9 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     setQuantities({});
     setListName("Untitled list");
     setActiveListId(undefined);
+    setActivePlanBudgetDollars(undefined);
+    setActivePlanListOwnerId(undefined);
+    setActivePlanIngredients([]);
     setCreationMode("grocery-list");
     setCreationDraftKey((current) => current + 1);
     comparisonRunRef.current += 1;
@@ -1445,6 +1642,19 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                   onAddToKroger={addToKroger}
                   onContinueWithoutTransfer={continueWithoutTransfer}
                   onResolveCartReview={resolveCartReview}
+                  plannedBudgetDollars={activePlanBudgetDollars}
+                  plannedItemIds={activePlanItemIds}
+                  onReviewPlan={activePlanBudgetDollars ? () => {
+                    setCreationMode("build-plan");
+                    window.requestAnimationFrame(() => {
+                      const budgetHeading = document.getElementById("lower-basket-plan-heading");
+                      budgetHeading?.focus();
+                      (budgetHeading ?? document.getElementById("creation-panel-build-plan"))?.scrollIntoView({
+                        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+                        block: "start",
+                      });
+                    });
+                  } : undefined}
                 />
               </div>
             </section>
@@ -1457,7 +1667,22 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
               <CartivaPlanBuilder
                 key={`plan-${creationDraftKey}`}
                 availableIngredientSlots={Math.max(0, MAX_CARTIVA_INGREDIENTS - interpretation.items.length)}
-                onCommit={(ingredients, suggestedName) => commitGeneratedIngredients(ingredients, suggestedName, "plan")}
+                savedPlans={library.plans}
+                basketOverageCents={
+                  activePlanBudgetDollars && activePlanSubtotalCents !== undefined
+                    ? Math.max(0, activePlanSubtotalCents - Math.round(activePlanBudgetDollars * 100)) || undefined
+                    : undefined
+                }
+                committedPlanId={activePlanListOwnerId}
+                replacementIngredientSlots={planReplacementIngredientSlots}
+                onSavePlan={savePlan}
+                onCommit={(ingredients, suggestedName, plan) => commitGeneratedIngredients(
+                  ingredients,
+                  suggestedName,
+                  "plan",
+                  plan.goal.budgetDollars?.value,
+                  plan.id,
+                )}
               />
             </section>
             <section

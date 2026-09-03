@@ -9,8 +9,10 @@ import {
   savedProductPackageLabel,
   saveHistoricalBasket,
   serializeCartivaLibrary,
+  upsertSavedPlan,
   upsertSavedList,
 } from "@/lib/cartiva-library";
+import { generateMealPlan, updateConsolidatedIngredient } from "@/lib/cartiva-planning";
 import type { KrogerMatchResult } from "@/lib/types";
 
 const now = "2026-08-31T12:00:00.000Z";
@@ -72,6 +74,78 @@ function verifiedResult(upc: string, price: number, title: string, packageLabel:
 }
 
 describe("Cartiva local library", () => {
+  it("saves and restores an editable plan with pantry selections but no stale retailer prices", () => {
+    const generated = generateMealPlan({
+      notes: "High protein work meal prep",
+      dailyCalories: 1800,
+      proteinGrams: 160,
+      budgetDollars: 80,
+      days: 5,
+      people: 1,
+    });
+    const edited = {
+      ...generated,
+      ingredients: updateConsolidatedIngredient(
+        generated.ingredients,
+        generated.ingredients[0].id,
+        "My preferred ingredient",
+      ),
+    };
+    const ownedId = edited.ingredients[1].id;
+    let state = upsertSavedPlan(emptyCartivaLibrary(), {
+      id: "plan-weekly",
+      name: "High protein week",
+      plan: edited,
+      ownedIngredientIds: [ownedId, ownedId, "foreign-ingredient"],
+      now,
+    });
+    expect(state.plans[0].ownedIngredientIds).toEqual([ownedId]);
+    expect(state.activities[0]).toMatchObject({ type: "plan_saved", title: "Plan saved" });
+
+    state = parseCartivaLibrary(serializeCartivaLibrary(state));
+    expect(state.plans[0]).toMatchObject({
+      id: "plan-weekly",
+      name: "High protein week",
+      ownedIngredientIds: [ownedId],
+      createdAt: now,
+    });
+    expect(state.plans[0].plan.ingredients[0].name).toBe("My preferred ingredient");
+    expect(JSON.stringify(state.plans[0])).not.toMatch(/upc|subtotalCents|priceProvenance/);
+
+    state = upsertSavedPlan(state, {
+      id: "plan-weekly",
+      name: "Cutting plan",
+      plan: state.plans[0].plan,
+      ownedIngredientIds: state.plans[0].ownedIngredientIds,
+      now: "2026-08-31T12:10:00.000Z",
+    });
+    expect(state.plans[0]).toMatchObject({
+      name: "Cutting plan",
+      createdAt: now,
+      updatedAt: "2026-08-31T12:10:00.000Z",
+    });
+  });
+
+  it("keeps version-one libraries compatible and rejects malformed saved plans", () => {
+    const legacy = parseCartivaLibrary(JSON.stringify({
+      ...emptyCartivaLibrary(),
+      plans: undefined,
+    }));
+    expect(legacy.plans).toEqual([]);
+
+    const plan = generateMealPlan({ notes: "5 cheap dinners", days: 5 });
+    const malformed = upsertSavedPlan(emptyCartivaLibrary(), {
+      id: "unsafe-plan",
+      name: "Unsafe",
+      plan,
+      ownedIngredientIds: [],
+      now,
+    });
+    (malformed.plans[0].plan.ingredients[0] as { amount: number }).amount = -1;
+    malformed.plans[0].ownedIngredientIds = ["not-in-this-plan"];
+    expect(parseCartivaLibrary(serializeCartivaLibrary(malformed)).plans).toEqual([]);
+  });
+
   it("saves, reloads, duplicates, renames, and deletes a five-item list", () => {
     const rawInput = "eggs\nmilk\nbread\nCoke Zero\nGreek yogurt";
     let state = upsertSavedList(emptyCartivaLibrary(), {

@@ -81,16 +81,24 @@ function markup(
   connectionState: CartivaKrogerConnectionState = connected ? "connected" : "required",
   comparisonResult: KrogerMatchResult = result,
   quantity = 1,
+  plannedBudgetDollars?: number,
+  onReviewPlan = vi.fn(),
+  extraManualItem?: { item: GroceryNotepadItem; result: KrogerMatchResult; quantity: number },
 ) {
+  const items = extraManualItem ? [grocery, extraManualItem.item] : [grocery];
+  const results = extraManualItem ? [comparisonResult, extraManualItem.result] : [comparisonResult];
+  const quantities = extraManualItem
+    ? { eggs: quantity, [extraManualItem.item.id]: extraManualItem.quantity }
+    : { eggs: quantity };
   const comparison = {
     phase: "complete" as const,
-    results: [comparisonResult],
-    completedItems: 1,
+    results,
+    completedItems: items.length,
     checkedAt: "2026-08-31T20:00:00.000Z",
   };
   const props: Parameters<typeof CartivaComparison>[0] = {
-    items: [grocery],
-    quantities: { eggs: quantity },
+    items,
+    quantities,
     comparison,
     selectedLocation: {
       locationId: "01400912",
@@ -101,9 +109,9 @@ function markup(
     fulfillmentMode: "pickup",
     cart,
     cartReadiness: getKrogerCartReadiness({
-      items: [grocery],
-      results: [comparisonResult],
-      quantities: { eggs: quantity },
+      items,
+      results,
+      quantities,
       comparisonComplete: true,
       customerConnected: connected,
       cartCapability: true,
@@ -118,6 +126,9 @@ function markup(
     onAddToKroger: vi.fn(),
     onContinueWithoutTransfer: vi.fn(),
     onResolveCartReview: vi.fn(),
+    plannedBudgetDollars,
+    plannedItemIds: plannedBudgetDollars ? new Set(["eggs"]) : undefined,
+    onReviewPlan,
   };
   return renderToStaticMarkup(createElement(CartivaComparison, props));
 }
@@ -259,5 +270,84 @@ describe("Cartiva comparison handoff UI", () => {
     expect(html).toContain("Open Kroger cart");
     expect(html).not.toContain("Your Kroger cart is ready");
     expect(html).not.toContain("Add basket to Kroger");
+  });
+
+  it("shows the real matched basket against the planning budget and only offers lowering when over", () => {
+    const pricedResult = (price: number): KrogerMatchResult => ({
+      ...result,
+      recommended: { ...product, price, priceCents: Math.round(price * 100), comparablePrice: price },
+    });
+    const under = markup({ phase: "idle" }, true, "connected", pricedResult(76.42), 1, 80);
+    expect(under).toContain("$3.58 under budget");
+    expect(under).toContain("Planned $80.00 · matched plan groceries $76.42");
+    expect(under).not.toContain("Lower my basket");
+
+    const over = markup({ phase: "idle" }, true, "connected", pricedResult(87.30), 1, 80);
+    expect(over).toContain("$7.30 over budget");
+    expect(over).toContain("Lower my basket");
+
+    const exact = markup({ phase: "idle" }, true, "connected", pricedResult(80), 1, 80);
+    expect(exact).toContain("On budget");
+    expect(exact).not.toContain("Lower my basket");
+  });
+
+  it("keeps unrelated manual groceries out of the planning-budget subtotal", () => {
+    const paperTowels: GroceryNotepadItem = {
+      id: "paper-towels",
+      raw: "Paper towels",
+      name: "Paper towels",
+      detail: "",
+      canonicalText: "Paper towels",
+      status: "ready",
+    };
+    const planResult: KrogerMatchResult = {
+      ...result,
+      recommended: { ...product, price: 76.42, priceCents: 7642, comparablePrice: 76.42 },
+    };
+    const manualResult: KrogerMatchResult = {
+      ...result,
+      requestedItem: "Paper towels",
+      recommended: {
+        ...product,
+        id: "0001111022222",
+        productId: "0001111022222",
+        upc: "0001111022222",
+        title: "Kroger Paper Towels",
+        price: 20,
+        priceCents: 2000,
+        comparablePrice: 20,
+      },
+    };
+
+    const html = markup(
+      { phase: "idle" },
+      true,
+      "connected",
+      planResult,
+      1,
+      80,
+      vi.fn(),
+      { item: paperTowels, result: manualResult, quantity: 1 },
+    );
+
+    expect(html).toContain("$3.58 under budget");
+    expect(html).toContain("matched plan groceries $76.42");
+    expect(html).toContain("$96.42");
+    expect(html).not.toContain("$16.42 over budget");
+  });
+
+  it("does not compare an incomplete basket with a plan budget", () => {
+    const noMatch: KrogerMatchResult = {
+      retailer: "kroger",
+      requestedItem: grocery.canonicalText,
+      recommended: null,
+      alternatives: [],
+      confidence: "low",
+      status: "no_match",
+      explanation: "No verified match.",
+    };
+    const html = markup({ phase: "idle" }, true, "connected", noMatch, 1, 80);
+    expect(html).not.toContain("Plan budget check");
+    expect(html).not.toContain("Lower my basket");
   });
 });

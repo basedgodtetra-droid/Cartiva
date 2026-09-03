@@ -74,6 +74,7 @@ export interface MealPlan {
   omittedIngredientCount: number;
   estimatedDailyCalories: number;
   estimatedDailyProteinGrams: number;
+  goalWarnings?: string[];
   budgetIntent?: {
     targetDollars: number;
     estimatedTemplateCost: number;
@@ -88,8 +89,19 @@ export interface RecipeImport {
   title: string;
   baseServings: number;
   servings: number;
+  servingsConfirmed: boolean;
   ingredients: ConsolidatedIngredient[];
   omittedIngredientCount: number;
+}
+
+export type PlanMealAdjustment = "cheaper" | "higher-protein" | "lower-calorie";
+
+export interface PlanBudgetComparison {
+  targetCents: number;
+  actualCents: number;
+  differenceCents: number;
+  status: "under" | "over" | "on-target";
+  label: string;
 }
 
 interface MealTemplate {
@@ -146,7 +158,7 @@ const MEAL_TEMPLATES: MealTemplate[] = [
   },
   {
     id: "egg-potato-hash", slot: "breakfast", name: "Egg and turkey potato hash",
-    calories: 470, protein: 36, cost: 2.45, tags: ["easy", "cheap", "high-protein", "dairy-free"],
+    calories: 470, protein: 36, cost: 2.45, tags: ["easy", "cheap", "high-protein", "dairy-free", "air-fryer"],
     ingredients: [
       { name: "Eggs", amount: 2, unit: "count" },
       { name: "Ground turkey", amount: 3, unit: "oz" },
@@ -226,7 +238,7 @@ const MEAL_TEMPLATES: MealTemplate[] = [
   },
   {
     id: "sheet-pan-chicken", slot: "dinner", name: "Sheet-pan chicken and vegetables",
-    calories: 560, protein: 50, cost: 3.5, tags: ["easy", "high-protein", "chicken"],
+    calories: 560, protein: 50, cost: 3.5, tags: ["easy", "high-protein", "chicken", "air-fryer"],
     ingredients: [
       { name: "Chicken breast", amount: 7, unit: "oz" },
       { name: "Baby potatoes", amount: 8, unit: "oz" },
@@ -389,7 +401,7 @@ function titleCase(value: string) {
 
 function numberFromText(value: string | undefined) {
   if (!value) return undefined;
-  const numeric = Number(value);
+  const numeric = Number(value.replace(/,/g, ""));
   if (Number.isFinite(numeric)) return numeric;
   return NUMBER_WORDS[value.toLowerCase()];
 }
@@ -416,6 +428,12 @@ function promptNumber(prompt: string, expression: RegExp) {
 }
 
 function mealSlotsFor(prompt: string, proteinGrams?: number) {
+  if (/\b(?:4|four)\s+meals?(?:\s+(?:per|a))?\s+day\b/i.test(prompt)) {
+    return ["breakfast", "lunch", "dinner", "snack"] as MealSlot[];
+  }
+  if (/\b(?:3|three)\s+meals?(?:\s+(?:per|a))?\s+day\b/i.test(prompt)) {
+    return ["breakfast", "lunch", "dinner"] as MealSlot[];
+  }
   const slots: MealSlot[] = [];
   if (/\bbreakfasts?\b/i.test(prompt)) slots.push("breakfast");
   if (/\blunch(?:es)?\b/i.test(prompt)) slots.push("lunch");
@@ -423,6 +441,9 @@ function mealSlotsFor(prompt: string, proteinGrams?: number) {
   if (/\bsnacks?\b/i.test(prompt)) slots.push("snack");
   if (slots.length) return slots;
   if (/\bmeal\s*prep\b/i.test(prompt)) return ["lunch", "dinner"] as MealSlot[];
+  if (/\b(?:meals?|week)\b/i.test(prompt)) {
+    return ["breakfast", "lunch", "dinner"] as MealSlot[];
+  }
   if (proteinGrams || /\bcalories?\b/i.test(prompt)) {
     return proteinGrams && proteinGrams >= 140
       ? ["breakfast", "lunch", "dinner", "snack"] as MealSlot[]
@@ -433,15 +454,18 @@ function mealSlotsFor(prompt: string, proteinGrams?: number) {
 
 export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
   const prompt = draft.notes.replace(/\s+/g, " ").trim().slice(0, 500);
-  const caloriePrompt = promptNumber(prompt, /\b(\d{3,4})\s*(?:cal(?:orie)?s?|kcal)\b/i);
-  const proteinPrompt = promptNumber(prompt, /\b(\d{2,3})\s*g(?:rams?)?\s*(?:of\s*)?protein\b/i);
+  const caloriePrompt = promptNumber(prompt, /\b(\d{1,2}(?:,\d{3})|\d{3,4})\s*(?:cal(?:orie)?s?|kcal)\b/i);
+  const proteinPrompt = promptNumber(
+    prompt,
+    /\b(\d{2,3})\s*g(?:rams?)?(?:\s*\/\s*day|\s+per\s+day)?\s*(?:of\s*)?protein\b/i,
+  );
   const budgetPrompt = promptNumber(prompt, /\$(\d{1,4})(?:\.\d{1,2})?|\b(?:under|budget(?:\s+of)?|for)\s+\$?(\d{1,4})\b/i);
   const budgetMatch = prompt.match(/\$(\d{1,4})(?:\.\d{1,2})?|\b(?:under|budget(?:\s+of)?)\s+\$?(\d{1,4})\b/i);
   const budgetFromPrompt = numberFromText(budgetMatch?.[1] ?? budgetMatch?.[2]) ?? budgetPrompt;
   const dayPrompt = promptNumber(prompt, /\b(\d+|one|two|three|four|five|six|seven)\s*(?:days?|dinners?|breakfasts?|lunches?)\b/i)
     ?? (/\bwork\s*week\b/i.test(prompt) ? 5 : /\bweek\b/i.test(prompt) ? 7 : undefined);
-  const peopleMatch = prompt.match(/\b(?:family|household)\s+of\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b|\bfor\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:people|adults?|kids?|persons?)\b|\bmeal\s*prep\s+for\s+(one|two|three|four)\b/i);
-  const peoplePrompt = numberFromText(peopleMatch?.[1] ?? peopleMatch?.[2] ?? peopleMatch?.[3]);
+  const peopleMatch = prompt.match(/\b(?:family|household)\s+of\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b|\bfor\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:people|adults?|kids?|persons?)\b|\bmeal\s*prep\s+for\s+(one|two|three|four)\b|\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:people|adults?|persons?)\b/i);
+  const peoplePrompt = numberFromText(peopleMatch?.[1] ?? peopleMatch?.[2] ?? peopleMatch?.[3] ?? peopleMatch?.[4]);
   const dailyCalories = parsedValue(draft.dailyCalories, caloriePrompt, undefined, 900, 5000);
   const proteinGrams = parsedValue(draft.proteinGrams, proteinPrompt, undefined, 20, 350);
   const budgetDollars = parsedValue(draft.budgetDollars, budgetFromPrompt, undefined, 10, 2000);
@@ -459,6 +483,7 @@ export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
     /\bcheap|budget|affordable|save money|under\s+\$?\d+/i.test(prompt) || Boolean(budgetDollars) ? "cheap" : "",
     /\beasy|quick|simple|low effort/i.test(prompt) ? "easy" : "",
     /\bmeal\s*prep|prep for work/i.test(prompt) ? "meal-prep" : "",
+    /\bair[ -]?fryer\b/i.test(prompt) ? "air-fryer" : "",
     /\bchicken\b/i.test(prompt) && !noChicken ? "chicken" : "",
     /\bground beef|beef\b/i.test(prompt) && !noBeef ? "ground-beef" : "",
     /\brice\b/i.test(prompt) && !noRice ? "rice" : "",
@@ -487,7 +512,11 @@ export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
 }
 
 function ingredientKey(name: string) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (/^(?:boneless\s+)?(?:skinless\s+)?chicken\s+breasts?$/.test(normalized)) {
+    return "chicken-breast";
+  }
+  return normalized.replace(/\s+/g, "-");
 }
 
 function amountLabel(amount: number, unit: IngredientUnit) {
@@ -517,6 +546,9 @@ export function roundGeneratedPurchaseWeightOunces(ounces: number) {
 }
 
 function shoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
+  // Cup and spoon amounts are recipe measures, not package promises. Keep the
+  // amount in structured plan data, but give product search a clean identity.
+  if (unit === "cup" || unit === "tbsp" || unit === "tsp") return name;
   if (unit === "lb" || unit === "oz" || unit === "g" || unit === "kg") {
     const ounces = unit === "lb"
       ? amount * 16
@@ -530,12 +562,23 @@ function shoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
       ? `${name} ${cleanNumber(purchaseOunces / 16, 1)} lb`
       : `${name} ${purchaseOunces} oz`;
   }
+  const discretePurchaseUnits: IngredientUnit[] = ["can", "package", "jar", "box", "clove", "bunch", "slice"];
   if (unit === "count") return `${name} ${Math.max(1, Math.ceil(amount))} count`;
-  if (unit === "can") return `${name} ${Math.max(1, Math.ceil(amount))} can${amount > 1 ? "s" : ""}`;
-  if (unit === "package" || unit === "jar" || unit === "box") return `${name} ${Math.max(1, Math.ceil(amount))} ${unit}${amount > 1 ? "s" : ""}`;
+  if (discretePurchaseUnits.includes(unit)) {
+    const purchaseQuantity = Math.max(1, Math.ceil(amount));
+    return `${name} ${purchaseQuantity} ${unit}${purchaseQuantity === 1 ? "" : "s"}`;
+  }
   if (unit === "each") return `${name} ${Math.max(1, Math.ceil(amount))}`;
   if (unit === "gallon") return `${name} ${cleanNumber(amount, 1)} gallon${amount === 1 ? "" : "s"}`;
-  return name;
+  return `${name} ${amountLabel(amount, unit)}`.trim();
+}
+
+function reviewedShoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
+  if (unit === "cup" || unit === "tbsp" || unit === "tsp") return name;
+  const discretePurchaseUnits: IngredientUnit[] = ["count", "can", "package", "jar", "box", "clove", "bunch", "slice", "each"];
+  return discretePurchaseUnits.includes(unit)
+    ? shoppingTextFor(name, amount, unit)
+    : `${name} ${amountLabel(amount, unit)}`.trim();
 }
 
 function compatibleAmount(existing: ConsolidatedIngredient, need: MealIngredientNeed, servings: number) {
@@ -655,8 +698,21 @@ function candidateTemplates(slot: MealSlot, goal: PlannerGoal) {
       for (const preference of goal.preferences) {
         if (template.tags.includes(preference)) score += preference === "high-protein" ? 4 : 2;
       }
+      if (
+        template.tags.includes("chicken")
+        && /\b(?:mostly|more|prefer)\s+chicken\b/i.test(goal.originalPrompt)
+      ) score += 5;
+      if (
+        template.tags.includes("ground-beef")
+        && /\bbeef\s+is\s+(?:okay|ok|fine)\b/i.test(goal.originalPrompt)
+      ) score -= 1;
       if (dailyBudgetPerPerson !== undefined && template.cost <= dailyBudgetPerPerson / goal.mealSlots.length) score += 4;
       if (goal.proteinGrams && template.protein >= goal.proteinGrams.value / goal.mealSlots.length) score += 3;
+      if (goal.proteinGrams && goal.dailyCalories) {
+        const targetProteinDensity = goal.proteinGrams.value / goal.dailyCalories.value;
+        const templateProteinDensity = template.protein / template.calories;
+        if (templateProteinDensity >= targetProteinDensity * 0.94) score += 4;
+      }
       return { template, score };
     })
     .sort((left, right) => right.score - left.score || left.template.cost - right.template.cost || left.template.id.localeCompare(right.template.id))
@@ -713,6 +769,27 @@ function planEstimates(meals: PlannedMeal[], days: number) {
   };
 }
 
+function goalWarningsFor(goal: PlannerGoal, estimates: ReturnType<typeof planEstimates>) {
+  const warnings: string[] = [];
+  if (
+    goal.proteinGrams
+    && estimates.estimatedDailyProteinGrams < goal.proteinGrams.value
+  ) {
+    warnings.push(
+      `This draft estimates ${estimates.estimatedDailyProteinGrams}g protein per day, below the ${goal.proteinGrams.value}g goal. Adjust meals before shopping.`,
+    );
+  }
+  if (
+    goal.dailyCalories
+    && Math.abs(estimates.estimatedDailyCalories - goal.dailyCalories.value) > goal.dailyCalories.value * 0.1
+  ) {
+    warnings.push(
+      `This draft estimates ${estimates.estimatedDailyCalories.toLocaleString()} calories per day, outside the ${goal.dailyCalories.value.toLocaleString()}-calorie target range.`,
+    );
+  }
+  return warnings;
+}
+
 function budgetIntentFor(meals: PlannedMeal[], goal: PlannerGoal) {
   if (!goal.budgetDollars) return undefined;
   const estimatedTemplateCost = cleanNumber(
@@ -755,6 +832,7 @@ export function generateMealPlan(draft: PlannerGoalDraft): MealPlan {
   const portionedMeals = applyGoalPortions(meals, goal);
   const consolidated = consolidatePlanIngredients(portionedMeals);
   const estimates = planEstimates(portionedMeals, goal.days.value);
+  const goalWarnings = goalWarningsFor(goal, estimates);
   return {
     schemaVersion: 1,
     id: `plan-${stableHash(JSON.stringify(goal))}`,
@@ -763,17 +841,26 @@ export function generateMealPlan(draft: PlannerGoalDraft): MealPlan {
     meals: portionedMeals,
     ...consolidated,
     ...estimates,
+    ...(goalWarnings.length ? { goalWarnings } : {}),
     ...(budgetIntentFor(portionedMeals, goal) ? { budgetIntent: budgetIntentFor(portionedMeals, goal) } : {}),
   };
 }
 
+/** Regenerates the contents of an existing planning session without changing its lineage. */
+export function regenerateMealPlan(previous: MealPlan, draft: PlannerGoalDraft): MealPlan {
+  return { ...generateMealPlan(draft), id: previous.id };
+}
+
 function rebuildPlan(plan: MealPlan, meals: PlannedMeal[]): MealPlan {
   const consolidated = consolidatePlanIngredients(meals);
+  const estimates = planEstimates(meals, plan.goal.days.value);
+  const goalWarnings = goalWarningsFor(plan.goal, estimates);
   return {
     ...plan,
     meals,
     ...consolidated,
-    ...planEstimates(meals, plan.goal.days.value),
+    ...estimates,
+    ...(goalWarnings.length ? { goalWarnings } : { goalWarnings: undefined }),
     ...(plan.goal.budgetDollars ? { budgetIntent: budgetIntentFor(meals, plan.goal) } : {}),
   };
 }
@@ -813,8 +900,123 @@ export function replacePlanMeal(plan: MealPlan, mealId: string, step = 1) {
   return rebuildPlan(plan, plan.meals.map((meal) => meal.id === mealId ? replacement : meal));
 }
 
-export function formatIngredientAmount(ingredient: Pick<ConsolidatedIngredient, "amount" | "unit">) {
+/**
+ * Adjust one meal while preserving every unrelated meal. These are planning
+ * comparisons only; retailer-priced savings remain a later Cartiva step.
+ */
+export function adjustPlanMeal(
+  plan: MealPlan,
+  mealId: string,
+  adjustment: PlanMealAdjustment,
+) {
+  const current = plan.meals.find((meal) => meal.id === mealId);
+  if (!current) return plan;
+  const currentTemplate = MEAL_TEMPLATES.find((template) => template.id === current.templateId);
+  const portionFactor = currentTemplate
+    ? current.estimatedCaloriesPerServing / currentTemplate.calories
+    : 1;
+  const protectsProtein = Boolean(plan.goal.proteinGrams) || plan.goal.preferences.includes("high-protein");
+  const proteinFloor = protectsProtein && adjustment !== "higher-protein"
+    ? current.estimatedProteinGramsPerServing * 0.85
+    : 0;
+  let candidates = candidateTemplates(current.slot, plan.goal)
+    .filter((template) => {
+      if (template.id === current.templateId) return false;
+      if (template.protein * portionFactor < proteinFloor) return false;
+      if (adjustment === "cheaper") return template.cost * portionFactor < current.estimatedCostPerServing;
+      if (adjustment === "higher-protein") return template.protein * portionFactor > current.estimatedProteinGramsPerServing;
+      return template.calories * portionFactor < current.estimatedCaloriesPerServing;
+    });
+  const stronglyPreferredTag = currentTemplate?.tags.includes("chicken")
+    && /\b(?:mostly|more|prefer)\s+chicken\b/i.test(plan.goal.originalPrompt)
+    ? "chicken"
+    : undefined;
+  const preferencePreserving = stronglyPreferredTag
+    ? candidates.filter((template) => template.tags.includes(stronglyPreferredTag))
+    : [];
+  if (preferencePreserving.length) candidates = preferencePreserving;
+  candidates.sort((left, right) => {
+      if (adjustment === "cheaper") {
+        return left.cost - right.cost
+          || right.protein - left.protein
+          || left.calories - right.calories;
+      }
+      if (adjustment === "higher-protein") {
+        return right.protein - left.protein
+          || left.calories - right.calories
+          || left.cost - right.cost;
+      }
+      return left.calories - right.calories
+        || right.protein - left.protein
+        || left.cost - right.cost;
+    });
+  const next = candidates[0];
+  if (!next) return plan;
+  const baseReplacement = mealFromTemplate(next, current.day, current.servings, current.id);
+  const replacement: PlannedMeal = {
+    ...baseReplacement,
+    estimatedCaloriesPerServing: Math.round(baseReplacement.estimatedCaloriesPerServing * portionFactor),
+    estimatedProteinGramsPerServing: Math.round(baseReplacement.estimatedProteinGramsPerServing * portionFactor),
+    estimatedCostPerServing: cleanNumber(baseReplacement.estimatedCostPerServing * portionFactor, 2),
+    ingredients: baseReplacement.ingredients.map((ingredient) => ({
+      ...ingredient,
+      amount: cleanNumber(ingredient.amount * portionFactor, 3),
+    })),
+  };
+  return rebuildPlan(plan, plan.meals.map((meal) => meal.id === mealId ? replacement : meal));
+}
+
+export function formatIngredientAmount(
+  ingredient: Pick<ConsolidatedIngredient, "amount" | "unit"> & Partial<Pick<ConsolidatedIngredient, "name" | "shoppingText">>,
+) {
+  if (ingredient.name && ingredient.shoppingText) {
+    const prefix = `${ingredient.name} `;
+    if (ingredient.shoppingText.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase())) {
+      return ingredient.shoppingText.slice(prefix.length);
+    }
+  }
   return amountLabel(ingredient.amount, ingredient.unit);
+}
+
+export function updateConsolidatedIngredientAmount(
+  ingredients: ConsolidatedIngredient[],
+  ingredientId: string,
+  amount: number,
+) {
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 10_000) return ingredients;
+  const safeAmount = cleanNumber(amount, 3);
+  return ingredients.map((ingredient) => ingredient.id === ingredientId
+    ? {
+        ...ingredient,
+        amount: safeAmount,
+        shoppingText: reviewedShoppingTextFor(ingredient.name, safeAmount, ingredient.unit),
+      }
+    : ingredient);
+}
+
+export function isPantryIngredient(ingredient: Pick<ConsolidatedIngredient, "name">) {
+  const name = ingredient.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return /^(?:(?:kosher|sea|table) salt|salt|(?:ground |black |white )?pepper|(?:extra virgin )?olive oil|vegetable oil|canola oil|avocado oil|cooking spray|garlic powder|onion powder|paprika|(?:italian|taco|chili|poultry) seasoning|soy sauce|(?:white|apple cider|red wine|balsamic) vinegar|vinegar)$/.test(name);
+}
+
+export function comparePlanBudget(
+  targetDollars: number | undefined,
+  actualSubtotalCents: number,
+): PlanBudgetComparison | undefined {
+  if (!Number.isFinite(targetDollars) || (targetDollars ?? 0) <= 0) return undefined;
+  if (!Number.isSafeInteger(actualSubtotalCents) || actualSubtotalCents < 0) return undefined;
+  const targetCents = Math.round((targetDollars as number) * 100);
+  const differenceCents = actualSubtotalCents - targetCents;
+  const status = differenceCents > 0 ? "over" : differenceCents < 0 ? "under" : "on-target";
+  const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })
+    .format(Math.abs(differenceCents) / 100);
+  return {
+    targetCents,
+    actualCents: actualSubtotalCents,
+    differenceCents,
+    status,
+    label: status === "on-target" ? "On budget" : `${amount} ${status} budget`,
+  };
 }
 
 export function planIngredientsAsText(ingredients: ConsolidatedIngredient[]) {
@@ -923,7 +1125,14 @@ function consolidateRecipeNeeds(needs: MealIngredientNeed[], servings: number) {
     estimatedCostPerServing: 0,
     ingredients: needs,
   };
-  return consolidatePlanIngredients([meal]);
+  const consolidated = consolidatePlanIngredients([meal]);
+  return {
+    ...consolidated,
+    ingredients: consolidated.ingredients.map((ingredient) => ({
+      ...ingredient,
+      shoppingText: reviewedShoppingTextFor(ingredient.name, ingredient.amount, ingredient.unit),
+    })),
+  };
 }
 
 export function parseRecipeText(rawText: string): RecipeImport {
@@ -956,6 +1165,7 @@ export function parseRecipeText(rawText: string): RecipeImport {
     title: titleCandidate ? titleCase(titleCandidate.replace(/[.:]+$/, "")) : "Imported recipe",
     baseServings,
     servings: baseServings,
+    servingsConfirmed: Boolean(servingMatch),
     ...consolidated,
   };
 }
@@ -971,10 +1181,14 @@ export function scaleRecipeImport(recipe: RecipeImport, servings: number): Recip
       return {
         ...ingredient,
         amount,
-        shoppingText: shoppingTextFor(ingredient.name, amount, ingredient.unit),
+        shoppingText: reviewedShoppingTextFor(ingredient.name, amount, ingredient.unit),
       };
     }),
   };
+}
+
+export function confirmRecipeServings(recipe: RecipeImport) {
+  return { ...recipe, servingsConfirmed: true };
 }
 
 export function updateConsolidatedIngredient(
@@ -988,7 +1202,7 @@ export function updateConsolidatedIngredient(
     ? {
         ...ingredient,
         name: safeName,
-        shoppingText: shoppingTextFor(safeName, ingredient.amount, ingredient.unit),
+        shoppingText: reviewedShoppingTextFor(safeName, ingredient.amount, ingredient.unit),
       }
     : ingredient);
   const combined = new Map<string, ConsolidatedIngredient>();
@@ -1018,6 +1232,25 @@ export function updateConsolidatedIngredient(
   return [...combined.values()];
 }
 
+/**
+ * Applies the amount while the edited row still has its original identity.
+ * Renaming can merge that row into an existing ingredient, so applying the
+ * amount second would target an id that no longer exists and silently lose
+ * the shopper's quantity change.
+ */
+export function updateConsolidatedIngredientDetails(
+  ingredients: ConsolidatedIngredient[],
+  ingredientId: string,
+  name: string,
+  amount: number,
+) {
+  return updateConsolidatedIngredient(
+    updateConsolidatedIngredientAmount(ingredients, ingredientId, amount),
+    ingredientId,
+    name,
+  );
+}
+
 export function preserveReviewedPlanIngredients(previous: MealPlan, next: MealPlan) {
   const generatedBefore = consolidatePlanIngredients(previous.meals).ingredients;
   const reviewedById = new Map(previous.ingredients.map((ingredient) => [ingredient.id, ingredient]));
@@ -1029,8 +1262,19 @@ export function preserveReviewedPlanIngredients(previous: MealPlan, next: MealPl
   let ingredients = next.ingredients.filter((ingredient) => !removedIds.has(ingredient.id));
   for (const generated of generatedBefore) {
     const reviewed = reviewedById.get(generated.id);
-    if (reviewed && reviewed.name !== generated.name) {
+    if (!reviewed) continue;
+    if (reviewed.name !== generated.name) {
       ingredients = updateConsolidatedIngredient(ingredients, generated.id, reviewed.name);
+    }
+    if (reviewed.amount !== generated.amount || reviewed.unit !== generated.unit) {
+      ingredients = ingredients.map((ingredient) => ingredient.id === generated.id
+        ? {
+            ...ingredient,
+            amount: reviewed.amount,
+            unit: reviewed.unit,
+            shoppingText: reviewedShoppingTextFor(ingredient.name, reviewed.amount, reviewed.unit),
+          }
+        : ingredient);
     }
   }
   return { ...next, ingredients };
@@ -1041,7 +1285,9 @@ export const plannerExamplePrompts = [
   { label: "5 cheap dinners", draft: { notes: "5 cheap, easy dinners", days: 5 } },
   { label: "Meal prep for one", draft: { notes: "Easy meal prep for one person", days: 5, people: 1 } },
   { label: "Family meals under $120", draft: { notes: "Family dinners under $120", days: 5, people: 4, budgetDollars: 120 } },
-  { label: "1800 calories · 160g protein", draft: { notes: "Easy high-protein meals", dailyCalories: 1800, proteinGrams: 160, days: 5 } },
+  { label: "1,800 calories · 160g protein", draft: { notes: "Easy high-protein meals", dailyCalories: 1800, proteinGrams: 160, days: 5 } },
+  { label: "Easy air-fryer meals", draft: { notes: "Easy air-fryer breakfast, lunch, and dinner", days: 5 } },
+  { label: "Cheap meals with chicken and ground beef", draft: { notes: "Cheap meals with chicken and ground beef", days: 5 } },
 ] satisfies Array<{ label: string; draft: Partial<PlannerGoalDraft> & { notes: string } }>;
 
 export { MAX_CARTIVA_INGREDIENTS };
