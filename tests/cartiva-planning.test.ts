@@ -222,6 +222,14 @@ describe("Cartiva Build My Plan", () => {
       shoppingText: "Red lentil pasta 2 lb",
     });
     expect(formatIngredientAmount(result.ingredients[0])).toBe("2 lb");
+
+    const boxedPasta = consolidatePlanIngredients([{
+      id: "penne", templateId: "penne", day: 1, slot: "dinner", name: "Penne", servings: 1,
+      estimatedCaloriesPerServing: 500, estimatedProteinGramsPerServing: 20, estimatedCostPerServing: 3,
+      ingredients: [{ name: "Penne pasta", amount: 12, unit: "oz" }],
+    }]).ingredients[0];
+    expect(boxedPasta.shoppingText).toBe("Penne pasta 1 box");
+    expect(formatIngredientAmount(boxedPasta)).toBe("1 box");
   });
 
   it("converts common volume units instead of silently dropping an amount", () => {
@@ -238,24 +246,27 @@ describe("Cartiva Build My Plan", () => {
       },
     ]);
     expect(result.ingredients).toHaveLength(1);
-    expect(result.ingredients[0]).toMatchObject({ amount: 2, unit: "tbsp", shoppingText: "Olive oil" });
+    expect(result.ingredients[0]).toMatchObject({ amount: 2, unit: "tbsp", shoppingText: "Olive oil 8 oz" });
     const item = interpretGroceryInput(planIngredientsAsText(result.ingredients)).items[0];
     expect(item.name).toBe("Olive Oil");
     expect(parseRetailerPackageQuantity(item.canonicalText)).toMatchObject({
-      searchText: "Olive Oil",
+      searchText: "Olive Oil, 8 oz",
       quantity: 1,
     });
-    expect(formatIngredientAmount(result.ingredients[0])).toBe("2 tbsp");
+    expect(formatIngredientAmount(result.ingredients[0])).toBe("8 oz");
   });
 
-  it("sends product identities—not cooking measures—into the grocery pipeline", () => {
+  it("sends shoppable package targets—not cooking measures—into the grocery pipeline", () => {
     const plan = generateMealPlan({ notes: "5 cheap dinners", days: 5 });
     const cookingMeasureIngredients = plan.ingredients.filter((ingredient) => (
       ingredient.unit === "cup" || ingredient.unit === "tbsp" || ingredient.unit === "tsp"
     ));
 
     expect(cookingMeasureIngredients.length).toBeGreaterThan(0);
-    expect(cookingMeasureIngredients.every((ingredient) => ingredient.shoppingText === ingredient.name)).toBe(true);
+    expect(cookingMeasureIngredients.every((ingredient) => (
+      ingredient.shoppingText !== ingredient.name
+      && !/\b(?:cups?|tbsp|tsp)\b/i.test(ingredient.shoppingText)
+    ))).toBe(true);
 
     const input = planIngredientsAsText(plan.ingredients);
     const interpreted = interpretGroceryInput(input);
@@ -506,7 +517,7 @@ Bake for 30 minutes.
     expect(six.ingredients.find((ingredient) => ingredient.name === "Rice")).toMatchObject({
       amount: 3,
       unit: "cup",
-      shoppingText: "Rice",
+      shoppingText: "Rice 2 lb",
     });
   });
 

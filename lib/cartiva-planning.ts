@@ -545,10 +545,39 @@ export function roundGeneratedPurchaseWeightOunces(ounces: number) {
   return Math.max(1, Math.ceil(ounces));
 }
 
+function generatedVolumeShoppingText(name: string, amount: number, unit: IngredientUnit) {
+  const cups = unit === "cup"
+    ? amount
+    : unit === "tbsp"
+      ? amount / 16
+      : unit === "tsp"
+        ? amount / 48
+        : amount / 236.588;
+  const normalizedName = name.toLocaleLowerCase();
+  const roundedPackage = (neededOunces: number, packageOunces: number) => (
+    Math.max(packageOunces, Math.ceil(neededOunces / packageOunces) * packageOunces)
+  );
+
+  if (/\brice\b/.test(normalizedName)) {
+    return `${name} ${cleanNumber(roundedPackage(cups * 6.5, 16) / 16, 1)} lb`;
+  }
+  if (/\boats?\b/.test(normalizedName)) {
+    return `${name} ${roundedPackage(cups * 3, 18)} oz`;
+  }
+  if (/\b(?:spinach|lettuce|greens)\b/.test(normalizedName)) {
+    return `${name} ${roundedPackage(cups, 5)} oz`;
+  }
+  if (/\bfrozen\b/.test(normalizedName)) {
+    return `${name} ${roundedPackage(cups * 5, 12)} oz`;
+  }
+  const fluidOunces = cups * 8;
+  if (/\bsalsa\b/.test(normalizedName)) {
+    return `${name} ${roundedPackage(fluidOunces, 16)} oz`;
+  }
+  return `${name} ${roundedPackage(fluidOunces, 8)} oz`;
+}
+
 function shoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
-  // Cup and spoon amounts are recipe measures, not package promises. Keep the
-  // amount in structured plan data, but give product search a clean identity.
-  if (unit === "cup" || unit === "tbsp" || unit === "tsp") return name;
   if (unit === "lb" || unit === "oz" || unit === "g" || unit === "kg") {
     const ounces = unit === "lb"
       ? amount * 16
@@ -557,6 +586,9 @@ function shoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
         : unit === "g"
           ? amount * 0.035274
           : amount;
+    if (/\bpasta\b/i.test(name) && ounces <= 16) {
+      return `${name} 1 box`;
+    }
     const purchaseOunces = roundGeneratedPurchaseWeightOunces(ounces);
     return purchaseOunces >= 16
       ? `${name} ${cleanNumber(purchaseOunces / 16, 1)} lb`
@@ -570,13 +602,16 @@ function shoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
   }
   if (unit === "each") return `${name} ${Math.max(1, Math.ceil(amount))}`;
   if (unit === "gallon") return `${name} ${cleanNumber(amount, 1)} gallon${amount === 1 ? "" : "s"}`;
+  if (unit === "cup" || unit === "tbsp" || unit === "tsp" || unit === "ml") {
+    return generatedVolumeShoppingText(name, amount, unit);
+  }
   return `${name} ${amountLabel(amount, unit)}`.trim();
 }
 
 function reviewedShoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
-  if (unit === "cup" || unit === "tbsp" || unit === "tsp") return name;
   const discretePurchaseUnits: IngredientUnit[] = ["count", "can", "package", "jar", "box", "clove", "bunch", "slice", "each"];
-  return discretePurchaseUnits.includes(unit)
+  const cookingVolumeUnits: IngredientUnit[] = ["cup", "tbsp", "tsp", "ml"];
+  return discretePurchaseUnits.includes(unit) || cookingVolumeUnits.includes(unit)
     ? shoppingTextFor(name, amount, unit)
     : `${name} ${amountLabel(amount, unit)}`.trim();
 }
