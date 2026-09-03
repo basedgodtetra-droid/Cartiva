@@ -236,6 +236,83 @@ function isPlanIngredient(value: unknown) {
     && (value.optional === undefined || typeof value.optional === "boolean");
 }
 
+const PLAN_QUALITY_STATUSES = new Set(["MEETS_GOALS", "CLOSE_TO_GOALS", "CONFLICTING_GOALS"]);
+const PLAN_CHECK_STATUSES = new Set(["within", "close", "outside", "not-requested"]);
+const PLAN_CONSTRAINTS = new Set(["calories", "protein", "budget"]);
+const PLAN_REVISION_TYPES = new Set(["scale-calories", "increase-lean-protein", "lower-estimated-cost"]);
+
+function isOptionalPlannerEvaluation(value: unknown, expectedDays: number) {
+  if (value === undefined) return true;
+  if (!isRecord(value) || !Array.isArray(value.daily) || !Array.isArray(value.unmetConstraints)) return false;
+  return PLAN_QUALITY_STATUSES.has(String(value.status))
+    && value.daily.length === expectedDays
+    && value.daily.every((day) => (
+      isRecord(day)
+      && integerBetween(day.day, 1, expectedDays)
+      && typeof day.calories === "number"
+      && Number.isFinite(day.calories)
+      && day.calories >= 0
+      && typeof day.proteinGrams === "number"
+      && Number.isFinite(day.proteinGrams)
+      && day.proteinGrams >= 0
+      && PLAN_CHECK_STATUSES.has(String(day.calorieStatus))
+      && PLAN_CHECK_STATUSES.has(String(day.proteinStatus))
+    ))
+    && new Set(value.daily.map((day) => isRecord(day) ? day.day : undefined)).size === expectedDays
+    && typeof value.estimatedCostDollars === "number"
+    && Number.isFinite(value.estimatedCostDollars)
+    && value.estimatedCostDollars >= 0
+    && PLAN_CHECK_STATUSES.has(String(value.budgetStatus))
+    && value.unmetConstraints.length <= 3
+    && value.unmetConstraints.every((constraint) => PLAN_CONSTRAINTS.has(String(constraint)))
+    && typeof value.calorieTolerancePercent === "number"
+    && value.calorieTolerancePercent >= 0
+    && value.calorieTolerancePercent <= 25
+    && typeof value.proteinMinimumPercent === "number"
+    && value.proteinMinimumPercent >= 50
+    && value.proteinMinimumPercent <= 100
+    && typeof value.budgetTolerancePercent === "number"
+    && value.budgetTolerancePercent >= 0
+    && value.budgetTolerancePercent <= 25;
+}
+
+function isOptionalPlannerOptimization(value: unknown, expectedDays: number) {
+  if (value === undefined) return true;
+  if (!isRecord(value) || !Array.isArray(value.trace)) return false;
+  return integerBetween(value.attempts, 1, 20)
+    && integerBetween(value.maxAttempts, 1, 20)
+    && Number(value.attempts) <= Number(value.maxAttempts)
+    && value.trace.length === value.attempts
+    && value.trace.every((attempt) => (
+      isRecord(attempt)
+      && integerBetween(attempt.attempt, 1, Number(value.maxAttempts))
+      && typeof attempt.dailyCalories === "number"
+      && Number.isFinite(attempt.dailyCalories)
+      && attempt.dailyCalories >= 0
+      && typeof attempt.dailyProteinGrams === "number"
+      && Number.isFinite(attempt.dailyProteinGrams)
+      && attempt.dailyProteinGrams >= 0
+      && typeof attempt.estimatedCostDollars === "number"
+      && Number.isFinite(attempt.estimatedCostDollars)
+      && attempt.estimatedCostDollars >= 0
+      && Array.isArray(attempt.unmetConstraints)
+      && attempt.unmetConstraints.length <= 3
+      && attempt.unmetConstraints.every((constraint) => PLAN_CONSTRAINTS.has(String(constraint)))
+      && Array.isArray(attempt.revisions)
+      && attempt.revisions.length <= expectedDays * 8
+      && attempt.revisions.every((revision) => (
+        isRecord(revision)
+        && PLAN_REVISION_TYPES.has(String(revision.type))
+        && (revision.day === undefined || integerBetween(revision.day, 1, expectedDays))
+        && (revision.ingredient === undefined || (
+          typeof revision.ingredient === "string"
+          && revision.ingredient.length > 0
+          && revision.ingredient.length <= 100
+        ))
+      ))
+    ));
+}
+
 function isMealPlan(value: unknown): value is MealPlan {
   if (!isRecord(value) || !isRecord(value.goal)) return false;
   const goal = value.goal;
@@ -252,6 +329,7 @@ function isMealPlan(value: unknown): value is MealPlan {
     && goal.preferences.every((preference) => typeof preference === "string")
     && Array.isArray(goal.exclusions)
     && goal.exclusions.every((exclusion) => typeof exclusion === "string")
+    && (goal.priority === undefined || PLAN_CONSTRAINTS.has(String(goal.priority)))
     && typeof goal.originalPrompt === "string";
   const validMeals = meals.length <= 32 && meals.every((meal) => (
     isRecord(meal)
@@ -301,6 +379,10 @@ function isMealPlan(value: unknown): value is MealPlan {
     && typeof value.budgetIntent.likelyWithinTarget === "boolean"
     && value.budgetIntent.kind === "design-target"
   );
+  const validPlannerMetadata = (value.qualityStatus === undefined || PLAN_QUALITY_STATUSES.has(String(value.qualityStatus)))
+    && isOptionalPlannerEvaluation(value.goalEvaluation, isRecord(goal.days) ? Number(goal.days.value) : 0)
+    && isOptionalPlannerOptimization(value.optimization, isRecord(goal.days) ? Number(goal.days.value) : 0)
+    && (!isRecord(value.goalEvaluation) || value.qualityStatus === undefined || value.goalEvaluation.status === value.qualityStatus);
   return value.schemaVersion === 1
     && typeof value.id === "string"
     && typeof value.title === "string"
@@ -315,7 +397,8 @@ function isMealPlan(value: unknown): value is MealPlan {
     && Number.isFinite(value.estimatedDailyProteinGrams)
     && value.estimatedDailyProteinGrams >= 0
     && validWarnings
-    && validBudgetIntent;
+    && validBudgetIntent
+    && validPlannerMetadata;
 }
 
 function isSavedPlan(value: unknown): value is CartivaSavedPlan {

@@ -20,6 +20,7 @@ describe("Cartiva list creation modes", () => {
 
   it("keeps trust copy, a compact tabbed workspace, pantry review, and per-meal controls in the integrated UI", () => {
     const source = readFileSync(path.join(process.cwd(), "components", "cartiva-list-creation.tsx"), "utf8");
+    const planningSource = readFileSync(path.join(process.cwd(), "lib", "cartiva-planning.ts"), "utf8");
     expect(source).toContain("Nutrition is estimated");
     expect(source).toContain("actual total comes from Cartiva");
     expect(source).toContain("review the meals and ingredients before anything is added");
@@ -35,6 +36,18 @@ describe("Cartiva list creation modes", () => {
     expect(source).toContain("Update ${count} plan ${count === 1 ? \"grocery\" : \"groceries\"} in my list");
     expect(source).toContain("Remove this plan’s groceries from my list");
     expect(source).toContain("allowEmptyCommit={committedPlanId === plan.id}");
+    expect(source).toContain("Building meals around your goals…");
+    expect(planningSource).toContain("Checking calories, protein, and budget…");
+    expect(planningSource).toContain("Adjusting the plan…");
+    expect(source).toContain("These goals conflict");
+    expect(source).toContain("What matters most?");
+    expect(source).toContain("Stay under calories");
+    expect(source).toContain("Hit protein");
+    expect(source).toContain("Stay under budget");
+    expect(source).toContain("Choose what matters most before adding this conflicting plan");
+    expect(source).toContain("Higher protein");
+    expect(source).toContain("Make cheaper");
+    expect(source).toContain("refineWholePlan");
   });
 
   it("bridges both generated paths back into the existing workspace instead of a second cart", () => {

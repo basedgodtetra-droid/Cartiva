@@ -110,6 +110,9 @@ describe("Cartiva local library", () => {
       createdAt: now,
     });
     expect(state.plans[0].plan.ingredients[0].name).toBe("My preferred ingredient");
+    expect(state.plans[0].plan.qualityStatus).toMatch(/MEETS_GOALS|CLOSE_TO_GOALS/);
+    expect(state.plans[0].plan.goalEvaluation?.daily).toHaveLength(5);
+    expect(state.plans[0].plan.optimization?.attempts).toBeGreaterThan(0);
     expect(JSON.stringify(state.plans[0])).not.toMatch(/upc|subtotalCents|priceProvenance/);
 
     state = upsertSavedPlan(state, {
@@ -134,6 +137,19 @@ describe("Cartiva local library", () => {
     expect(legacy.plans).toEqual([]);
 
     const plan = generateMealPlan({ notes: "5 cheap dinners", days: 5 });
+    const legacyPlan = { ...plan };
+    delete legacyPlan.qualityStatus;
+    delete legacyPlan.goalEvaluation;
+    delete legacyPlan.optimization;
+    const legacyWithPlan = upsertSavedPlan(emptyCartivaLibrary(), {
+      id: "legacy-plan",
+      name: "Legacy plan",
+      plan: legacyPlan,
+      ownedIngredientIds: [],
+      now,
+    });
+    expect(parseCartivaLibrary(serializeCartivaLibrary(legacyWithPlan)).plans).toHaveLength(1);
+
     const malformed = upsertSavedPlan(emptyCartivaLibrary(), {
       id: "unsafe-plan",
       name: "Unsafe",
@@ -144,6 +160,17 @@ describe("Cartiva local library", () => {
     (malformed.plans[0].plan.ingredients[0] as { amount: number }).amount = -1;
     malformed.plans[0].ownedIngredientIds = ["not-in-this-plan"];
     expect(parseCartivaLibrary(serializeCartivaLibrary(malformed)).plans).toEqual([]);
+
+    const malformedPlannerMetadata = upsertSavedPlan(emptyCartivaLibrary(), {
+      id: "invalid-planner-trace",
+      name: "Invalid planner trace",
+      plan,
+      ownedIngredientIds: [],
+      now,
+    });
+    const attempt = malformedPlannerMetadata.plans[0].plan.optimization?.trace[0];
+    if (attempt) (attempt.revisions as Array<{ type: string }>).push({ type: "invent-nutrition" });
+    expect(parseCartivaLibrary(serializeCartivaLibrary(malformedPlannerMetadata)).plans).toEqual([]);
   });
 
   it("saves, reloads, duplicates, renames, and deletes a five-item list", () => {

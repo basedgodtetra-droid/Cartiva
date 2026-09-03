@@ -23,8 +23,8 @@ import {
 import {
   adjustPlanMeal,
   confirmRecipeServings,
+  createMealPlanWorkflow,
   formatIngredientAmount,
-  generateMealPlan,
   isPantryIngredient,
   MAX_CARTIVA_INGREDIENTS,
   parseRecipeText,
@@ -32,12 +32,12 @@ import {
   removePlanMeal,
   replacePlanMeal,
   preserveReviewedPlanIngredients,
-  regenerateMealPlan,
   scaleRecipeImport,
   updateConsolidatedIngredientDetails,
   updatePlanMealServings,
   type ConsolidatedIngredient,
   type MealPlan,
+  type PlanConstraintPriority,
   type PlanMealAdjustment,
   type PlannedMeal,
   type PlannerGoalDraft,
@@ -428,6 +428,29 @@ function planGoalSummary(plan: MealPlan) {
   ].filter(Boolean).join(" · ");
 }
 
+function planTargetSummary(plan: MealPlan) {
+  return [
+    plan.goal.dailyCalories ? `${plan.goal.dailyCalories.value.toLocaleString()} cal/day` : undefined,
+    plan.goal.proteinGrams ? `${plan.goal.proteinGrams.value}g protein/day` : undefined,
+    plan.goal.budgetDollars ? `$${plan.goal.budgetDollars.value} budget` : undefined,
+  ].filter(Boolean).join(" · ") || "No numeric targets supplied";
+}
+
+function planPerformanceSummary(plan: MealPlan) {
+  return [
+    `~${plan.estimatedDailyCalories.toLocaleString()} cal/day`,
+    `~${plan.estimatedDailyProteinGrams}g protein/day`,
+    plan.budgetIntent ? `$${plan.budgetIntent.estimatedTemplateCost.toFixed(2)} planning estimate` : undefined,
+  ].filter(Boolean).join(" · ");
+}
+
+function planQualityCopy(plan: MealPlan) {
+  if (plan.qualityStatus === "MEETS_GOALS") return "Meets your goals";
+  if (plan.qualityStatus === "CLOSE_TO_GOALS") return "Close to target";
+  if (plan.qualityStatus === "CONFLICTING_GOALS") return "These goals conflict";
+  return "Plan ready for review";
+}
+
 function savedPlanSignature(name: string, plan: MealPlan, ownedIngredientIds: Set<string> | string[]) {
   return JSON.stringify({
     name: name.replace(/\s+/g, " ").trim(),
@@ -472,6 +495,7 @@ export function CartivaPlanBuilder({
   const [mealMenuId, setMealMenuId] = useState<string>();
   const [actionStatus, setActionStatus] = useState("");
   const [generationError, setGenerationError] = useState("");
+  const [generationStage, setGenerationStage] = useState("Building meals around your goals…");
   const [activeSavedPlanId, setActiveSavedPlanId] = useState<string>();
   const [saveName, setSaveName] = useState("");
   const [lastSavedSignature, setLastSavedSignature] = useState<string>();
@@ -486,14 +510,36 @@ export function CartivaPlanBuilder({
     const requestId = ++generationRequestRef.current;
     const previousPlan = plan;
     setPhase("generating");
+    setGenerationStage("Building meals around your goals…");
     setGenerationError("");
     setActionStatus("");
-    window.setTimeout(() => {
+    const workflow = createMealPlanWorkflow(draft);
+    const advance = () => {
       try {
         if (requestId !== generationRequestRef.current) return;
-        const next = previousPlan
-          ? regenerateMealPlan(previousPlan, draft)
-          : generateMealPlan(draft);
+        const step = workflow.next();
+        if (!step.done) {
+          setGenerationStage(step.value.message);
+          window.setTimeout(advance, 0);
+          return;
+        }
+        const next = previousPlan ? { ...step.value, id: previousPlan.id } : step.value;
+        if (process.env.NODE_ENV === "development") {
+          console.info("[Cartiva] PLANNER", {
+            requestedCalories: next.goal.dailyCalories?.value,
+            requestedProtein: next.goal.proteinGrams?.value,
+            requestedBudget: next.goal.budgetDollars?.value,
+            attempts: next.optimization?.trace.map((attempt) => ({
+              attempt: attempt.attempt,
+              calories: attempt.dailyCalories,
+              protein: attempt.dailyProteinGrams,
+              estimatedCost: attempt.estimatedCostDollars,
+              result: attempt.unmetConstraints,
+              revisions: attempt.revisions,
+            })),
+            status: next.qualityStatus,
+          });
+        }
         setPlan(next);
         setFields(fieldsFromDraft(draft));
         setPlanDirty(false);
@@ -515,12 +561,35 @@ export function CartivaPlanBuilder({
         setGenerationError("We couldn’t build the plan yet. Your goals are still here.");
         setPhase("error");
       }
-    }, 0);
+    };
+    window.setTimeout(advance, 0);
   };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     makePlan();
+  };
+
+  const prioritizeGoal = (priority: PlanConstraintPriority) => {
+    makePlan({ ...draftFromFields(fields), priority });
+  };
+
+  const refineWholePlan = (adjustment: PlanMealAdjustment) => {
+    if (!plan) return;
+    const draft = draftFromFields(fields);
+    if (adjustment === "higher-protein") {
+      const currentTarget = plan.goal.proteinGrams?.value ?? plan.estimatedDailyProteinGrams;
+      makePlan({ ...draft, proteinGrams: Math.ceil((currentTarget * 1.1) / 5) * 5, priority: "protein" });
+      return;
+    }
+    if (adjustment === "lower-calorie") {
+      const currentTarget = plan.goal.dailyCalories?.value ?? plan.estimatedDailyCalories;
+      makePlan({ ...draft, dailyCalories: Math.max(900, Math.round((currentTarget * 0.9) / 25) * 25), priority: "calories" });
+      return;
+    }
+    const currentEstimate = plan.budgetIntent?.estimatedTemplateCost
+      ?? plan.meals.reduce((total, meal) => total + meal.estimatedCostPerServing * meal.servings, 0);
+    makePlan({ ...draft, budgetDollars: Math.max(10, Math.floor(currentEstimate * 0.9)), priority: "budget" });
   };
 
   const loadSavedPlan = (saved: CartivaSavedPlan) => {
@@ -729,7 +798,7 @@ export function CartivaPlanBuilder({
         <div className={styles.planFormActions}>
           <button type="submit" className={styles.planPrimaryButton} disabled={phase === "generating"}>
             {phase === "generating" ? <RefreshCw className={styles.spin} aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
-            {phase === "generating" ? "Building meals around your goals…" : plan ? "Regenerate plan" : "Build my plan"}
+            {phase === "generating" ? generationStage : plan ? "Regenerate plan" : "Build my plan"}
           </button>
           {plan ? (
             <button type="button" className={styles.planQuietButton} onClick={() => {
@@ -793,6 +862,29 @@ export function CartivaPlanBuilder({
               <span><strong>~{plan.estimatedDailyProteinGrams}g</strong><small>protein/day</small></span>
               {plan.goal.budgetDollars ? <span><strong>${plan.goal.budgetDollars.value}</strong><small>planned budget</small></span> : null}
             </div>
+            <section className={styles.planQualitySummary} data-status={plan.qualityStatus ?? "PLAN_READY"} aria-labelledby="plan-quality-heading">
+              <div>
+                <span>Goal</span>
+                <strong>{planTargetSummary(plan)}</strong>
+              </div>
+              <div>
+                <span>Plan</span>
+                <strong>{planPerformanceSummary(plan)}</strong>
+              </div>
+              <p id="plan-quality-heading">
+                {plan.qualityStatus === "MEETS_GOALS" ? <Check aria-hidden="true" /> : null}
+                <strong>{planQualityCopy(plan)}</strong>
+                {plan.optimization ? <small>Checked in {plan.optimization.attempts} {plan.optimization.attempts === 1 ? "pass" : "passes"}.</small> : null}
+              </p>
+              {plan.qualityStatus === "CONFLICTING_GOALS" ? (
+                <div className={styles.planPriorityChoices} role="group" aria-label="Choose the most important planning goal">
+                  <span>What matters most?</span>
+                  {plan.goal.dailyCalories ? <button type="button" disabled={phase === "generating"} data-selected={plan.goal.priority === "calories"} onClick={() => prioritizeGoal("calories")}>Stay under calories</button> : null}
+                  {plan.goal.proteinGrams ? <button type="button" disabled={phase === "generating"} data-selected={plan.goal.priority === "protein"} onClick={() => prioritizeGoal("protein")}>Hit protein</button> : null}
+                  {plan.goal.budgetDollars ? <button type="button" disabled={phase === "generating"} data-selected={plan.goal.priority === "budget"} onClick={() => prioritizeGoal("budget")}>Stay under budget</button> : null}
+                </div>
+              ) : null}
+            </section>
           </header>
 
           <div className={styles.planResultTabs} role="tablist" aria-label="Plan results">
@@ -848,6 +940,12 @@ export function CartivaPlanBuilder({
                   ) : null}
                 </div>
 
+                <div className={styles.planAdjustments} role="group" aria-label="Refine the entire meal plan">
+                  <button type="button" disabled={phase === "generating"} onClick={() => refineWholePlan("higher-protein")}>Higher protein</button>
+                  <button type="button" disabled={phase === "generating"} onClick={() => refineWholePlan("cheaper")}>Make cheaper</button>
+                  <button type="button" disabled={phase === "generating"} onClick={() => refineWholePlan("lower-calorie")}>Lower calories</button>
+                </div>
+
                 {plan.goalWarnings?.map((warning) => <p className={styles.planWarning} role="status" key={warning}>{warning}</p>)}
 
                 {plan.goal.preferences.length || plan.goal.exclusions.length ? (
@@ -867,6 +965,12 @@ export function CartivaPlanBuilder({
                       const expanded = expandedDays.has(day);
                       const dayCalories = meals.reduce((total, meal) => total + meal.estimatedCaloriesPerServing, 0);
                       const dayProtein = meals.reduce((total, meal) => total + meal.estimatedProteinGramsPerServing, 0);
+                      const dayEvaluation = plan.goalEvaluation?.daily.find((item) => item.day === day);
+                      const dayStatus = dayEvaluation && (dayEvaluation.calorieStatus === "outside" || dayEvaluation.proteinStatus === "outside")
+                        ? "needs review"
+                        : dayEvaluation && (dayEvaluation.calorieStatus === "close" || dayEvaluation.proteinStatus === "close")
+                          ? "close to target"
+                          : dayEvaluation ? "on target" : undefined;
                       return <section className={styles.mealDay} key={day}>
                         <h3>
                           <button
@@ -885,7 +989,7 @@ export function CartivaPlanBuilder({
                           >
                             {expanded ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
                             <span>Day {day}</span>
-                            <small>~{dayCalories.toLocaleString()} cal · ~{dayProtein}g protein</small>
+                            <small>~{dayCalories.toLocaleString()} cal · ~{dayProtein}g protein{dayStatus ? ` · ${dayStatus}` : ""}</small>
                           </button>
                         </h3>
                         {expanded ? <div id={`plan-day-${day}`}>
@@ -965,7 +1069,11 @@ export function CartivaPlanBuilder({
                       : `Update ${count} plan ${count === 1 ? "grocery" : "groceries"} in my list`
                     : `Add ${count} ${count === 1 ? "ingredient" : "ingredients"} to my list`}
                   emptyCopy="Add or replace a meal to rebuild the ingredient list."
-                  commitBlockedReason={planDirty ? "Your goal changed. Rebuild the plan before adding these ingredients." : undefined}
+                  commitBlockedReason={planDirty
+                    ? "Your goal changed. Rebuild the plan before adding these ingredients."
+                    : plan.qualityStatus === "CONFLICTING_GOALS" && !plan.goal.priority
+                      ? "Choose what matters most before adding this conflicting plan to your grocery list."
+                      : undefined}
                   allowEmptyCommit={committedPlanId === plan.id}
                   contained
                 />

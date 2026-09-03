@@ -7,6 +7,7 @@ import {
   comparePlanBudget,
   confirmRecipeServings,
   consolidatePlanIngredients,
+  createMealPlanWorkflow,
   formatIngredientAmount,
   generateMealPlan,
   normalizePlannerGoal,
@@ -453,6 +454,146 @@ describe("Cartiva Build My Plan", () => {
     const result = consolidatePlanIngredients(meals);
     expect(result.ingredients).toHaveLength(25);
     expect(result.omittedIngredientCount).toBe(0);
+  });
+
+  it("iteratively solves the 1,450-calorie, 200g-protein acceptance case day by day", () => {
+    const lowerProtein = generateMealPlan({
+      dailyCalories: 1450,
+      proteinGrams: 100,
+      days: 5,
+      people: 1,
+      notes: "high protein air fryer meals, more chicken, beef is okay",
+    });
+    const plan = generateMealPlan({
+      dailyCalories: 1450,
+      proteinGrams: 200,
+      days: 5,
+      people: 1,
+      notes: "high protein air fryer meals, more chicken, beef is okay",
+    });
+
+    expect(plan.qualityStatus).toMatch(/MEETS_GOALS|CLOSE_TO_GOALS/);
+    expect(plan.estimatedDailyCalories).toBeGreaterThanOrEqual(1378);
+    expect(plan.estimatedDailyCalories).toBeLessThanOrEqual(1522);
+    expect(plan.estimatedDailyProteinGrams).toBeGreaterThanOrEqual(190);
+    expect(plan.goalEvaluation?.daily).toHaveLength(5);
+    expect(plan.goalEvaluation?.daily.every((day) => (
+      day.calorieStatus !== "outside" && day.proteinGrams >= 190
+    ))).toBe(true);
+    expect(plan.optimization?.attempts).toBeGreaterThan(1);
+    expect(plan.optimization?.attempts).toBeLessThanOrEqual(plan.optimization?.maxAttempts ?? 0);
+    expect(plan.optimization?.trace.some((attempt) => (
+      attempt.revisions.some((revision) => revision.type === "increase-lean-protein")
+    ))).toBe(true);
+    expect(plan.optimization?.trace[0].dailyProteinGrams).toBeLessThan(plan.estimatedDailyProteinGrams);
+    const chickenAmount = plan.ingredients.find((ingredient) => ingredient.name === "Chicken breast")?.amount ?? 0;
+    const lowerChickenAmount = lowerProtein.ingredients.find((ingredient) => ingredient.name === "Chicken breast")?.amount ?? 0;
+    expect(chickenAmount).toBeGreaterThan(lowerChickenAmount);
+    const chickenMeals = plan.meals.filter((meal) => /chicken/i.test(meal.name)).length;
+    const beefMeals = plan.meals.filter((meal) => /beef/i.test(meal.name)).length;
+    expect(chickenMeals, JSON.stringify(plan.meals.map((meal) => meal.name))).toBeGreaterThan(beefMeals);
+    expect(plan.meals.some((meal) => ["sheet-pan-chicken", "chicken-rice-bowl", "tofu-breakfast-skillet"].includes(meal.templateId))).toBe(true);
+  });
+
+  it("considers the weekly budget while reusing ingredients and favoring chicken", () => {
+    const plan = generateMealPlan({
+      dailyCalories: 2000,
+      proteinGrams: 150,
+      budgetDollars: 80,
+      days: 7,
+      people: 1,
+      notes: "mostly chicken",
+    });
+    expect(plan.meals.every((meal) => meal.day >= 1 && meal.day <= 7)).toBe(true);
+    expect(new Set(plan.meals.map((meal) => meal.day)).size).toBe(7);
+    expect(plan.estimatedDailyCalories).toBeGreaterThanOrEqual(1900);
+    expect(plan.estimatedDailyCalories).toBeLessThanOrEqual(2100);
+    expect(plan.estimatedDailyProteinGrams).toBeGreaterThanOrEqual(143);
+    expect(plan.budgetIntent?.kind).toBe("design-target");
+    expect(plan.budgetIntent?.estimatedTemplateCost).toBeLessThanOrEqual(80);
+    const chickenMeals = plan.meals.filter((meal) => /chicken/i.test(meal.name)).length;
+    const beefMeals = plan.meals.filter((meal) => /beef/i.test(meal.name)).length;
+    expect(chickenMeals, JSON.stringify(plan.meals.map((meal) => meal.name))).toBeGreaterThan(beefMeals);
+    expect(plan.ingredients.length).toBeLessThanOrEqual(24);
+  });
+
+  it("keeps vegetarian plans meat-free while solving their daily nutrition target", () => {
+    const plan = generateMealPlan({
+      dailyCalories: 1800,
+      proteinGrams: 120,
+      days: 5,
+      notes: "vegetarian",
+    });
+    const content = plan.meals.flatMap((meal) => [meal.name, ...meal.ingredients.map((ingredient) => ingredient.name)]).join(" ");
+    expect(content).not.toMatch(/chicken|beef|turkey|salmon|pork/i);
+    expect(plan.estimatedDailyProteinGrams).toBeGreaterThanOrEqual(114);
+    expect(plan.goalEvaluation?.daily.every((day) => day.proteinGrams >= 114)).toBe(true);
+  });
+
+  it("reports infeasible budget and nutrition targets as a conflict with explicit priorities", () => {
+    const draft = {
+      dailyCalories: 1600,
+      proteinGrams: 180,
+      budgetDollars: 25,
+      days: 7,
+      people: 1,
+      notes: "easy meals",
+    };
+    const plan = generateMealPlan(draft);
+    expect(plan.qualityStatus).toBe("CONFLICTING_GOALS");
+    expect(plan.goalWarnings?.join(" ")).toContain("These targets conflict");
+    expect(plan.goalEvaluation?.unmetConstraints.length).toBeGreaterThan(0);
+    expect(plan.optimization?.trace.some((attempt) => (
+      attempt.revisions.some((revision) => revision.type === "lower-estimated-cost")
+    ))).toBe(true);
+
+    const proteinFirst = generateMealPlan({ ...draft, priority: "protein" });
+    expect(proteinFirst.goal.priority).toBe("protein");
+    expect(proteinFirst.estimatedDailyProteinGrams).toBeGreaterThanOrEqual(180);
+    expect(proteinFirst.qualityStatus).toBe("CONFLICTING_GOALS");
+
+    const calorieFirst = generateMealPlan({ ...draft, priority: "calories" });
+    expect(calorieFirst.goalEvaluation?.daily.every((day) => day.calorieStatus === "within")).toBe(true);
+
+    const budgetFirst = generateMealPlan({ ...draft, priority: "budget" });
+    expect(budgetFirst.goal.priority).toBe("budget");
+    expect(budgetFirst.goalEvaluation?.estimatedCostDollars).toBeLessThanOrEqual(plan.goalEvaluation?.estimatedCostDollars ?? Number.POSITIVE_INFINITY);
+    expect(budgetFirst.goalEvaluation?.budgetStatus).not.toBe("outside");
+  });
+
+  it("materially changes meals for cuisine and exclusion preferences", () => {
+    const common = { dailyCalories: 1800, proteinGrams: 120, days: 5, people: 1 };
+    const chickenRice = generateMealPlan({ ...common, notes: "chicken and rice" });
+    const mexican = generateMealPlan({ ...common, notes: "Mexican-style food" });
+    const dairyFree = generateMealPlan({ ...common, notes: "no dairy" });
+    expect(chickenRice.meals.some((meal) => /chicken/i.test(meal.name))).toBe(true);
+    expect(chickenRice.ingredients.some((ingredient) => /rice/i.test(ingredient.name))).toBe(true);
+    expect(mexican.meals.some((meal) => /taco|burrito|salsa/i.test(meal.name))).toBe(true);
+    expect(dairyFree.ingredients.every((ingredient) => !/milk|yogurt|cheese|cottage|cream|pesto/i.test(ingredient.name))).toBe(true);
+    expect(mexican.meals.map((meal) => meal.templateId)).not.toEqual(chickenRice.meals.map((meal) => meal.templateId));
+    expect(dairyFree.meals.map((meal) => meal.templateId)).not.toEqual(chickenRice.meals.map((meal) => meal.templateId));
+
+    const exclusions = normalizePlannerGoal({ notes: "I hate eggs, no seafood, no dairy" });
+    expect(exclusions.exclusions).toEqual(expect.arrayContaining(["eggs", "fish", "dairy"]));
+  });
+
+  it("exposes real bounded workflow stages without a fake percentage", () => {
+    const workflow = createMealPlanWorkflow({
+      dailyCalories: 1450,
+      proteinGrams: 200,
+      days: 5,
+      notes: "mostly chicken",
+    });
+    const stages: string[] = [];
+    let step = workflow.next();
+    while (!step.done) {
+      stages.push(step.value.stage);
+      step = workflow.next();
+    }
+    expect(stages[0]).toBe("building");
+    expect(stages).toContain("checking");
+    expect(stages).toContain("adjusting");
+    expect(step.value.optimization?.attempts).toBeLessThanOrEqual(8);
   });
 });
 

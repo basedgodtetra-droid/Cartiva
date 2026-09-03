@@ -19,7 +19,62 @@ export interface PlannerGoalDraft {
   budgetDollars?: number;
   days?: number;
   people?: number;
+  priority?: PlanConstraintPriority;
   notes: string;
+}
+
+export type PlanConstraintPriority = "calories" | "protein" | "budget";
+export type PlanQualityStatus = "MEETS_GOALS" | "CLOSE_TO_GOALS" | "CONFLICTING_GOALS";
+export type PlanCheckStatus = "within" | "close" | "outside" | "not-requested";
+
+export interface DailyPlanEvaluation {
+  day: number;
+  calories: number;
+  proteinGrams: number;
+  calorieStatus: PlanCheckStatus;
+  proteinStatus: PlanCheckStatus;
+}
+
+export interface PlanGoalEvaluation {
+  status: PlanQualityStatus;
+  daily: DailyPlanEvaluation[];
+  estimatedCostDollars: number;
+  budgetStatus: PlanCheckStatus;
+  unmetConstraints: PlanConstraintPriority[];
+  calorieTolerancePercent: number;
+  proteinMinimumPercent: number;
+  budgetTolerancePercent: number;
+}
+
+export type PlannerRevisionType = "scale-calories" | "increase-lean-protein" | "lower-estimated-cost";
+
+export interface PlannerRevisionDecision {
+  type: PlannerRevisionType;
+  day?: number;
+  ingredient?: string;
+}
+
+export interface PlannerOptimizationAttempt {
+  attempt: number;
+  dailyCalories: number;
+  dailyProteinGrams: number;
+  estimatedCostDollars: number;
+  unmetConstraints: PlanConstraintPriority[];
+  revisions: PlannerRevisionDecision[];
+}
+
+export interface PlannerOptimization {
+  attempts: number;
+  maxAttempts: number;
+  trace: PlannerOptimizationAttempt[];
+}
+
+export type PlannerProgressStage = "building" | "checking" | "adjusting";
+
+export interface PlannerProgress {
+  stage: PlannerProgressStage;
+  message: string;
+  attempt?: number;
 }
 
 export interface PlannerGoal {
@@ -31,6 +86,7 @@ export interface PlannerGoal {
   mealSlots: MealSlot[];
   preferences: string[];
   exclusions: string[];
+  priority?: PlanConstraintPriority;
   originalPrompt: string;
 }
 
@@ -74,6 +130,9 @@ export interface MealPlan {
   omittedIngredientCount: number;
   estimatedDailyCalories: number;
   estimatedDailyProteinGrams: number;
+  qualityStatus?: PlanQualityStatus;
+  goalEvaluation?: PlanGoalEvaluation;
+  optimization?: PlannerOptimization;
   goalWarnings?: string[];
   budgetIntent?: {
     targetDollars: number;
@@ -114,6 +173,25 @@ interface MealTemplate {
   tags: string[];
   ingredients: MealIngredientNeed[];
 }
+
+interface ProteinBooster {
+  name: string;
+  label: string;
+  unit: Extract<IngredientUnit, "oz" | "count">;
+  caloriesPerUnit: number;
+  proteinPerUnit: number;
+  costPerUnit: number;
+  maxUnitsPerMeal: number;
+  slots: MealSlot[];
+  tags: string[];
+}
+
+const MAX_PLANNER_ATTEMPTS = 8;
+const CALORIE_TOLERANCE_PERCENT = 0.05;
+const CALORIE_CLOSE_PERCENT = 0.08;
+const PROTEIN_MINIMUM_PERCENT = 0.95;
+const BUDGET_CLOSE_PERCENT = 0.08;
+const MIN_BASE_MEAL_SHARE = 0.3;
 
 const MEAL_TEMPLATES: MealTemplate[] = [
   {
@@ -178,7 +256,7 @@ const MEAL_TEMPLATES: MealTemplate[] = [
   },
   {
     id: "chicken-rice-bowl", slot: "lunch", name: "Chicken rice meal-prep bowl",
-    calories: 540, protein: 52, cost: 3.15, tags: ["easy", "meal-prep", "high-protein", "cheap", "chicken", "rice"],
+    calories: 540, protein: 52, cost: 3.15, tags: ["easy", "meal-prep", "high-protein", "cheap", "chicken", "rice", "air-fryer"],
     ingredients: [
       { name: "Chicken breast", amount: 6, unit: "oz" },
       { name: "Brown rice", amount: 0.5, unit: "cup" },
@@ -188,7 +266,7 @@ const MEAL_TEMPLATES: MealTemplate[] = [
   },
   {
     id: "beef-taco-bowl", slot: "lunch", name: "Ground beef taco bowl",
-    calories: 590, protein: 43, cost: 3.65, tags: ["meal-prep", "high-protein", "ground-beef", "rice"],
+    calories: 590, protein: 43, cost: 3.65, tags: ["meal-prep", "high-protein", "ground-beef", "rice", "mexican"],
     ingredients: [
       { name: "Ground beef", amount: 5, unit: "oz" },
       { name: "White rice", amount: 0.5, unit: "cup" },
@@ -208,7 +286,7 @@ const MEAL_TEMPLATES: MealTemplate[] = [
   },
   {
     id: "black-bean-burrito-bowl", slot: "lunch", name: "Black bean burrito bowl",
-    calories: 510, protein: 23, cost: 1.75, tags: ["cheap", "meal-prep", "vegetarian", "rice"],
+    calories: 510, protein: 23, cost: 1.75, tags: ["cheap", "meal-prep", "vegetarian", "rice", "mexican"],
     ingredients: [
       { name: "Black beans", amount: 0.75, unit: "can" },
       { name: "Brown rice", amount: 0.5, unit: "cup" },
@@ -268,7 +346,7 @@ const MEAL_TEMPLATES: MealTemplate[] = [
   },
   {
     id: "salsa-chicken-tacos", slot: "dinner", name: "Salsa chicken tacos",
-    calories: 570, protein: 48, cost: 3.25, tags: ["easy", "cheap", "high-protein", "chicken"],
+    calories: 570, protein: 48, cost: 3.25, tags: ["easy", "cheap", "high-protein", "chicken", "mexican"],
     ingredients: [
       { name: "Chicken breast", amount: 6, unit: "oz" },
       { name: "Corn tortillas", amount: 3, unit: "count" },
@@ -308,7 +386,7 @@ const MEAL_TEMPLATES: MealTemplate[] = [
   },
   {
     id: "tofu-vegetable-skillet", slot: "dinner", name: "Tofu vegetable skillet",
-    calories: 520, protein: 30, cost: 2.65, tags: ["easy", "meal-prep", "vegetarian", "dairy-free"],
+    calories: 520, protein: 30, cost: 2.65, tags: ["easy", "meal-prep", "vegetarian", "dairy-free", "air-fryer"],
     ingredients: [
       { name: "Extra firm tofu", amount: 7, unit: "oz" },
       { name: "Frozen stir-fry vegetables", amount: 2, unit: "cup" },
@@ -370,6 +448,54 @@ const MEAL_TEMPLATES: MealTemplate[] = [
       { name: "Whole grain crackers", amount: 2, unit: "oz" },
       { name: "Baby carrots", amount: 1, unit: "cup" },
     ],
+  },
+  {
+    id: "tofu-breakfast-skillet", slot: "breakfast", name: "Tofu and potato breakfast skillet",
+    calories: 430, protein: 29, cost: 2.05, tags: ["easy", "cheap", "meal-prep", "vegetarian", "dairy-free", "egg-free", "air-fryer"],
+    ingredients: [
+      { name: "Extra firm tofu", amount: 7, unit: "oz" },
+      { name: "Baby potatoes", amount: 5, unit: "oz" },
+      { name: "Baby spinach", amount: 1, unit: "cup" },
+      { name: "Salsa", amount: 0.2, unit: "cup" },
+    ],
+  },
+];
+
+/**
+ * Structured planning estimates for ingredients that can replace lower-protein
+ * calories during optimization. They are deliberately separate from retailer
+ * prices; the comparison flow remains the source of actual shelf pricing.
+ */
+const PROTEIN_BOOSTERS: ProteinBooster[] = [
+  {
+    name: "Liquid egg whites", label: "egg whites", unit: "oz",
+    caloriesPerUnit: 15, proteinPerUnit: 3.2, costPerUnit: 0.12, maxUnitsPerMeal: 16,
+    slots: ["breakfast", "snack"], tags: ["vegetarian", "cheap", "high-protein"],
+  },
+  {
+    name: "Nonfat Greek yogurt", label: "Greek yogurt", unit: "oz",
+    caloriesPerUnit: 17, proteinPerUnit: 3, costPerUnit: 0.16, maxUnitsPerMeal: 12,
+    slots: ["breakfast", "snack"], tags: ["vegetarian", "high-protein", "easy", "dairy"],
+  },
+  {
+    name: "Chicken breast", label: "extra chicken", unit: "oz",
+    caloriesPerUnit: 47, proteinPerUnit: 8.8, costPerUnit: 0.32, maxUnitsPerMeal: 10,
+    slots: ["lunch", "dinner"], tags: ["chicken", "high-protein", "air-fryer", "dairy-free"],
+  },
+  {
+    name: "96% lean ground beef", label: "lean beef", unit: "oz",
+    caloriesPerUnit: 48, proteinPerUnit: 7, costPerUnit: 0.46, maxUnitsPerMeal: 8,
+    slots: ["lunch", "dinner"], tags: ["ground-beef", "high-protein", "dairy-free"],
+  },
+  {
+    name: "Extra firm tofu", label: "extra tofu", unit: "oz",
+    caloriesPerUnit: 24, proteinPerUnit: 2.7, costPerUnit: 0.2, maxUnitsPerMeal: 12,
+    slots: ["breakfast", "lunch", "dinner", "snack"], tags: ["vegetarian", "dairy-free", "egg-free", "air-fryer"],
+  },
+  {
+    name: "Textured vegetable protein", label: "seasoned plant protein", unit: "oz",
+    caloriesPerUnit: 93, proteinPerUnit: 14, costPerUnit: 0.22, maxUnitsPerMeal: 3,
+    slots: ["lunch", "dinner"], tags: ["vegetarian", "dairy-free", "egg-free", "cheap", "high-protein", "mexican"],
   },
 ];
 
@@ -471,23 +597,42 @@ export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
   const budgetDollars = parsedValue(draft.budgetDollars, budgetFromPrompt, undefined, 10, 2000);
   const days = parsedValue(draft.days, dayPrompt, 5, 1, 7)!;
   const people = parsedValue(draft.people, peoplePrompt, 1, 1, 8)!;
-  const avoids = (food: string) => new RegExp(`\\b(?:no|without|avoid|exclude|don'?t (?:like|want|eat))\\s+(?:any\\s+)?${food}\\b`, "i").test(prompt);
+  const avoids = (food: string) => new RegExp(
+    `\\b(?:(?:no|without|avoid|exclude|don'?t (?:like|want|eat)|hate|dislike)\\s+(?:any\\s+)?${food}|allerg(?:ic\\s+to|y\\s+to|y)\\s+${food}|${food}\\s+allerg(?:y|ies))\\b`,
+    "i",
+  ).test(prompt);
+  const vegetarian = /\bvegetarian|meatless|no meat\b/i.test(prompt);
   const noChicken = avoids("chicken");
   const noBeef = avoids("(?:ground\\s+)?beef");
   const noRice = avoids("rice");
-  const noFish = avoids("fish") || /fish[- ]free/i.test(prompt);
+  const noFish = avoids("fish") || avoids("seafood") || /(?:fish|seafood)[- ]free/i.test(prompt);
+  const noShellfish = avoids("shellfish") || avoids("shrimp");
   const noPork = avoids("pork");
   const noDairy = avoids("dairy") || /dairy[- ]free/i.test(prompt);
+  const noEggs = avoids("eggs?") || /egg[- ]free/i.test(prompt);
+  const noPeanuts = avoids("peanuts?") || /peanut[- ]free/i.test(prompt);
+  const noTreeNuts = avoids("(?:tree\\s+)?nuts?") || /nut[- ]free/i.test(prompt);
+  const priority = draft.priority
+    ?? (/\bprioriti[sz]e\s+protein|protein\s+(?:matters|first)\b/i.test(prompt)
+      ? "protein"
+      : /\bprioriti[sz]e\s+(?:calories|calorie)|stay under calories\b/i.test(prompt)
+        ? "calories"
+        : /\bprioriti[sz]e\s+budget|stay under budget\b/i.test(prompt)
+          ? "budget"
+          : undefined);
   const preferences = [
     /\bhigh[ -]?protein\b/i.test(prompt) || (proteinGrams?.value ?? 0) >= 120 ? "high-protein" : "",
     /\bcheap|budget|affordable|save money|under\s+\$?\d+/i.test(prompt) || Boolean(budgetDollars) ? "cheap" : "",
     /\beasy|quick|simple|low effort/i.test(prompt) ? "easy" : "",
     /\bmeal\s*prep|prep for work/i.test(prompt) ? "meal-prep" : "",
     /\bair[ -]?fryer\b/i.test(prompt) ? "air-fryer" : "",
-    /\bchicken\b/i.test(prompt) && !noChicken ? "chicken" : "",
-    /\bground beef|beef\b/i.test(prompt) && !noBeef ? "ground-beef" : "",
+    /\bchicken\b/i.test(prompt) && !noChicken && !vegetarian ? "chicken" : "",
+    /\bground beef|beef\b/i.test(prompt) && !noBeef && !vegetarian ? "ground-beef" : "",
     /\brice\b/i.test(prompt) && !noRice ? "rice" : "",
-    /\bvegetarian|meatless|no meat\b/i.test(prompt) ? "vegetarian" : "",
+    vegetarian ? "vegetarian" : "",
+    /\bmexican|taco|burrito|southwest(?:ern)?\b/i.test(prompt) ? "mexican" : "",
+    /\b(?:more|lots? of|maximum) variety|don'?t repeat|avoid repeats?\b/i.test(prompt) ? "variety" : "",
+    /\breuse ingredients?|repeat ingredients?|minimi[sz]e waste|less waste\b/i.test(prompt) ? "ingredient-reuse" : "",
   ].filter(Boolean);
   const exclusions = [
     noFish ? "fish" : "",
@@ -496,6 +641,11 @@ export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
     noRice ? "rice" : "",
     noPork ? "pork" : "",
     noDairy ? "dairy" : "",
+    noEggs ? "eggs" : "",
+    noPeanuts ? "peanuts" : "",
+    noTreeNuts ? "tree-nuts" : "",
+    noShellfish ? "shellfish" : "",
+    vegetarian ? "meat" : "",
   ].filter(Boolean);
 
   return {
@@ -506,7 +656,8 @@ export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
     people,
     mealSlots: mealSlotsFor(`${prompt}${dailyCalories ? " calories" : ""}`, proteinGrams?.value),
     preferences: [...new Set(preferences)],
-    exclusions,
+    exclusions: [...new Set(exclusions)],
+    priority,
     originalPrompt: prompt,
   };
 }
@@ -702,7 +853,24 @@ function templateAllowed(template: MealTemplate, goal: PlannerGoal) {
   if (goal.exclusions.includes("rice") && (template.tags.includes("rice") || /\brice\b/.test(ingredientText))) return false;
   if (goal.exclusions.includes("pork") && /pork|bacon|ham|sausage/.test(ingredientText)) return false;
   if (goal.exclusions.includes("dairy") && !template.tags.includes("dairy-free") && /milk|yogurt|cheese|cottage|cream|pesto/.test(ingredientText)) return false;
+  if (goal.exclusions.includes("eggs") && /\beggs?|egg whites?\b/.test(ingredientText)) return false;
+  if (goal.exclusions.includes("peanuts") && /peanut/.test(ingredientText)) return false;
+  if (goal.exclusions.includes("tree-nuts") && /almonds?|cashews?|walnuts?|pecans?|pistachios?|hazelnuts?/.test(ingredientText)) return false;
+  if (goal.exclusions.includes("shellfish") && /shrimp|prawn|crab|lobster|shellfish/.test(ingredientText)) return false;
+  if (goal.exclusions.includes("meat") && !template.tags.includes("vegetarian")) return false;
   if (goal.preferences.includes("vegetarian") && !template.tags.includes("vegetarian")) return false;
+  return true;
+}
+
+function proteinBoosterAllowed(booster: ProteinBooster, goal: PlannerGoal) {
+  if (goal.preferences.includes("vegetarian") && !booster.tags.includes("vegetarian")) return false;
+  if (goal.exclusions.includes("meat") && !booster.tags.includes("vegetarian")) return false;
+  if (goal.exclusions.includes("chicken") && booster.tags.includes("chicken")) return false;
+  if (goal.exclusions.includes("ground-beef") && booster.tags.includes("ground-beef")) return false;
+  if (goal.exclusions.includes("dairy") && booster.tags.includes("dairy")) return false;
+  if (goal.exclusions.includes("eggs") && /egg/i.test(booster.name)) return false;
+  if (goal.exclusions.includes("peanuts") && /peanut/i.test(booster.name)) return false;
+  if (goal.exclusions.includes("tree-nuts") && /almond|cashew|walnut|pecan|pistachio|hazelnut/i.test(booster.name)) return false;
   return true;
 }
 
@@ -753,6 +921,20 @@ function mealFromTemplate(template: MealTemplate, day: number, servings: number,
   };
 }
 
+function scaleMeal(meal: PlannedMeal, factor: number): PlannedMeal {
+  const safeFactor = clamp(factor, 0.25, 3.5);
+  return {
+    ...meal,
+    estimatedCaloriesPerServing: Math.max(1, Math.round(meal.estimatedCaloriesPerServing * safeFactor)),
+    estimatedProteinGramsPerServing: Math.max(0, Math.round(meal.estimatedProteinGramsPerServing * safeFactor)),
+    estimatedCostPerServing: cleanNumber(meal.estimatedCostPerServing * safeFactor, 2),
+    ingredients: meal.ingredients.map((ingredient) => ({
+      ...ingredient,
+      amount: cleanNumber(ingredient.amount * safeFactor, 3),
+    })),
+  };
+}
+
 function applyGoalPortions(meals: PlannedMeal[], goal: PlannerGoal) {
   const targetCalories = goal.dailyCalories?.value;
   const targetProtein = goal.proteinGrams?.value;
@@ -766,16 +948,7 @@ function applyGoalPortions(meals: PlannedMeal[], goal: PlannerGoal) {
     const calorieFactor = targetCalories ? targetCalories / Math.max(1, dayCalories) : 1;
     const proteinFactor = !targetCalories && targetProtein ? targetProtein / Math.max(1, dayProtein) : 1;
     const portionFactor = clamp(targetCalories ? calorieFactor : proteinFactor, 0.5, 2.5);
-    return {
-      ...meal,
-      estimatedCaloriesPerServing: Math.round(meal.estimatedCaloriesPerServing * portionFactor),
-      estimatedProteinGramsPerServing: Math.round(meal.estimatedProteinGramsPerServing * portionFactor),
-      estimatedCostPerServing: cleanNumber(meal.estimatedCostPerServing * portionFactor, 2),
-      ingredients: meal.ingredients.map((ingredient) => ({
-        ...ingredient,
-        amount: cleanNumber(ingredient.amount * portionFactor, 3),
-      })),
-    };
+    return scaleMeal(meal, portionFactor);
   });
 }
 
@@ -788,25 +961,84 @@ function planEstimates(meals: PlannedMeal[], days: number) {
   };
 }
 
-function goalWarningsFor(goal: PlannerGoal, estimates: ReturnType<typeof planEstimates>) {
-  const warnings: string[] = [];
-  if (
-    goal.proteinGrams
-    && estimates.estimatedDailyProteinGrams < goal.proteinGrams.value
-  ) {
-    warnings.push(
-      `This draft estimates ${estimates.estimatedDailyProteinGrams}g protein per day, below the ${goal.proteinGrams.value}g goal. Adjust meals before shopping.`,
-    );
-  }
-  if (
-    goal.dailyCalories
-    && Math.abs(estimates.estimatedDailyCalories - goal.dailyCalories.value) > goal.dailyCalories.value * 0.1
-  ) {
-    warnings.push(
-      `This draft estimates ${estimates.estimatedDailyCalories.toLocaleString()} calories per day, outside the ${goal.dailyCalories.value.toLocaleString()}-calorie target range.`,
-    );
-  }
-  return warnings;
+function calorieStatus(value: number, target: number | undefined): PlanCheckStatus {
+  if (!target) return "not-requested";
+  const difference = Math.abs(value - target) / target;
+  if (difference <= CALORIE_TOLERANCE_PERCENT) return "within";
+  if (difference <= CALORIE_CLOSE_PERCENT) return "close";
+  return "outside";
+}
+
+function proteinStatus(value: number, target: number | undefined): PlanCheckStatus {
+  if (!target) return "not-requested";
+  if (value >= target) return "within";
+  if (value >= target * PROTEIN_MINIMUM_PERCENT) return "close";
+  return "outside";
+}
+
+function budgetStatus(value: number, target: number | undefined): PlanCheckStatus {
+  if (!target) return "not-requested";
+  if (value <= target) return "within";
+  if (value <= target * (1 + BUDGET_CLOSE_PERCENT)) return "close";
+  return "outside";
+}
+
+export function evaluateMealPlanGoal(meals: PlannedMeal[], goal: PlannerGoal): PlanGoalEvaluation {
+  const daily = Array.from({ length: goal.days.value }, (_, index) => {
+    const day = index + 1;
+    const dayMeals = meals.filter((meal) => meal.day === day);
+    const calories = dayMeals.reduce((total, meal) => total + meal.estimatedCaloriesPerServing, 0);
+    const proteinGrams = dayMeals.reduce((total, meal) => total + meal.estimatedProteinGramsPerServing, 0);
+    return {
+      day,
+      calories,
+      proteinGrams,
+      calorieStatus: calorieStatus(calories, goal.dailyCalories?.value),
+      proteinStatus: proteinStatus(proteinGrams, goal.proteinGrams?.value),
+    };
+  });
+  const estimatedCostDollars = cleanNumber(
+    meals.reduce((total, meal) => total + meal.estimatedCostPerServing * meal.servings, 0),
+    2,
+  );
+  const currentBudgetStatus = budgetStatus(estimatedCostDollars, goal.budgetDollars?.value);
+  const unmetConstraints: PlanConstraintPriority[] = [];
+  if (goal.dailyCalories && daily.some((day) => day.calorieStatus !== "within")) unmetConstraints.push("calories");
+  if (goal.proteinGrams && daily.some((day) => day.proteinStatus !== "within")) unmetConstraints.push("protein");
+  if (goal.budgetDollars && currentBudgetStatus !== "within") unmetConstraints.push("budget");
+  const statuses = [
+    ...daily.flatMap((day) => [day.calorieStatus, day.proteinStatus]),
+    currentBudgetStatus,
+  ].filter((status) => status !== "not-requested");
+  const status: PlanQualityStatus = statuses.every((item) => item === "within")
+    ? "MEETS_GOALS"
+    : statuses.every((item) => item === "within" || item === "close")
+      ? "CLOSE_TO_GOALS"
+      : "CONFLICTING_GOALS";
+  return {
+    status,
+    daily,
+    estimatedCostDollars,
+    budgetStatus: currentBudgetStatus,
+    unmetConstraints,
+    calorieTolerancePercent: CALORIE_TOLERANCE_PERCENT * 100,
+    proteinMinimumPercent: PROTEIN_MINIMUM_PERCENT * 100,
+    budgetTolerancePercent: BUDGET_CLOSE_PERCENT * 100,
+  };
+}
+
+function goalWarningsFor(goal: PlannerGoal, evaluation: PlanGoalEvaluation) {
+  if (evaluation.status !== "CONFLICTING_GOALS") return [];
+  const calorieCopy = goal.dailyCalories
+    ? `${Math.round(evaluation.daily.reduce((total, day) => total + day.calories, 0) / Math.max(1, evaluation.daily.length)).toLocaleString()} cal/day`
+    : undefined;
+  const proteinCopy = goal.proteinGrams
+    ? `${Math.round(evaluation.daily.reduce((total, day) => total + day.proteinGrams, 0) / Math.max(1, evaluation.daily.length))}g protein/day`
+    : undefined;
+  const budgetCopy = goal.budgetDollars ? `$${evaluation.estimatedCostDollars.toFixed(2)} planning estimate` : undefined;
+  return [
+    `These targets conflict. Closest plan: ${[calorieCopy, proteinCopy, budgetCopy].filter(Boolean).join(" · ")}. Choose what matters most before shopping.`,
+  ];
 }
 
 function budgetIntentFor(meals: PlannedMeal[], goal: PlannerGoal) {
@@ -832,37 +1064,311 @@ function planTitle(goal: PlannerGoal) {
   return `${goal.days.value}-day meal plan`;
 }
 
-export function generateMealPlan(draft: PlannerGoalDraft): MealPlan {
-  const goal = normalizePlannerGoal(draft);
+function createCandidateMeals(goal: PlannerGoal) {
   const seed = Number.parseInt(stableHash(JSON.stringify(goal)), 36) || 0;
   const meals: PlannedMeal[] = [];
   for (let day = 1; day <= goal.days.value; day += 1) {
     goal.mealSlots.forEach((slot, slotIndex) => {
       const candidates = candidateTemplates(slot, goal);
-      const rotationSize = goal.mealSlots.length >= 3 && (slot === "breakfast" || slot === "snack")
-        ? 1
-        : Math.min(candidates.length, goal.mealSlots.length >= 3 ? 2 : 3);
+      const wantsVariety = goal.preferences.includes("variety");
+      const wantsReuse = goal.preferences.includes("ingredient-reuse") || Boolean(goal.budgetDollars);
+      const defaultRotation = goal.mealSlots.length >= 3 && (slot === "breakfast" || slot === "snack") ? 1 : 2;
+      const reuseRotation = slot === "breakfast" || slot === "snack" ? 1 : 2;
+      const rotationSize = Math.min(candidates.length, wantsVariety ? 4 : wantsReuse ? reuseRotation : defaultRotation);
       const template = candidates[(seed + day + slotIndex) % Math.max(1, rotationSize)]
-        ?? MEAL_TEMPLATES.find((item) => item.slot === slot && templateAllowed(item, goal))
-        ?? MEAL_TEMPLATES.find((item) => item.slot === slot)!;
+        ?? MEAL_TEMPLATES.find((item) => item.slot === slot && templateAllowed(item, goal));
+      if (!template) return;
       meals.push(mealFromTemplate(template, day, goal.people.value));
     });
   }
-  const portionedMeals = applyGoalPortions(meals, goal);
-  const consolidated = consolidatePlanIngredients(portionedMeals);
-  const estimates = planEstimates(portionedMeals, goal.days.value);
-  const goalWarnings = goalWarningsFor(goal, estimates);
+  return applyGoalPortions(meals, goal);
+}
+
+function boosterScore(booster: ProteinBooster, meal: PlannedMeal, goal: PlannerGoal) {
+  let score = (booster.proteinPerUnit / booster.caloriesPerUnit) * 100;
+  for (const preference of goal.preferences) {
+    if (booster.tags.includes(preference)) score += preference === "chicken" ? 18 : 4;
+  }
+  if (/\b(?:mostly|more|prefer)\s+chicken\b/i.test(goal.originalPrompt) && booster.tags.includes("chicken")) score += 30;
+  if (/\bbeef\s+is\s+(?:okay|ok|fine)\b/i.test(goal.originalPrompt) && booster.tags.includes("ground-beef")) score -= 4;
+  if (meal.ingredients.some((ingredient) => ingredientKey(ingredient.name) === ingredientKey(booster.name))) score += 7;
+  if (goal.priority === "budget" || goal.budgetDollars) score += (booster.proteinPerUnit / booster.costPerUnit) * 0.35;
+  return score;
+}
+
+function boosterForMeal(meal: PlannedMeal, goal: PlannerGoal) {
+  return PROTEIN_BOOSTERS
+    .filter((booster) => booster.slots.includes(meal.slot) && proteinBoosterAllowed(booster, goal))
+    .sort((left, right) => boosterScore(right, meal, goal) - boosterScore(left, meal, goal)
+      || left.name.localeCompare(right.name))[0];
+}
+
+function addBoosterIngredient(
+  ingredients: MealIngredientNeed[],
+  booster: ProteinBooster,
+  units: number,
+) {
+  const match = ingredients.find((ingredient) => ingredientKey(ingredient.name) === ingredientKey(booster.name) && ingredient.unit === booster.unit);
+  if (match) {
+    return ingredients.map((ingredient) => ingredient === match
+      ? { ...ingredient, amount: cleanNumber(ingredient.amount + units, 3) }
+      : ingredient);
+  }
+  return [...ingredients, { name: booster.name, amount: cleanNumber(units, 3), unit: booster.unit }];
+}
+
+function proteinAdjustedMeal(
+  meal: PlannedMeal,
+  booster: ProteinBooster,
+  calorieShift: number,
+  addCalories: boolean,
+) {
+  const baseShare = addCalories ? 1 : clamp(1 - calorieShift / Math.max(1, meal.estimatedCaloriesPerServing), MIN_BASE_MEAL_SHARE, 1);
+  const scaled = scaleMeal(meal, baseShare);
+  const units = calorieShift / booster.caloriesPerUnit;
+  const alreadyNamed = meal.ingredients.some((ingredient) => ingredientKey(ingredient.name) === ingredientKey(booster.name));
+  return {
+    ...scaled,
+    name: alreadyNamed || meal.name.toLowerCase().includes(booster.label.toLowerCase())
+      ? meal.name
+      : `${meal.name} with ${booster.label}`,
+    estimatedCaloriesPerServing: Math.round(scaled.estimatedCaloriesPerServing + calorieShift),
+    estimatedProteinGramsPerServing: Math.round(scaled.estimatedProteinGramsPerServing + units * booster.proteinPerUnit),
+    estimatedCostPerServing: cleanNumber(scaled.estimatedCostPerServing + units * booster.costPerUnit, 2),
+    ingredients: addBoosterIngredient(scaled.ingredients, booster, units),
+  } satisfies PlannedMeal;
+}
+
+function increaseDayProtein(
+  meals: PlannedMeal[],
+  day: number,
+  goal: PlannerGoal,
+) {
+  const target = goal.proteinGrams?.value;
+  if (!target) return { meals, decisions: [] as PlannerRevisionDecision[] };
+  let nextMeals = [...meals];
+  let dayProtein = nextMeals.filter((meal) => meal.day === day)
+    .reduce((total, meal) => total + meal.estimatedProteinGramsPerServing, 0);
+  let deficit = Math.max(0, target - dayProtein);
+  const decisions: PlannerRevisionDecision[] = [];
+  const ranked = nextMeals
+    .filter((meal) => meal.day === day)
+    .map((meal) => ({ meal, booster: boosterForMeal(meal, goal) }))
+    .filter((entry): entry is { meal: PlannedMeal; booster: ProteinBooster } => Boolean(entry.booster))
+    .sort((left, right) => {
+      const leftGain = left.booster.proteinPerUnit / left.booster.caloriesPerUnit
+        - left.meal.estimatedProteinGramsPerServing / Math.max(1, left.meal.estimatedCaloriesPerServing);
+      const rightGain = right.booster.proteinPerUnit / right.booster.caloriesPerUnit
+        - right.meal.estimatedProteinGramsPerServing / Math.max(1, right.meal.estimatedCaloriesPerServing);
+      return rightGain - leftGain || left.meal.id.localeCompare(right.meal.id);
+    });
+
+  for (const { meal: originalMeal, booster } of ranked) {
+    if (deficit <= 0) break;
+    const meal = nextMeals.find((candidate) => candidate.id === originalMeal.id) ?? originalMeal;
+    const mealDensity = meal.estimatedProteinGramsPerServing / Math.max(1, meal.estimatedCaloriesPerServing);
+    const boosterDensity = booster.proteinPerUnit / booster.caloriesPerUnit;
+    const densityGain = boosterDensity - mealDensity;
+    if (densityGain <= 0) continue;
+    let maxShift = Math.min(
+      meal.estimatedCaloriesPerServing * (1 - MIN_BASE_MEAL_SHARE),
+      booster.maxUnitsPerMeal * booster.caloriesPerUnit,
+    );
+    if (goal.priority === "budget" && goal.budgetDollars) {
+      const currentPlanCost = nextMeals.reduce((total, candidate) => (
+        total + candidate.estimatedCostPerServing * candidate.servings
+      ), 0);
+      const remainingBudget = Math.max(0, goal.budgetDollars.value - currentPlanCost);
+      const addedCostPerCalorie = booster.costPerUnit / booster.caloriesPerUnit
+        - meal.estimatedCostPerServing / Math.max(1, meal.estimatedCaloriesPerServing);
+      if (addedCostPerCalorie > 0) {
+        maxShift = Math.min(maxShift, remainingBudget / addedCostPerCalorie / meal.servings);
+      }
+    }
+    const calorieShift = Math.min(maxShift, deficit / densityGain);
+    if (calorieShift < 1) continue;
+    const replacement = proteinAdjustedMeal(meal, booster, calorieShift, false);
+    nextMeals = nextMeals.map((candidate) => candidate.id === meal.id ? replacement : candidate);
+    dayProtein += replacement.estimatedProteinGramsPerServing - meal.estimatedProteinGramsPerServing;
+    deficit = Math.max(0, target - dayProtein);
+    decisions.push({ type: "increase-lean-protein", day, ingredient: booster.name });
+  }
+
+  if (deficit > 0 && goal.priority === "protein" && ranked.length) {
+    for (const { meal: originalMeal, booster } of ranked) {
+      if (deficit <= 0) break;
+      const meal = nextMeals.find((candidate) => candidate.id === originalMeal.id) ?? originalMeal;
+      const units = Math.min(booster.maxUnitsPerMeal, deficit / booster.proteinPerUnit);
+      if (units <= 0) continue;
+      const replacement = proteinAdjustedMeal(meal, booster, units * booster.caloriesPerUnit, true);
+      nextMeals = nextMeals.map((candidate) => candidate.id === meal.id ? replacement : candidate);
+      deficit = Math.max(0, deficit - units * booster.proteinPerUnit);
+      decisions.push({ type: "increase-lean-protein", day, ingredient: booster.name });
+    }
+  }
+  return { meals: nextMeals, decisions };
+}
+
+function scaleDaysToCalories(meals: PlannedMeal[], goal: PlannerGoal) {
+  const target = goal.dailyCalories?.value;
+  if (!target) return { meals, decisions: [] as PlannerRevisionDecision[] };
+  let nextMeals = [...meals];
+  const decisions: PlannerRevisionDecision[] = [];
+  for (let day = 1; day <= goal.days.value; day += 1) {
+    const dayMeals = nextMeals.filter((meal) => meal.day === day);
+    const total = dayMeals.reduce((sum, meal) => sum + meal.estimatedCaloriesPerServing, 0);
+    if (!total || calorieStatus(total, target) === "within") continue;
+    const factor = target / total;
+    nextMeals = nextMeals.map((meal) => meal.day === day ? scaleMeal(meal, factor) : meal);
+    decisions.push({ type: "scale-calories", day });
+  }
+  return { meals: nextMeals, decisions };
+}
+
+function lowerEstimatedCost(meals: PlannedMeal[], goal: PlannerGoal) {
+  const target = goal.budgetDollars?.value;
+  if (!target) return { meals, decisions: [] as PlannerRevisionDecision[] };
+  let estimatedCost = meals.reduce((total, meal) => total + meal.estimatedCostPerServing * meal.servings, 0);
+  const decisions: PlannerRevisionDecision[] = [];
+  const options = meals.flatMap((meal) => {
+    const cheapest = [...candidateTemplates(meal.slot, goal)].sort((left, right) => (
+      left.cost / left.calories - right.cost / right.calories
+      || right.protein / right.calories - left.protein / left.calories
+      || left.id.localeCompare(right.id)
+    ))[0];
+    if (!cheapest || cheapest.id === meal.templateId) return [];
+    const base = mealFromTemplate(cheapest, meal.day, meal.servings, meal.id);
+    const replacement = scaleMeal(base, meal.estimatedCaloriesPerServing / Math.max(1, base.estimatedCaloriesPerServing));
+    const savings = (meal.estimatedCostPerServing - replacement.estimatedCostPerServing) * meal.servings;
+    if (savings <= 0) return [];
+    const currentTemplate = MEAL_TEMPLATES.find((template) => template.id === meal.templateId);
+    const preferenceLoss = goal.preferences.reduce((total, preference) => (
+      total + (currentTemplate?.tags.includes(preference) && !cheapest.tags.includes(preference)
+        ? preference === "chicken" ? 100 : 10
+        : 0)
+    ), 0);
+    return [{ meal, replacement, savings, preferenceLoss }];
+  }).sort((left, right) => left.preferenceLoss - right.preferenceLoss
+    || right.savings - left.savings
+    || left.meal.id.localeCompare(right.meal.id));
+  const replacements = new Map<string, PlannedMeal>();
+  for (const option of options) {
+    if (estimatedCost <= target) break;
+    replacements.set(option.meal.id, option.replacement);
+    estimatedCost -= option.savings;
+    decisions.push({ type: "lower-estimated-cost", day: option.meal.day });
+  }
+  let nextMeals = replacements.size
+    ? meals.map((meal) => replacements.get(meal.id) ?? meal)
+    : meals;
+  if (estimatedCost > target && goal.priority === "budget") {
+    const factor = target / estimatedCost;
+    nextMeals = nextMeals.map((meal) => scaleMeal(meal, factor));
+    for (const day of new Set(nextMeals.map((meal) => meal.day))) {
+      decisions.push({ type: "lower-estimated-cost", day });
+    }
+  }
+  return { meals: nextMeals, decisions };
+}
+
+function revisionOrder(goal: PlannerGoal) {
+  const standard: PlanConstraintPriority[] = ["calories", "protein", "budget"];
+  return goal.priority ? [goal.priority, ...standard.filter((item) => item !== goal.priority)] : standard;
+}
+
+function reviseCandidate(meals: PlannedMeal[], goal: PlannerGoal, evaluation: PlanGoalEvaluation) {
+  if (goal.priority === "protein" && evaluation.daily.every((day) => day.proteinStatus === "within" || day.proteinStatus === "not-requested")) {
+    return { meals, decisions: [] as PlannerRevisionDecision[] };
+  }
+  if (goal.priority === "budget" && (evaluation.budgetStatus === "within" || evaluation.budgetStatus === "not-requested")) {
+    return { meals, decisions: [] as PlannerRevisionDecision[] };
+  }
+  for (const constraint of revisionOrder(goal)) {
+    if (!evaluation.unmetConstraints.includes(constraint)) continue;
+    if (constraint === "calories") {
+      const revised = scaleDaysToCalories(meals, goal);
+      if (revised.decisions.length) return revised;
+    }
+    if (constraint === "protein") {
+      let nextMeals = meals;
+      const decisions: PlannerRevisionDecision[] = [];
+      for (const day of evaluation.daily.filter((item) => item.proteinStatus !== "within")) {
+        const revised = increaseDayProtein(nextMeals, day.day, goal);
+        nextMeals = revised.meals;
+        decisions.push(...revised.decisions);
+      }
+      if (decisions.length) return { meals: nextMeals, decisions };
+    }
+    if (constraint === "budget") {
+      const revised = lowerEstimatedCost(meals, goal);
+      if (revised.decisions.length) return revised;
+    }
+  }
+  return { meals, decisions: [] as PlannerRevisionDecision[] };
+}
+
+function finishMealPlan(
+  goal: PlannerGoal,
+  meals: PlannedMeal[],
+  trace: PlannerOptimizationAttempt[],
+) {
+  const consolidated = consolidatePlanIngredients(meals);
+  const estimates = planEstimates(meals, goal.days.value);
+  const evaluation = evaluateMealPlanGoal(meals, goal);
+  const goalWarnings = goalWarningsFor(goal, evaluation);
   return {
     schemaVersion: 1,
     id: `plan-${stableHash(JSON.stringify(goal))}`,
     title: planTitle(goal),
     goal,
-    meals: portionedMeals,
+    meals,
     ...consolidated,
     ...estimates,
+    qualityStatus: evaluation.status,
+    goalEvaluation: evaluation,
+    optimization: {
+      attempts: trace.length,
+      maxAttempts: MAX_PLANNER_ATTEMPTS,
+      trace,
+    },
     ...(goalWarnings.length ? { goalWarnings } : {}),
-    ...(budgetIntentFor(portionedMeals, goal) ? { budgetIntent: budgetIntentFor(portionedMeals, goal) } : {}),
-  };
+    ...(budgetIntentFor(meals, goal) ? { budgetIntent: budgetIntentFor(meals, goal) } : {}),
+  } satisfies MealPlan;
+}
+
+export function* createMealPlanWorkflow(draft: PlannerGoalDraft): Generator<PlannerProgress, MealPlan> {
+  yield { stage: "building", message: "Building meals around your goals…" };
+  const goal = normalizePlannerGoal(draft);
+  let meals = createCandidateMeals(goal);
+  const trace: PlannerOptimizationAttempt[] = [];
+  for (let attempt = 1; attempt <= MAX_PLANNER_ATTEMPTS; attempt += 1) {
+    yield { stage: "checking", message: "Checking calories, protein, and budget…", attempt };
+    const evaluation = evaluateMealPlanGoal(meals, goal);
+    const estimates = planEstimates(meals, goal.days.value);
+    const traceEntry: PlannerOptimizationAttempt = {
+      attempt,
+      dailyCalories: estimates.estimatedDailyCalories,
+      dailyProteinGrams: estimates.estimatedDailyProteinGrams,
+      estimatedCostDollars: evaluation.estimatedCostDollars,
+      unmetConstraints: [...evaluation.unmetConstraints],
+      revisions: [],
+    };
+    trace.push(traceEntry);
+    if (evaluation.status === "MEETS_GOALS") break;
+    yield { stage: "adjusting", message: "Adjusting the plan…", attempt };
+    const revised = reviseCandidate(meals, goal, evaluation);
+    traceEntry.revisions = revised.decisions;
+    if (!revised.decisions.length) break;
+    meals = revised.meals;
+  }
+  return finishMealPlan(goal, meals, trace);
+}
+
+export function generateMealPlan(draft: PlannerGoalDraft): MealPlan {
+  const workflow = createMealPlanWorkflow(draft);
+  let step = workflow.next();
+  while (!step.done) step = workflow.next();
+  return step.value;
 }
 
 /** Regenerates the contents of an existing planning session without changing its lineage. */
@@ -873,12 +1379,16 @@ export function regenerateMealPlan(previous: MealPlan, draft: PlannerGoalDraft):
 function rebuildPlan(plan: MealPlan, meals: PlannedMeal[]): MealPlan {
   const consolidated = consolidatePlanIngredients(meals);
   const estimates = planEstimates(meals, plan.goal.days.value);
-  const goalWarnings = goalWarningsFor(plan.goal, estimates);
+  const evaluation = evaluateMealPlanGoal(meals, plan.goal);
+  const goalWarnings = goalWarningsFor(plan.goal, evaluation);
   return {
     ...plan,
     meals,
     ...consolidated,
     ...estimates,
+    qualityStatus: evaluation.status,
+    goalEvaluation: evaluation,
+    optimization: undefined,
     ...(goalWarnings.length ? { goalWarnings } : { goalWarnings: undefined }),
     ...(plan.goal.budgetDollars ? { budgetIntent: budgetIntentFor(meals, plan.goal) } : {}),
   };

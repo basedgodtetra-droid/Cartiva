@@ -3492,6 +3492,11 @@
   color: var(--cartiva-green-hover);
 }
 
+.planAdjustments button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
 .planAdjustments svg {
   width: 13px;
   height: 13px;
@@ -3708,6 +3713,105 @@
   color: var(--cartiva-muted);
   font-size: 10px;
   white-space: nowrap;
+}
+
+.planQualitySummary {
+  display: grid;
+  margin-top: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #cfe4da;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f3f8f5;
+}
+
+.planQualitySummary > div:not(.planPriorityChoices) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.planQualitySummary > div > span,
+.planPriorityChoices > span {
+  color: var(--cartiva-muted);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.planQualitySummary > div > strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planQualitySummary > p {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin: 0;
+  color: var(--cartiva-green-hover);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.planQualitySummary > p svg {
+  width: 14px;
+  height: 14px;
+}
+
+.planQualitySummary > p small {
+  color: var(--cartiva-muted);
+  font-size: 10px;
+}
+
+.planQualitySummary[data-status="CONFLICTING_GOALS"] {
+  border-color: #ead9b9;
+  background: var(--cartiva-warning);
+}
+
+.planQualitySummary[data-status="CONFLICTING_GOALS"] > p {
+  color: #74572d;
+}
+
+.planPriorityChoices {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #ead9b9;
+  padding-top: 9px;
+}
+
+.planPriorityChoices button {
+  min-height: 36px;
+  border: 1px solid #d7c49e;
+  border-radius: 18px;
+  padding: 0 12px;
+  background: #fff;
+  color: #5f4928;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.planPriorityChoices button:hover,
+.planPriorityChoices button[data-selected="true"] {
+  border-color: var(--cartiva-green);
+  color: var(--cartiva-green-hover);
+}
+
+.planPriorityChoices button:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .planResultTabs {
@@ -4615,6 +4719,15 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .planQualitySummary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .planQualitySummary > p {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
   .ingredientCommit {
     margin-right: -20px;
     margin-bottom: -20px;
@@ -4704,6 +4817,25 @@
 
   .planSummaryGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planQualitySummary {
+    grid-template-columns: 1fr;
+  }
+
+  .planQualitySummary > p,
+  .planPriorityChoices {
+    grid-column: 1;
+  }
+
+  .planQualitySummary > div > strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .planPriorityChoices button {
+    min-height: 44px;
   }
 
   .planResultTabs {
