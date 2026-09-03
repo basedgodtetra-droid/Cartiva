@@ -140,9 +140,9 @@ export function comparisonBasketCanonicalPayload(
 
 const QUANTITY_SUFFIX = /\s+(?:x|×)\s*(\d{1,2})\s*$/i;
 const QUANTITY_PREFIX_X = /^(\d{1,2})\s*(?:x|×)\s+(?=\S)/i;
-const LEADING_CONTAINER_QUANTITY = /^(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)\s+(?:of\s+)?(.+)$/i;
-const TRAILING_CONTAINER_QUANTITY = /^(.+?)[,\s]+(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)$/i;
-const LEADING_VOLUME_QUANTITY = /^(\d{1,2})\s+(gallons?|quarts?|pints?)\s+(?:of\s+)?(.+)$/i;
+const LEADING_CONTAINER_QUANTITY = /^(\d{1,2})\s+(cans?|canisters?|containers?|bottles?|jars?|bags?|boxes?|cartons?|pouch(?:es)?|trays?|tubs?|rolls?|bunches?|loaves?)\s+(?:of\s+)?(.+)$/i;
+const TRAILING_CONTAINER_QUANTITY = /^(.+?)[,\s]+(\d{1,2})\s+(cans?|canisters?|containers?|bottles?|jars?|bags?|boxes?|cartons?|pouch(?:es)?|trays?|tubs?|rolls?|bunches?|loaves?)$/i;
+const LEADING_VOLUME_QUANTITY = /^(\d{1,2})\s+(gallons?|gal|quarts?|qt|pints?|pt)\s+(?:of\s+)?(.+)$/i;
 const LEADING_EACH_QUANTITY = /^(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)$/i;
 const TRAILING_EACH_QUANTITY = /^(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)[,\s]+(\d{1,2})(?:\s+each)?$/i;
 const HOUSEHOLD_ROLL_PACKAGE = /^(?:(?:paper\s+towels?|toilet\s+paper|bath\s+tissue)[,\s]+\d{1,3}\s+rolls?|\d{1,3}\s+rolls?\s+(?:of\s+)?(?:paper\s+towels?|toilet\s+paper|bath\s+tissue))$/i;
@@ -162,6 +162,7 @@ function singularContainer(value: string) {
   if (normalized === "boxes") return "box";
   if (normalized === "bunches") return "bunch";
   if (normalized === "loaves") return "loaf";
+  if (normalized === "pouches") return "pouch";
   return normalized.replace(/s$/, "");
 }
 
@@ -185,6 +186,8 @@ function dozenMultiplier(value: string | undefined) {
  */
 export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQuantity {
   const input = cleanLine(rawInput);
+  const hasTerminalTotal = /\s+total\s*$/i.test(input);
+  const inputWithoutTerminalTotal = cleanLine(input.replace(/\s+total\s*$/i, ""));
   const suffix = input.match(QUANTITY_SUFFIX);
   const suffixQuantity = safeQuantity(suffix?.[1]);
   if (suffix && suffixQuantity) {
@@ -207,7 +210,7 @@ export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQ
 
   // For household paper, a roll count identifies the retailer's sellable
   // package. It is not a request for that many separate cart lines.
-  if (HOUSEHOLD_ROLL_PACKAGE.test(input)) {
+  if (HOUSEHOLD_ROLL_PACKAGE.test(input) || HOUSEHOLD_ROLL_PACKAGE.test(inputWithoutTerminalTotal)) {
     return {
       quantity: 1,
       searchText: input,
@@ -238,7 +241,23 @@ export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQ
     };
   }
 
-  const container = input.match(LEADING_CONTAINER_QUANTITY);
+  if (
+    hasTerminalTotal
+    && (
+      LEADING_CONTAINER_QUANTITY.test(inputWithoutTerminalTotal)
+      || TRAILING_CONTAINER_QUANTITY.test(inputWithoutTerminalTotal)
+    )
+  ) {
+    return {
+      quantity: 1,
+      searchText: input,
+      origin: AttributeOrigin.USER_EXPLICIT,
+    };
+  }
+
+  const container = hasTerminalTotal
+    ? null
+    : inputWithoutTerminalTotal.match(LEADING_CONTAINER_QUANTITY);
   const containerQuantity = safeQuantity(container?.[1]);
   if (container && containerQuantity) {
     const unit = singularContainer(container[2]);
@@ -250,7 +269,9 @@ export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQ
     };
   }
 
-  const trailingContainer = input.match(TRAILING_CONTAINER_QUANTITY);
+  const trailingContainer = hasTerminalTotal
+    ? null
+    : inputWithoutTerminalTotal.match(TRAILING_CONTAINER_QUANTITY);
   const trailingContainerQuantity = safeQuantity(trailingContainer?.[2]);
   if (trailingContainer && trailingContainerQuantity) {
     const unit = singularContainer(trailingContainer[3]);
@@ -356,19 +377,21 @@ export interface RetailerHandoffMatchCandidate {
 export function isRetailerHandoffAcceptedMatch(
   result: RetailerHandoffMatchCandidate | null | undefined,
 ) {
-  const resolutionAccepted = result?.resolution === undefined
-    ? result?.fulfillment === undefined
-    : result.resolution === "matched"
+  const legacyResult = result?.resolution === undefined
+    && result?.fulfillment === undefined;
+  const verifiedResolution = result?.fulfillment?.approvalRequired === false
+    && (
+      result.resolution === "matched"
       || (
         result.resolution === "multi_package_fulfillment"
-        && result.fulfillment?.kind === "multi_package"
-      );
+        && result.fulfillment.kind === "multi_package"
+      )
+    );
   return Boolean(
     result?.status === "matched"
-    && resolutionAccepted
+    && (legacyResult || verifiedResolution)
     && result.recommended?.availabilityStatus === "in_stock"
     && result.recommended.cartEligible
-    && result.fulfillment?.approvalRequired !== true,
   );
 }
 

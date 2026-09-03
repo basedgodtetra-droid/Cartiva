@@ -203,6 +203,37 @@ describe("Cartiva comparison handoff UI", () => {
     expect(html).not.toContain("No match");
   });
 
+  it("shows a safe, editable review candidate without treating it as cart-ready", () => {
+    const reviewCandidate: KrogerMatchResult = {
+      ...result,
+      status: "review",
+      resolution: "needs_choice",
+      fulfillment: {
+        kind: "single_package",
+        cartQuantity: 1,
+        packageCount: 1,
+        requestedBaseAmount: 8,
+        suppliedBaseAmount: 14,
+        baseUnit: "oz",
+        overageBaseAmount: 6,
+        overagePercent: 75,
+        label: "1 × 14 oz package · 14 oz total (75% extra)",
+        approvalRequired: true,
+      },
+      explanation: "This package supplies 75% more than requested, so Cartiva will not add it automatically. Edit the amount or choose another package.",
+    };
+
+    const html = markup({ phase: "idle" }, true, "connected", reviewCandidate);
+    expect(html).toContain("Kroger Large Grade A Eggs");
+    expect(html).toContain("75% more than requested");
+    expect(html).toContain("Needs your choice");
+    expect(html).toContain("Review 1 item");
+    expect(html).toContain('data-state="review"');
+    expect(html).toContain('data-complete="false"');
+    expect(html).not.toContain("Kroger basket receipt");
+    expect(html).not.toContain(">Available<");
+  });
+
   it("shows an expired connection as reconnectable without claiming transfer success", () => {
     const html = markup({
       phase: "error",

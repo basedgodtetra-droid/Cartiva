@@ -50,6 +50,8 @@ const FLAVORS = [
   "zero",
 ];
 
+const PACKAGE_SIZE_EPSILON = 0.0001;
+
 function normalize(value: string) {
   return value
     .toLowerCase()
@@ -74,6 +76,8 @@ const TERM_MATCH_ALIASES: Record<string, string[]> = {
   garbanzo: ["chickpea", "chickpeas", "peas"],
   light: ["lite"],
   lite: ["light"],
+  refill: ["refills"],
+  refills: ["refill"],
 };
 
 function titleMatchesImportantWord(word: string, titleWords: Set<string>) {
@@ -377,12 +381,15 @@ function scoreProduct(
       reasons.push("pack count does not match the request");
     } else {
       const sizeRatio = product.size.baseAmount / requestedSize.baseAmount;
-      const difference = Math.abs(1 - sizeRatio);
+      const upwardDifference = sizeRatio - 1;
+      const suppliesRequestedAmount = (
+        product.size.baseAmount + PACKAGE_SIZE_EPSILON >= requestedSize.baseAmount
+      );
       // Retailer package labels often differ by small rounding amounts (for
       // example 15 oz versus 15.5 oz canned beans). Five percent preserves
-      // those equivalent shelf units without allowing a smaller package to be
-      // multiplied into a supposedly exact package request.
-      if (difference <= 0.05) {
+      // a slightly larger equivalent shelf unit, but an exact package request
+      // must never silently receive less product than the shopper requested.
+      if (suppliesRequestedAmount && upwardDifference <= 0.05) {
         score += 18;
         reasons.push(`matches ${requestedSize.label}`);
       } else {

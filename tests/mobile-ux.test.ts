@@ -7,6 +7,7 @@ import {
   comparisonHeading,
   comparisonRecovery,
   handoffPresentation,
+  matchCandidatePresentation,
   matchSectionLabel,
   retailerBanner,
 } from "../mobile/src/services/mobile-ux";
@@ -30,6 +31,55 @@ describe("mobile shopper-facing retailer presentation", () => {
     });
     expect(availabilityPresentation("unknown", "King Soopers").detail).toContain("did not provide enough");
     expect(availabilityPresentation("out_of_stock", "King Soopers").statusLabel).toBe("Out of stock");
+  });
+
+  it("presents a recommended review candidate as a warning with its package overage", () => {
+    const presentation = matchCandidatePresentation({
+      confidence: "high",
+      status: "review",
+      resolution: "needs_choice",
+      fulfillment: {
+        kind: "single_package",
+        cartQuantity: 1,
+        packageCount: 1,
+        requestedBaseAmount: 8,
+        suppliedBaseAmount: 14,
+        baseUnit: "oz",
+        overageBaseAmount: 6,
+        overagePercent: 75,
+        label: "1 × 14 oz package · 14 oz total (75% extra)",
+        approvalRequired: true,
+      },
+      explanation: "This package supplies 75% more than requested. Cartiva will not add it automatically.",
+    });
+
+    expect(presentation).toEqual({
+      reviewRequired: true,
+      badgeLabel: "Needs your choice",
+      badgeTone: "warning",
+      fulfillmentLabel: "1 × 14 oz package · 14 oz total (75% extra)",
+      explanation: "This package supplies 75% more than requested. Cartiva will not add it automatically.",
+    });
+  });
+
+  it("keeps an accepted candidate's positive match presentation", () => {
+    expect(matchCandidatePresentation({
+      confidence: "high",
+      status: "matched",
+      resolution: "matched",
+      fulfillment: {
+        kind: "single_package",
+        cartQuantity: 1,
+        packageCount: 1,
+        label: "14 oz",
+        approvalRequired: false,
+      },
+      explanation: "Verified match.",
+    })).toEqual({
+      reviewRequired: false,
+      badgeLabel: "Strong match",
+      badgeTone: "positive",
+    });
   });
 });
 

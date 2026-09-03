@@ -1,8 +1,10 @@
 import { rankProducts } from "./matching";
 import {
   packageFulfillmentForProduct,
+  packageReviewForProduct,
   rankFulfillmentCandidates,
   retailerContainerCompatible,
+  retailerCountUnitCompatible,
 } from "./package-fulfillment";
 import {
   isPackageConstraint,
@@ -216,6 +218,48 @@ function explanationFor(
   return "Verified against the official Kroger catalog at the selected location.";
 }
 
+function confidenceWeight(value: RankedKrogerProduct["confidence"]) {
+  return value === "high" ? 2 : value === "medium" ? 1 : 0;
+}
+
+function rankIdentityReviewCandidates<T extends {
+  product: RankedKrogerProduct;
+  confidence: RankedKrogerProduct["confidence"];
+  score: number;
+}>(candidates: T[]) {
+  return [...candidates].sort((left, right) => (
+    confidenceWeight(right.confidence) - confidenceWeight(left.confidence)
+    || right.score - left.score
+    || left.product.price - right.product.price
+    || left.product.id.localeCompare(right.product.id)
+  ));
+}
+
+function packageReviewExplanation(
+  intent: ProductIntent,
+  product: RankedKrogerProduct,
+  fulfillment?: NonNullable<KrogerMatchResult["fulfillment"]>,
+) {
+  if (fulfillment) {
+    return `Kroger's closest safe package count supplies ${fulfillment.overagePercent ?? 0}% more than requested. Cartiva will not add it automatically; edit the amount or choose another package.`;
+  }
+  const requested = intent.requestedTotal;
+  if (requested && product.size && product.size.kind !== requested.kind) {
+    return `Kroger lists this product by ${product.size.baseUnit}, while your request is measured by ${requested.baseUnit}. Cartiva will not guess a weight-to-volume conversion; edit the amount or choose a package before handoff.`;
+  }
+  if (!product.size) {
+    return "Kroger found the product, but did not provide enough package-size evidence to calculate a safe quantity. Edit the amount or choose a package before handoff.";
+  }
+  if (
+    requested
+    && product.size.kind === requested.kind
+    && product.size.baseAmount > requested.baseAmount * 2
+  ) {
+    return "Kroger's available package is far larger than the requested amount. Cartiva will not calculate or add an excessive quantity automatically; edit the amount or choose another package.";
+  }
+  return "Kroger found the product, but Cartiva could not calculate a safe package quantity within the retailer cart limit. Edit the amount or choose a package before handoff.";
+}
+
 function identityVerificationText(intent: ProductIntent) {
   const container = intent.requestedContainer;
   const containerCarriesProduceForm = container === "can"
@@ -251,6 +295,7 @@ export function rankKrogerProducts(
   const eligible = products.filter((product) => (
     hasMatchEligibleStoreEvidence(product)
     && retailerContainerCompatible(intent, product)
+    && retailerCountUnitCompatible(intent, product)
   ));
   const sourceConstraints = constraints.length ? constraints : intent.constraints;
   // Package constraints are verified from normalized numeric/container data
@@ -290,7 +335,7 @@ export function rankKrogerProducts(
     const identityConstraints = effectiveConstraints.filter((constraint) => (
       !isPackageConstraint(constraint)
     ));
-    const fulfillmentCandidates = eligible.flatMap((product) => {
+    const identityCandidates = eligible.flatMap((product) => {
       const identity = rankEligibleKrogerProducts(
         identityVerificationText({ ...intent, verificationText: intent.fulfillmentText }),
         [product],
@@ -298,19 +343,27 @@ export function rankKrogerProducts(
         preferredIdentity,
       );
       if (!identity.recommended) return [];
+      return [{
+        product: identity.recommended,
+        confidence: identity.recommended.confidence,
+        score: identity.recommended.score,
+      }];
+    });
+    const rankedIdentities = rankIdentityReviewCandidates(identityCandidates);
+    const fulfillmentCandidates = rankedIdentities.flatMap((identity) => {
       const fulfillment = packageFulfillmentForProduct(
         intent,
-        identity.recommended,
+        identity.product,
         cartQuantity,
         true,
       );
       return fulfillment ? [{
         product: {
-          ...identity.recommended,
-          comparablePrice: Number((identity.recommended.price * fulfillment.cartQuantity).toFixed(2)),
+          ...identity.product,
+          comparablePrice: Number((identity.product.price * fulfillment.cartQuantity).toFixed(2)),
         },
-        confidence: identity.recommended.confidence,
-        score: identity.recommended.score,
+        confidence: identity.confidence,
+        score: identity.score,
         fulfillment,
       }] : [];
     });
@@ -331,6 +384,59 @@ export function rankKrogerProducts(
         fulfillment: selected.fulfillment,
         explanation: explanationFor(selected.product, selected.fulfillment),
         verifiedAt: selected.product.checkedAt,
+      };
+    }
+
+    const reviewCandidates = rankedIdentities.flatMap((identity) => {
+      const fulfillment = packageReviewForProduct(intent, identity.product, cartQuantity);
+      return fulfillment ? [{
+        product: {
+          ...identity.product,
+          comparablePrice: Number((identity.product.price * fulfillment.cartQuantity).toFixed(2)),
+        },
+        confidence: identity.confidence,
+        score: identity.score,
+        fulfillment,
+      }] : [];
+    });
+    const rankedReviews = [...reviewCandidates].sort((left, right) => (
+      (left.fulfillment.overagePercent ?? Number.POSITIVE_INFINITY)
+        - (right.fulfillment.overagePercent ?? Number.POSITIVE_INFINITY)
+      || right.score - left.score
+      || (left.product.price * left.fulfillment.cartQuantity)
+        - (right.product.price * right.fulfillment.cartQuantity)
+      || left.product.id.localeCompare(right.product.id)
+    ));
+    const selectedReview = rankedReviews[0];
+    if (selectedReview) {
+      return {
+        retailer: "kroger",
+        requestedItem: request,
+        recommended: selectedReview.product,
+        alternatives: rankedReviews.slice(1, 4).map((candidate) => candidate.product),
+        assumptions: [],
+        confidence: selectedReview.confidence,
+        status: "review",
+        resolution: "needs_choice",
+        fulfillment: selectedReview.fulfillment,
+        explanation: packageReviewExplanation(intent, selectedReview.product, selectedReview.fulfillment),
+        verifiedAt: selectedReview.product.checkedAt,
+      };
+    }
+
+    const selectedIdentity = rankedIdentities[0];
+    if (selectedIdentity) {
+      return {
+        retailer: "kroger",
+        requestedItem: request,
+        recommended: selectedIdentity.product,
+        alternatives: rankedIdentities.slice(1, 4).map((candidate) => candidate.product),
+        assumptions: [],
+        confidence: selectedIdentity.confidence,
+        status: "review",
+        resolution: "needs_choice",
+        explanation: packageReviewExplanation(intent, selectedIdentity.product),
+        verifiedAt: selectedIdentity.product.checkedAt,
       };
     }
   }

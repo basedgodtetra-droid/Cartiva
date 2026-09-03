@@ -1,3 +1,9 @@
+import {
+  COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE,
+  COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE,
+  COUNTED_CONTENT_UNIT_PATTERN_SOURCE,
+} from "./package-grammar";
+
 /** Framework-neutral shopping-list parsing shared by every Cartiva client. */
 const LEADING_REQUEST =
   /^(?:(?:please|could you|can you)\s+)?(?:(?:i|we)(?:'d| would)?\s+)?(?:need|want|would like|am looking for|get|buy|pick up)\s+/i;
@@ -15,8 +21,10 @@ const QUALIFIER_ONLY =
 // Walmart catalog titles commonly put package metadata after commas. Once the
 // comma is split, these fragments are not independent groceries and should
 // stay with the product title immediately before them.
-const PACKAGE_ONLY =
-  /^(?:(?:\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|g|kg|ml|liters?|litres?|gal(?:lons?)?|count|ct|packs?|pk))|(?:\d+\s*(?:x|\u00d7)\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|g|kg|ml|liters?|litres?|gal(?:lons?)?|count|ct))|(?:\d+\s+(?:each|cans?|bottles?|bags?|boxes?|cartons?|jars?|tubs?|rolls?|bunches?|loaves?)))(?:\s+(?:each|cans?|bottles?|bags?|boxes?|cartons?|jars?|tubs?))?(?:\s*(?:x|\u00d7)\s*\d{1,2})?$/i;
+const PACKAGE_ONLY = new RegExp(
+  `^(?:(?:\\d+(?:\\.\\d+)?\\s*(?:fl\\s*oz|fluid\\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|milliliters?|millilitres?|ml|liters?|litres?|l|gal(?:lons?)?|quarts?|qt|pints?|pt|count|ct|packs?|pk))|(?:\\d+\\s*(?:x|\\u00d7)\\s*\\d+(?:\\.\\d+)?\\s*(?:fl\\s*oz|fluid\\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|milliliters?|millilitres?|ml|liters?|litres?|l|gal(?:lons?)?|quarts?|qt|pints?|pt|count|ct|${COUNTED_CONTENT_UNIT_PATTERN_SOURCE}))|(?:\\d+${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(?:each|${COUNTED_CONTENT_UNIT_PATTERN_SOURCE}|cans?|bottles?|bags?|boxes?|cartons?|jars?|pouch(?:es)?|trays?|tubs?|bunches?|loaves?)))(?:\\s+(?:each|cans?|bottles?|bags?|boxes?|cartons?|jars?|pouch(?:es)?|trays?|tubs?))?(?:\\s*(?:x|\\u00d7)\\s*\\d{1,2})?$`,
+  "i",
+);
 
 /**
  * Common grocery anchors used only to detect missing separators. Longer phrases
@@ -229,7 +237,7 @@ function conservativeGroceryTypo(token: string) {
  * context. Original intent is never expanded with a new product attribute.
  */
 export function normalizeHumanGroceryText(input: string) {
-  const compactUnit = "(?:lbs?|pounds?|fl\\s*oz|ounces?|oz|count|ct|packs?|pk|rolls?|cans?|bottles?|bags?|boxes?|cartons?|jars?|tubs?|bunches?|loaves?|gallons?|gal)";
+  const compactUnit = "(?:lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|fl\\s*oz|ounces?|oz|milliliters?|millilitres?|ml|liters?|litres?|l|count|ct|packs?|pk|bars?|blades?|pacs?|pieces?|pods?|rolls?|sheets?|wipes?|cans?|bottles?|bags?|boxes?|cartons?|jars?|pouch(?:es)?|trays?|tubs?|bunches?|loaves?|gallons?|gal|quarts?|qt|pints?|pt)";
   let value = input
     .normalize("NFKC")
     .replace(new RegExp(`([a-z])(?=\\d+(?:\\.\\d+)?(?:\\s*)?${compactUnit}\\b)`, "gi"), "$1 ")

@@ -235,9 +235,10 @@ const RESIDUAL_TERM_ALIASES: Record<string, string[]> = {
 function stripResidualPackageSyntax(value: string) {
   return value
     .replace(/^\s*\d{1,2}\s*[x×]\s+(?=\S)/i, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?[\s-]*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|gallons?|gal|quarts?|qt|pints?|pt|liters?|litres?|milliliters?|millilitres?|ml|l)\b/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?[\s-]*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?|pouch(?:es)?|trays?|tubs?))?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?[\s-]+(?:(?:big|double|family|giant|jumbo|large|mega|regular|standard|super|triple|xl|select[ -]?a[ -]?size)[\s-]+){0,3}(?:bars?|blades?|pacs?|pieces?|pods?|rolls?|sheets?|wipes?)\b/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|gallons?|gal|quarts?|qt|pints?|pt|liters?|litres?|milliliters?|millilitres?|ml|l)\b(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?|pouch(?:es)?|trays?|tubs?))?/gi, " ")
     .replace(/\b(?:half(?:[ -]a)?|one|a)?\s*gallons?\b/gi, " ")
     .replace(/\b(?:one|a)\s+dozen\b/gi, " ");
 }

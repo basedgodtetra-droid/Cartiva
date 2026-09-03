@@ -98,6 +98,27 @@ describe("Smart Grocery Notepad interpretation", () => {
     ]);
   });
 
+  it("keeps planner totals in canonical matching text without showing total as the product name", () => {
+    expect(interpretGroceryInput([
+      "Eggs 21 count total",
+      "Chicken breast 500 g total",
+    ].join("\n")).items).toMatchObject([
+      {
+        name: "Eggs",
+        detail: "21 ct",
+        canonicalText: "Eggs, 21 ct total",
+      },
+      {
+        name: "Chicken Breast",
+        detail: "500 g",
+        canonicalText: "Chicken Breast, 500 g total",
+        proteinIntent: {
+          weight: { value: "500 g" },
+        },
+      },
+    ]);
+  });
+
   it("parses the requested full example into five clean rows", () => {
     const result = interpretGroceryInput(
       "eggs 18 count white bread milk gallon chicken breast 2lb bananas",
@@ -209,6 +230,77 @@ describe("Smart Grocery Notepad interpretation", () => {
       detail: "24 ct",
       canonicalText: "Eggs, 12 ct x2",
       status: "ready",
+    });
+    expect(interpretGroceryInput("two dozen eggs x3").items[0].canonicalText).toBe(
+      "Eggs, 12 ct x6",
+    );
+    expect(interpretGroceryInput("three dozen eggs x2").items[0].canonicalText).toBe(
+      "Eggs, 12 ct x6",
+    );
+    expect(interpretGroceryInput("2 pints cream").items[0]).toMatchObject({
+      name: "Cream",
+      detail: "1 pt",
+      canonicalText: "Cream, 1 pt x2",
+      status: "ready",
+    });
+  });
+
+  it("keeps an explicit measured sell-container beside its normalized detail", () => {
+    expect(interpretGroceryInput("trash bags 30 count box").items[0]).toMatchObject({
+      name: "Trash Bags",
+      detail: "30 ct box",
+      canonicalText: "Trash Bags, 30 ct box",
+    });
+    expect(interpretGroceryInput("pasta sauce 24 oz jar").items[0]).toMatchObject({
+      name: "Pasta Sauce",
+      detail: "24 oz jar",
+      canonicalText: "Pasta Sauce, 24 oz jar",
+    });
+    expect(interpretGroceryInput("1 count can opener").items[0]).toMatchObject({
+      name: "Can Opener",
+      detail: "1 ct",
+      canonicalText: "Can Opener, 1 ct",
+    });
+    expect(interpretGroceryInput("razor refill 12 blades total").items[0]).toMatchObject({
+      name: "Razor Refill",
+      detail: "12 blades",
+      canonicalText: "Razor Refill, 12 blades total",
+    });
+    expect(interpretGroceryInput("coffee pods 24-pods total").items[0]).toMatchObject({
+      name: "Coffee Pods",
+      detail: "24 pods",
+      canonicalText: "Coffee Pods, 24 pods total",
+    });
+    expect(interpretGroceryInput("rice 2 × 500 g").items[0]).toMatchObject({
+      name: "Rice",
+      detail: "2 × 500 g",
+      canonicalText: "Rice, 2 × 500 g",
+    });
+  });
+
+  it.each([
+    ["toilet paper 12-rolls", "Toilet Paper, 12 rolls"],
+    ["toilet paper 12 giant rolls", "Toilet Paper, 12 rolls"],
+    ["toilet paper 12 super mega rolls", "Toilet Paper, 12 rolls"],
+    ["paper towels 12 select-a-size rolls", "Paper Towels, 12 rolls"],
+  ])("normalizes strict counted-content variants without losing their amount: %s", (raw, canonicalText) => {
+    expect(interpretGroceryInput(raw).items[0]).toMatchObject({
+      canonicalText,
+      detail: "12 rolls",
+      status: "ready",
+    });
+  });
+
+  it.each([
+    ["2 bar stools", "2 Bar Stools"],
+    ["1 pod coffee maker", "1 Pod Coffee Maker"],
+    ["1 blade sharpener", "1 Blade Sharpener"],
+    ["2 wipe warmers", "2 Wipe Warmers"],
+  ])("does not turn a counted-unit identity into package detail: %s", (raw, canonicalText) => {
+    expect(interpretGroceryInput(raw).items[0]).toMatchObject({
+      name: canonicalText,
+      canonicalText,
+      detail: undefined,
     });
   });
 

@@ -79,6 +79,21 @@ describe("retailer package quantity semantics", () => {
     });
   });
 
+  it("preserves pint and quart volume quantities as concrete one-unit packages", () => {
+    expect(parseRetailerPackageQuantity("2 pints cream")).toEqual({
+      quantity: 2,
+      searchText: "cream 1 pint",
+      packageSizeText: "1 pint",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+    expect(parseRetailerPackageQuantity("2 qt broth")).toEqual({
+      quantity: 2,
+      searchText: "broth 1 qt",
+      packageSizeText: "1 qt",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+  });
+
   it("preserves three cans as retailer quantity three", () => {
     expect(parseRetailerPackageQuantity("3 cans black beans")).toEqual({
       quantity: 3,
@@ -151,6 +166,29 @@ describe("retailer package quantity semantics", () => {
       quantity: 2,
       searchText: "eggs 18 count",
       packageSizeText: "1 carton",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+    expect(parseRetailerPackageQuantity("3 pouches tuna")).toEqual({
+      quantity: 3,
+      searchText: "tuna",
+      packageSizeText: "1 pouch",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+    expect(parseRetailerPackageQuantity("3 pouches tuna total")).toEqual({
+      quantity: 1,
+      searchText: "3 pouches tuna total",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+    expect(parseRetailerPackageQuantity("2 tubs yogurt")).toEqual({
+      quantity: 2,
+      searchText: "yogurt",
+      packageSizeText: "1 tub",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+    expect(parseRetailerPackageQuantity("fruit 2 trays")).toEqual({
+      quantity: 2,
+      searchText: "fruit",
+      packageSizeText: "1 tray",
       origin: AttributeOrigin.USER_EXPLICIT,
     });
   });
@@ -272,6 +310,19 @@ describe("one comparison equals one Kroger-family location", () => {
       ...accepted,
       fulfillment: { approvalRequired: true },
     })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      fulfillment: undefined,
+    })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      status: "review",
+    })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      resolution: undefined,
+      fulfillment: undefined,
+    })).toBe(true);
     expect(isRetailerHandoffAcceptedMatch({
       ...accepted,
       resolution: "multi_package_fulfillment",

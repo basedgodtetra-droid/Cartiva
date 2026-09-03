@@ -42,6 +42,12 @@ describe("parseShoppingList", () => {
     expect(parseShoppingList("7up")).toEqual(["7 up"]);
   });
 
+  it("repairs compact metric weights without losing the product boundary", () => {
+    expect(parseShoppingList("rice500g")).toEqual(["rice 500 g"]);
+    expect(parseShoppingList("rice1kg")).toEqual(["rice 1 kg"]);
+    expect(parseShoppingList("chicken breast500g")).toEqual(["chicken breast 500 g"]);
+  });
+
   it("parses a comma-separated grocery list", () => {
     expect(parseShoppingList("milk, eggs, chicken")).toEqual(["milk", "eggs", "chicken"]);
   });
@@ -55,6 +61,39 @@ describe("parseShoppingList", () => {
       "2% milk 1 gallon",
       "oreos",
     ]);
+  });
+
+  it.each([
+    "Chicken breast, 500 grams",
+    "Rice, 1 kilogram",
+    "Rice, 2 kgs",
+    "Yogurt, 500 milliliters",
+    "Yogurt, 500 millilitres",
+    "Olive oil, 1 liter",
+    "Olive oil, 1 litre",
+    "Olive oil, 1 L",
+  ])("reattaches a full metric package fragment in %s", (catalogTitle) => {
+    expect(parseShoppingList(`${catalogTitle}, eggs`)).toEqual([catalogTitle, "eggs"]);
+  });
+
+  it("reattaches full metric units in multipack catalog fragments", () => {
+    expect(parseShoppingList("Rice, 2 x 500 grams, eggs")).toEqual([
+      "Rice, 2 x 500 grams",
+      "eggs",
+    ]);
+    expect(parseShoppingList("Yogurt drinks, 2 × 500 millilitres, bananas")).toEqual([
+      "Yogurt drinks, 2 × 500 millilitres",
+      "bananas",
+    ]);
+  });
+
+  it.each([
+    "Milk, 1 quart",
+    "Milk, 1 qt",
+    "Cream, 1 pint",
+    "Cream, 1 pt",
+  ])("reattaches a US liquid package fragment in %s", (catalogTitle) => {
+    expect(parseShoppingList(`${catalogTitle}, eggs`)).toEqual([catalogTitle, "eggs"]);
   });
 
   it("keeps consecutive package fragments with one catalog product", () => {

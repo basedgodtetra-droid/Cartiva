@@ -1,4 +1,9 @@
 import { normalizeHumanGroceryText, parseShoppingList } from "./list-parser";
+import {
+  COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE,
+  COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE,
+  COUNTED_CONTENT_UNIT_PATTERN_SOURCE,
+} from "./package-grammar";
 import { AttributeOrigin, type AttributeOrigin as AttributeOriginValue } from "./types";
 
 export type GroceryProteinCategory = "meat" | "poultry" | "seafood";
@@ -82,19 +87,28 @@ export interface InterpretOptions {
   proteinOrigins?: GroceryProteinOriginMap;
 }
 
-const COUNT_PATTERN = /\b(\d{1,3})\s*[- ]?\s*(?:count|ct)\b/i;
+const COUNT_PATTERN = /\b(\d{1,3})\s*[- ]?\s*(?:count|ct)\b(?:\s+(bags?|bottles?|box(?:es)?|cans?|cartons?|jars?|pouch(?:es)?|trays?|tubs?)\b(?!\s+(?:opener|cutter|holder|rack|dispenser|brush|cleaner|liner|clip|labels?)))?/i;
 const PACK_PATTERN = /\b(\d{1,3})\s*[- ]?\s*(?:pack|pk)\b/i;
-const WEIGHT_PATTERN = /\b(\d+(?:\.\d+)?)\s*[- ]?\s*(lb|lbs|pounds?|oz|ounces?)\b/i;
-const VOLUME_PATTERN = /\b(\d+(?:\.\d+)?)\s*(gallons?|gal|liters?|litres?|l|ml|fl\s*oz|fluid\s*ounces?)\b/i;
+const WEIGHT_PATTERN = /\b(\d+(?:\.\d+)?)\s*[- ]?\s*(lbs?|pounds?|oz|ounces?|kilograms?|kgs?|kg|grams?|g)\b(?:\s+(bags?|bottles?|box(?:es)?|cans?|cartons?|jars?|pouch(?:es)?|trays?|tubs?)\b(?!\s+(?:opener|cutter|holder|rack|dispenser|brush|cleaner|liner|clip|labels?)))?/i;
+const VOLUME_PATTERN = /\b(\d+(?:\.\d+)?)\s*(gallons?|gal|quarts?|qt|pints?|pt|liters?|litres?|l|ml|fl\s*oz|fluid\s*ounces?)\b(?:\s+(bags?|bottles?|box(?:es)?|cans?|cartons?|jars?|pouch(?:es)?|trays?|tubs?)\b(?!\s+(?:opener|cutter|holder|rack|dispenser|brush|cleaner|liner|clip|labels?)))?/i;
 const HALF_GALLON_PATTERN = /\b(?:a\s+)?half[-\s]?gallon\b/i;
 const BARE_GALLON_PATTERN = /\bgallon\b/i;
 const DOZEN_PATTERN = /\b(?:(\d+|one|two|three|four|a)\s+)?dozen\b/i;
 const BARE_EGG_COUNT_PREFIX = /\b(12|18|24)(?=\s+eggs?\b)/i;
 const BARE_EGG_COUNT_SUFFIX = /\beggs?\s+(12|18|24)\b/i;
-const CONTAINER_QUANTITY_PATTERN = /\b(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)\b/i;
+const CONTAINER_QUANTITY_PATTERN = /\b(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|pouch(?:es)?|trays?|tubs?|bunches?|loaves?)\b/i;
+const COUNT_UNIT_QUANTITY_PATTERN = new RegExp(
+  `\\b(\\d{1,3})${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})\\b\\s*$`,
+  "i",
+);
+const MULTIPACK_DETAIL_PATTERN = new RegExp(
+  `\\b(\\d{1,3})\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)[\\s-]*(fl\\s*oz|fluid\\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|milliliters?|millilitres?|ml|liters?|litres?|l|gallons?|gal|quarts?|qt|pints?|pt|count|ct|${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})\\b(?:\\s+(?:each|bags?|bottles?|boxes?|cans?|cartons?|jars?|pouch(?:es)?|trays?|tubs?))?`,
+  "i",
+);
 const CART_QUANTITY_SUFFIX_PATTERN = /\s+(?:x|×)\s*(\d{1,2})\s*$/i;
+const TRAILING_TOTAL_PATTERN = /\s+total\s*$/i;
 const LEADING_MILK_VOLUME_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(.+?\bmilk)\s+(gallons?|gal)\s*$/i;
-const LEADING_VOLUME_OF_PRODUCT_PATTERN = /^\s*(\d{1,2})\s+(gallons?|gal|quarts?|qt|pints?)\s+(?:of\s+)?(.+)$/i;
+const LEADING_VOLUME_OF_PRODUCT_PATTERN = /^\s*(\d{1,2})\s+(gallons?|gal|quarts?|qt|pints?|pt)\s+(?:of\s+)?(.+)$/i;
 const LEADING_EACH_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\b/i;
 const TRAILING_EACH_QUANTITY_PATTERN = /\b(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\s+(\d{1,2})\s*$/i;
 
@@ -636,7 +650,13 @@ function proteinIntentFor(
     : undefined;
   const weight = raw.match(WEIGHT_PATTERN);
   const weightValue = weight
-    ? `${weight[1]} ${/^(?:lb|lbs|pound)/i.test(weight[2]) ? "lb" : "oz"}`
+    ? `${weight[1]} ${/^(?:lb|pound)/i.test(weight[2])
+      ? "lb"
+      : /^(?:kg|kilogram)/i.test(weight[2])
+        ? "kg"
+        : /^(?:g|gram)/i.test(weight[2])
+          ? "g"
+          : "oz"}`
     : undefined;
   const quantity = raw.match(PACK_PATTERN);
 
@@ -745,8 +765,44 @@ function normalizeDetail(raw: string) {
   const halfGallon = lower.match(HALF_GALLON_PATTERN);
   if (halfGallon) return { source: halfGallon[0], detail: "Half gallon" };
 
+  const multipack = lower.match(MULTIPACK_DETAIL_PATTERN);
+  if (multipack) {
+    const rawUnit = multipack[3].toLowerCase().replace(/\s+/g, " ");
+    const unit = /^(?:lb|pound)/.test(rawUnit)
+      ? "lb"
+      : /^(?:kg|kilogram)/.test(rawUnit)
+        ? "kg"
+        : /^(?:g|gram)/.test(rawUnit)
+          ? "g"
+          : /^(?:fl|fluid)/.test(rawUnit)
+            ? "fl oz"
+            : /^(?:ml|milliliter|millilitre)/.test(rawUnit)
+              ? "mL"
+              : /^(?:l|liter|litre)$/.test(rawUnit)
+                ? "L"
+                : /^(?:quart|qt)/.test(rawUnit)
+                  ? "qt"
+                  : /^(?:pint|pt)/.test(rawUnit)
+                    ? "pt"
+                    : /^(?:gallon|gal)/.test(rawUnit)
+                      ? "gal"
+                      : /^(?:count|ct)/.test(rawUnit)
+                        ? "ct"
+                        : rawUnit;
+    return {
+      source: multipack[0],
+      detail: `${multipack[1]} × ${multipack[2]} ${unit}`,
+    };
+  }
+
   const count = lower.match(COUNT_PATTERN);
-  if (count) return { source: count[0], detail: `${count[1]} ct` };
+  if (count) {
+    const container = count[2]?.toLowerCase();
+    return {
+      source: count[0],
+      detail: `${count[1]} ct${container ? ` ${container}` : ""}`,
+    };
+  }
 
   const bareEggCountPrefix = lower.match(BARE_EGG_COUNT_PREFIX);
   if (bareEggCountPrefix) return { source: bareEggCountPrefix[1], detail: `${bareEggCountPrefix[1]} ct` };
@@ -756,6 +812,17 @@ function normalizeDetail(raw: string) {
 
   const dozen = lower.match(DOZEN_PATTERN);
   if (dozen) return { source: dozen[0], detail: `${dozenCount(dozen[1])} ct` };
+
+  // Count-unit syntax is only a package detail when it closes the grocery
+  // phrase. This preserves identities such as "2 bar stools" and "1 pod
+  // coffee maker" while still normalizing "razor refills 12 blades".
+  const countUnitQuantity = lower.match(COUNT_UNIT_QUANTITY_PATTERN);
+  if (countUnitQuantity) {
+    return {
+      source: countUnitQuantity[0],
+      detail: `${countUnitQuantity[1]} ${countUnitQuantity[2].toLowerCase()}`,
+    };
+  }
 
   const containerQuantity = lower.match(CONTAINER_QUANTITY_PATTERN);
   if (containerQuantity) {
@@ -777,8 +844,18 @@ function normalizeDetail(raw: string) {
 
   const weight = lower.match(WEIGHT_PATTERN);
   if (weight) {
-    const unit = /^(?:lb|lbs|pound)/i.test(weight[2]) ? "lb" : "oz";
-    return { source: weight[0], detail: `${weight[1]} ${unit}` };
+    const unit = /^(?:lb|pound)/i.test(weight[2])
+      ? "lb"
+      : /^(?:kg|kilogram)/i.test(weight[2])
+        ? "kg"
+        : /^(?:g|gram)/i.test(weight[2])
+          ? "g"
+          : "oz";
+    const container = weight[3]?.toLowerCase();
+    return {
+      source: weight[0],
+      detail: `${weight[1]} ${unit}${container ? ` ${container}` : ""}`,
+    };
   }
 
   const volume = lower.match(VOLUME_PATTERN);
@@ -788,10 +865,18 @@ function normalizeDetail(raw: string) {
       ? Number(volume[1]) === 1 ? "gallon" : "gallons"
       : /^(?:liter|litre|l$)/.test(rawUnit)
         ? "L"
+        : /^(?:quart|qt)/.test(rawUnit)
+          ? "qt"
+          : /^(?:pint|pt)/.test(rawUnit)
+            ? "pt"
         : rawUnit === "ml"
           ? "mL"
           : "fl oz";
-    return { source: volume[0], detail: `${volume[1]} ${unit}` };
+    const container = volume[3]?.toLowerCase();
+    return {
+      source: volume[0],
+      detail: `${volume[1]} ${unit}${container ? ` ${container}` : ""}`,
+    };
   }
 
   if (/\bmilk\b/i.test(raw) && BARE_GALLON_PATTERN.test(raw)) {
@@ -825,8 +910,8 @@ function categoryFor(raw: string) {
 function bareCategoryText(raw: string) {
   return raw
     .toLowerCase()
-    .replace(/^\s*\d{1,2}\s+(?:cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)\s+(?:of\s+)?/, "")
-    .replace(/\s+\d{1,3}\s*(?:cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?|count|ct|packs?|pk|lbs?|pounds?|oz|ounces?|gallons?|gal)\s*$/, "")
+    .replace(/^\s*\d{1,2}\s+(?:bars?|blades?|cans?|bottles?|jars?|bags?|boxes?|cartons?|pacs?|pieces?|pods?|pouch(?:es)?|rolls?|sheets?|trays?|tubs?|wipes?|bunches?|loaves?)\s+(?:of\s+)?/, "")
+    .replace(/\s+\d{1,3}[\s-]*(?:(?:big|double|family|giant|jumbo|large|mega|regular|standard|super|triple|xl|select[ -]?a[ -]?size)[\s-]+){0,3}(?:bars?|blades?|cans?|bottles?|jars?|bags?|boxes?|cartons?|pacs?|pieces?|pods?|pouch(?:es)?|rolls?|sheets?|trays?|tubs?|wipes?|bunches?|loaves?|count|ct|packs?|pk|lbs?|pounds?|oz|ounces?|gallons?|gal)\s*$/, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -946,10 +1031,14 @@ function itemFromRaw(
   const withoutPreferences = stripProteinPreferences(displayRaw);
   const ratio = proteinIntent?.leanRatio?.value !== "any" ? proteinIntent?.leanRatio?.value : undefined;
   const displaySource = ratio ? stripLeanRatioText(withoutPreferences) : withoutPreferences;
-  const detailResult = normalizeDetail(displaySource);
-  const nameSource = detailResult
-    ? clean(displaySource.replace(new RegExp(detailResult.source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "").replace(/^[,\s]+|[,\s]+$/g, ""))
+  const totalRequested = TRAILING_TOTAL_PATTERN.test(displaySource);
+  const itemDisplaySource = totalRequested
+    ? clean(displaySource.replace(TRAILING_TOTAL_PATTERN, ""))
     : displaySource;
+  const detailResult = normalizeDetail(itemDisplaySource);
+  const nameSource = detailResult
+    ? clean(itemDisplaySource.replace(new RegExp(detailResult.source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "").replace(/^[,\s]+|[,\s]+$/g, ""))
+    : itemDisplaySource;
   const name = titleCase(nameSource || raw);
   const preferenceDetail = proteinPreferenceDetail(raw);
   const detailParts = [ratio, preferenceDetail, detailResult?.detail].filter(Boolean) as string[];
@@ -960,13 +1049,18 @@ function itemFromRaw(
   // strips these markers before searching, while verification retains them.
   const canonicalDetails = [ratio, preferenceDetail, detailResult?.detail].filter(Boolean);
   const canonicalBase = canonicalDetails.length ? `${name}, ${canonicalDetails.join(", ")}` : name;
-  const dozen = category === "eggs" ? displaySource.match(DOZEN_PATTERN) : undefined;
+  const canonicalTotal = totalRequested ? `${canonicalBase} total` : canonicalBase;
+  const dozen = category === "eggs" ? itemDisplaySource.match(DOZEN_PATTERN) : undefined;
   const dozenPackages = dozen ? dozenCount(dozen[1]) / 12 : 1;
-  const canonicalText = dozenPackages > 1
-    ? `${name}, 12 ct x${dozenPackages}`
+  const explicitCartMultiplier = Number(cartQuantitySuffix?.[1] ?? 1);
+  const combinedDozenPackages = dozenPackages * explicitCartMultiplier;
+  const canonicalText = dozen && combinedDozenPackages <= 99
+    ? combinedDozenPackages > 1
+      ? `${name}, 12 ct${totalRequested ? " total" : ""} x${combinedDozenPackages}`
+      : `${name}, 12 ct${totalRequested ? " total" : ""}`
     : cartQuantitySuffix
-      ? `${canonicalBase} x${cartQuantitySuffix[1]}`
-      : canonicalBase;
+      ? `${canonicalTotal} x${cartQuantitySuffix[1]}`
+      : canonicalTotal;
 
   return {
     id: stableId(raw, index),

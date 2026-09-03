@@ -1,3 +1,5 @@
+import type { KrogerMatchResult } from "./cartiva-api";
+
 export type RetailerHandoffMode =
   | "CART_TRANSFER_SUPPORTED"
   | "DEEPLINK_SUPPORTED"
@@ -38,6 +40,44 @@ export function comparisonHeading(chain?: string) {
 
 export function matchSectionLabel(chain?: string) {
   return `${retailerBanner(chain).toUpperCase()} MATCH`;
+}
+
+export interface MatchCandidatePresentation {
+  reviewRequired: boolean;
+  badgeLabel: string;
+  badgeTone: "positive" | "warning";
+  explanation?: string;
+  fulfillmentLabel?: string;
+}
+
+/**
+ * A recommended catalog product can still be review-only. Keep that state
+ * explicit so product detail surfaces never style unresolved package math as
+ * an accepted match.
+ */
+export function matchCandidatePresentation(
+  result: Pick<
+    KrogerMatchResult,
+    "confidence" | "explanation" | "fulfillment" | "resolution" | "status"
+  >,
+): MatchCandidatePresentation {
+  const reviewRequired = result.status === "review"
+    || result.resolution === "needs_choice"
+    || result.fulfillment?.approvalRequired === true;
+  if (reviewRequired) {
+    return {
+      reviewRequired: true,
+      badgeLabel: "Needs your choice",
+      badgeTone: "warning",
+      explanation: result.explanation,
+      fulfillmentLabel: result.fulfillment?.label,
+    };
+  }
+  return {
+    reviewRequired: false,
+    badgeLabel: result.confidence === "high" ? "Strong match" : "Compatible match",
+    badgeTone: "positive",
+  };
 }
 
 export function availabilityPresentation(

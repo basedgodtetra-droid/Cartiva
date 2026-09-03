@@ -30,6 +30,23 @@ export function hasEquivalentPackageSize(
   );
 }
 
+const UNRESOLVED_TOTAL_REQUEST = /\btotal\b/i;
+
+/**
+ * A review result is evidence for the shopper, not an accepted request/package
+ * pairing. Selecting a visually similar alternative must not turn that
+ * unresolved evidence into a cart line without running verification again.
+ */
+function selectionRequiresRevalidation(result: KrogerMatchResult) {
+  return result.status !== "matched"
+    || result.resolution === "needs_choice"
+    || result.fulfillment?.approvalRequired === true
+    || (
+      result.fulfillment === undefined
+      && UNRESOLVED_TOTAL_REQUEST.test(result.requestedItem)
+    );
+}
+
 /**
  * Applies a shopper-selected alternative without inventing a cart quantity.
  * Same-size candidates can reuse the verified plan (or the legacy list
@@ -41,6 +58,10 @@ export function applyKrogerAlternativeSelection(
 ): KrogerMatchResult {
   const previous = result.recommended;
   const packageSizeVerified = hasEquivalentPackageSize(previous?.size, candidate.size);
+  const requiresRevalidation = selectionRequiresRevalidation(result);
+  const alreadyReviewOnly = result.status !== "matched"
+    || result.resolution === "needs_choice"
+    || result.fulfillment?.approvalRequired === true;
   const alternatives = [
     ...(previous && previous.id !== candidate.id ? [previous] : []),
     ...result.alternatives.filter((item) => (
@@ -55,7 +76,7 @@ export function applyKrogerAlternativeSelection(
     ...baseResult
   } = result;
 
-  if (!packageSizeVerified) {
+  if (requiresRevalidation || !packageSizeVerified) {
     return {
       ...baseResult,
       recommended: candidate,
@@ -63,7 +84,11 @@ export function applyKrogerAlternativeSelection(
       confidence: candidate.confidence,
       status: "review",
       resolution: "needs_choice",
-      explanation: "This candidate has a different package size and needs a new quantity check.",
+      explanation: requiresRevalidation
+        ? alreadyReviewOnly
+          ? result.explanation
+          : "This requested total has no verified package quantity and must be compared again."
+        : "This candidate has a different package size and needs a new quantity check.",
       clarification: "Compare again to verify how many of this package fulfill your request.",
     };
   }

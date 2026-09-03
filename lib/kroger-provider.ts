@@ -1,4 +1,9 @@
 import { extractMeasurement } from "./measurements";
+import {
+  COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE,
+  COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE,
+  COUNTED_CONTENT_UNIT_PATTERN_SOURCE,
+} from "@/packages/shared/src/package-grammar";
 import { getKrogerAuthClient, KrogerAuthClient, KrogerAuthError } from "./kroger-auth";
 import {
   KROGER_FAMILY_HOSTS,
@@ -14,6 +19,8 @@ type UnknownRecord = Record<string, unknown>;
 
 const SEARCH_CACHE_TTL_MS = 2 * 60_000;
 const LOCATION_CACHE_TTL_MS = 30 * 60_000;
+const PHYSICAL_OUTER_PACKAGE_UNIT = "bags?|bottles?|boxes?|canisters?|cans?|cartons?|containers?|jars?|pouches?|trays?|tubs?";
+const PHYSICAL_UNIT = "fl\\s*oz|fluid\\s+ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|liters?|litres?|milliliters?|millilitres?|gallons?|gal|quarts?|qt|pints?|pt|ml|l";
 
 interface Cached<T> {
   expiresAt: number;
@@ -258,7 +265,98 @@ function normalizeKrogerProduct(
     : [];
   const brand = textValue(raw.brand);
   const productType = categories[0];
-  const size = extractMeasurement(`${title} ${sizeText}`);
+  // The selected item size is retailer metadata for the sellable UPC and is
+  // more authoritative than numbers embedded in marketing/nutrition title
+  // text. Fall back to the title only when Kroger omits that field.
+  const retailerSize = extractMeasurement(sizeText);
+  const titleSize = extractMeasurement(title);
+  const titleNamedOuterCount = Number(title.match(new RegExp(
+    `\\b(\\d+(?:\\.\\d+)?)\\s+(?:of\\s+)?(?:${PHYSICAL_OUTER_PACKAGE_UNIT})\\b`,
+    "i",
+  ))?.[1]);
+  const trailingPhysicalTotal = title.match(new RegExp(
+    `\\b(\\d+(?:\\.\\d+)?\\s*(?:${PHYSICAL_UNIT}))\\b\\s+total\\b`,
+    "i",
+  ))?.[1];
+  const netPhysicalTotal = title.match(new RegExp(
+    `\\bnet\\s*(?:wt|weight|contents?)\\s*[:.,-]?\\s*(\\d+(?:\\.\\d+)?\\s*(?:${PHYSICAL_UNIT}))\\b`,
+    "i",
+  ))?.[1];
+  const explicitPhysicalTotalSize = extractMeasurement(
+    trailingPhysicalTotal ?? netPhysicalTotal ?? "",
+  );
+  const titleDeclaresPhysicalTotal = Boolean(explicitPhysicalTotalSize);
+  const namedOuterPhysicalSize = Number.isFinite(titleNamedOuterCount)
+    && titleNamedOuterCount > 1
+    && retailerSize
+    && retailerSize.kind !== "count"
+    && !titleDeclaresPhysicalTotal
+    && (!titleSize || titleSize.kind === "count")
+      ? extractMeasurement(`${title} ${sizeText} each`)
+      : undefined;
+  const titleHasMeasuredCountedContents = new RegExp(
+    `\\b\\d+(?:\\.\\d+)?${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(?:${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})\\b`,
+    "i",
+  ).test(title);
+  const titleHasExplicitCount = /\b\d+(?:\.\d+)?[\s-]*(?:count|ct)\b/i.test(title);
+  const titleExplicitCount = Number(title.match(
+    /\b(\d+(?:\.\d+)?)[\s-]*(?:count|ct)\b/i,
+  )?.[1]);
+  const explicitTitleCountSize = Number.isFinite(titleExplicitCount) && titleExplicitCount > 1
+    ? extractMeasurement(`${titleExplicitCount} count`)
+    : undefined;
+  const titleHasDozen = /\b(?:one|a)\s+dozen\b/i.test(title);
+  const titleExplainsOuterCount = titleSize?.kind === "count"
+    && retailerSize?.kind === "count"
+    && (
+      (Boolean(titleSize.packCount) && retailerSize.baseAmount === titleSize.packCount)
+      || (
+        retailerSize.baseAmount === 1
+        && titleSize.baseAmount > 1
+        && (titleHasMeasuredCountedContents || titleHasExplicitCount || titleHasDozen)
+      )
+    );
+  const titleExplainsPerUnitSize = Boolean(
+    titleSize?.packCount
+    && retailerSize
+    && retailerSize.kind === titleSize.kind
+    // Compare normalized units. `perPackageAmount` retains the display unit
+    // (for example 2 lb), while baseAmount is always ounces/fluid ounces.
+    && Math.abs(
+      retailerSize.baseAmount - titleSize.baseAmount / titleSize.packCount,
+    ) <= 0.0001,
+  );
+  const titleConfirmsRetailerTotal = Boolean(
+    titleSize?.packCount
+    && retailerSize
+    && retailerSize.kind === titleSize.kind
+    && Math.abs(retailerSize.baseAmount - titleSize.baseAmount) <= 0.0001,
+  );
+  const titleExplainsBareOuterItem = retailerSize?.kind === "count"
+    && retailerSize.baseAmount === 1
+    && explicitTitleCountSize;
+  // When Kroger gives a physical size but the title also says N Count without
+  // "each" or another verified per-unit relationship, the two dimensions
+  // cannot safely be collapsed into one measurement. Preserve the proven
+  // count axis and refuse automatic physical-total arithmetic.
+  const unresolvedCountWithPhysicalSize = explicitTitleCountSize
+    && retailerSize
+    && retailerSize.kind !== "count"
+    && (
+      titleSize?.kind === "count"
+      || (titleSize?.kind === retailerSize.kind && !titleSize.packCount)
+    );
+  const size = explicitPhysicalTotalSize
+    ? explicitPhysicalTotalSize
+    : titleConfirmsRetailerTotal
+      ? retailerSize
+    : namedOuterPhysicalSize?.packCount === titleNamedOuterCount
+      ? namedOuterPhysicalSize
+    : titleExplainsBareOuterItem || unresolvedCountWithPhysicalSize
+      ? explicitTitleCountSize
+      : titleExplainsOuterCount || titleExplainsPerUnitSize
+        ? titleSize
+        : retailerSize ?? titleSize;
   const { link, linkType, sourceUrl } = safeProductLink(
     raw,
     context.chain,

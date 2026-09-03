@@ -21,6 +21,7 @@ import type {
   KrogerProduct,
   RetailPackageFulfillment,
 } from "@/lib/types";
+import { isRetailerHandoffAcceptedMatch } from "@/packages/shared/src/comparison-session";
 import {
   interpretGroceryInput,
   resolveGroceryClarification,
@@ -48,7 +49,7 @@ export interface Cartiva100LiveCaseResult {
     availabilityStatus: KrogerProduct["availabilityStatus"];
     locationId: string;
     checkedAt: string;
-    sourceUrl?: string;
+    sourceUrl: string;
     cartQuantity: number;
     packageCount: number;
   };
@@ -275,13 +276,21 @@ function resolveLiveRequest(testCase: ReturnType<typeof cartiva100LiveCases>[num
   return item.canonicalText;
 }
 
-function selectedMetadata(
+export function selectedMetadata(
   result: KrogerMatchResult,
   expectedLocationId: string,
 ) {
   const product = result.recommended;
   const fulfillment = result.fulfillment;
   if (!product || !fulfillment) return undefined;
+  const checkedAt = product.priceProvenance.checkedAt ?? product.checkedAt;
+  const sourceUrl = product.sourceUrl ?? product.link;
+  if (
+    product.priceProvenance.locationId !== expectedLocationId
+    || !checkedAt
+    || Number.isNaN(Date.parse(checkedAt))
+    || !/^https:\/\//i.test(sourceUrl)
+  ) return undefined;
   return {
     productId: product.productId,
     upc: product.upc,
@@ -291,9 +300,9 @@ function selectedMetadata(
     size: product.size,
     priceCents: product.priceCents ?? Math.round(product.price * 100),
     availabilityStatus: product.availabilityStatus,
-    locationId: product.priceProvenance.locationId ?? expectedLocationId,
-    checkedAt: product.checkedAt ?? product.priceProvenance.checkedAt ?? new Date().toISOString(),
-    sourceUrl: product.sourceUrl ?? product.link,
+    locationId: product.priceProvenance.locationId,
+    checkedAt,
+    sourceUrl,
     cartQuantity: fulfillment.cartQuantity,
     packageCount: fulfillment.packageCount,
   };
@@ -394,7 +403,7 @@ export async function runCartiva100KrogerLive(): Promise<Cartiva100LiveReport> {
         },
         hasVerifiedMatch: (products) => {
           latest = rankKrogerProducts(resolvedRequest, products, [], undefined, { intent });
-          return Boolean(latest.recommended && latest.fulfillment);
+          return isRetailerHandoffAcceptedMatch(latest);
         },
         isPlausible: (product) => isPlausibleDiscoveryCandidate(intent, product),
         candidateKey: (product) => product.id,

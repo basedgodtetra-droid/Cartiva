@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { interpretGroceryInput } from "@/lib/grocery-notepad";
+import { parseProductIntent } from "@/lib/product-search-intent";
 import { parseRetailerPackageQuantity } from "@/packages/shared/src/comparison-session";
 import {
   adjustPlanMeal,
@@ -188,7 +189,7 @@ describe("Cartiva Build My Plan", () => {
     ];
     const result = consolidatePlanIngredients(meals);
     expect(result.ingredients).toHaveLength(1);
-    expect(result.ingredients[0]).toMatchObject({ amount: 32, unit: "oz", shoppingText: "Chicken breast 2 lb" });
+    expect(result.ingredients[0]).toMatchObject({ amount: 32, unit: "oz", shoppingText: "Chicken breast 2 lb total" });
     expect(result.ingredients[0].sourceMealIds).toEqual(["one", "two", "three"]);
   });
 
@@ -206,11 +207,12 @@ describe("Cartiva Build My Plan", () => {
       },
     ]);
     expect(result.ingredients).toHaveLength(1);
-    expect(result.ingredients[0]).toMatchObject({ amount: 24, unit: "oz", shoppingText: "Chicken breast 1.5 lb" });
+    expect(result.ingredients[0]).toMatchObject({ amount: 24, unit: "oz", shoppingText: "Chicken breast 1.5 lb total" });
   });
 
   it("rounds generated weight totals upward to shopper-friendly purchase targets", () => {
     expect(roundGeneratedPurchaseWeightOunces(1.8 * 16)).toBe(32);
+    expect(roundGeneratedPurchaseWeightOunces(10)).toBe(12);
     const result = consolidatePlanIngredients([{
       id: "pasta", templateId: "pasta", day: 1, slot: "dinner", name: "Pasta", servings: 1,
       estimatedCaloriesPerServing: 500, estimatedProteinGramsPerServing: 25, estimatedCostPerServing: 4,
@@ -219,20 +221,29 @@ describe("Cartiva Build My Plan", () => {
     expect(result.ingredients[0]).toMatchObject({
       amount: 1.8,
       unit: "lb",
-      shoppingText: "Red lentil pasta 2 lb",
+      shoppingText: "Red lentil pasta 2 lb total",
     });
-    expect(formatIngredientAmount(result.ingredients[0])).toBe("2 lb");
+    expect(formatIngredientAmount(result.ingredients[0])).toBe("1.8 lb");
 
     const boxedPasta = consolidatePlanIngredients([{
       id: "penne", templateId: "penne", day: 1, slot: "dinner", name: "Penne", servings: 1,
       estimatedCaloriesPerServing: 500, estimatedProteinGramsPerServing: 20, estimatedCostPerServing: 3,
       ingredients: [{ name: "Penne pasta", amount: 12, unit: "oz" }],
     }]).ingredients[0];
-    expect(boxedPasta.shoppingText).toBe("Penne pasta 1 box");
-    expect(formatIngredientAmount(boxedPasta)).toBe("1 box");
+    expect(boxedPasta.shoppingText).toBe("Penne pasta 12 oz total");
+    expect(formatIngredientAmount(boxedPasta)).toBe("12 oz");
+
+    const representativePlan = generateMealPlan({ notes: "High-protein week under $80" });
+    expect(representativePlan.ingredients.find((ingredient) => (
+      ingredient.name === "Shredded cheddar cheese"
+    ))).toMatchObject({
+      amount: 10,
+      unit: "oz",
+      shoppingText: "Shredded cheddar cheese 12 oz total",
+    });
   });
 
-  it("converts common volume units instead of silently dropping an amount", () => {
+  it("keeps cooking measures visible while converting only their true volume dimension", () => {
     const result = consolidatePlanIngredients([
       {
         id: "one", templateId: "one", day: 1, slot: "dinner", name: "One", servings: 1,
@@ -246,14 +257,19 @@ describe("Cartiva Build My Plan", () => {
       },
     ]);
     expect(result.ingredients).toHaveLength(1);
-    expect(result.ingredients[0]).toMatchObject({ amount: 2, unit: "tbsp", shoppingText: "Olive oil 8 oz" });
+    expect(result.ingredients[0]).toMatchObject({ amount: 2, unit: "tbsp", shoppingText: "Olive oil 1 fl oz total" });
     const item = interpretGroceryInput(planIngredientsAsText(result.ingredients)).items[0];
     expect(item.name).toBe("Olive Oil");
     expect(parseRetailerPackageQuantity(item.canonicalText)).toMatchObject({
-      searchText: "Olive Oil, 8 oz",
+      searchText: "Olive Oil, 1 fl oz total",
       quantity: 1,
     });
-    expect(formatIngredientAmount(result.ingredients[0])).toBe("8 oz");
+    expect(item.canonicalText).toBe("Olive Oil, 1 fl oz total");
+    expect(parseProductIntent(item.canonicalText)).toMatchObject({
+      fulfillmentText: "Olive Oil",
+      requestedTotal: { baseAmount: 1, baseUnit: "fl oz" },
+    });
+    expect(formatIngredientAmount(result.ingredients[0])).toBe("2 tbsp");
   });
 
   it("sends shoppable package targets—not cooking measures—into the grocery pipeline", () => {
@@ -264,8 +280,7 @@ describe("Cartiva Build My Plan", () => {
 
     expect(cookingMeasureIngredients.length).toBeGreaterThan(0);
     expect(cookingMeasureIngredients.every((ingredient) => (
-      ingredient.shoppingText !== ingredient.name
-      && !/\b(?:cups?|tbsp|tsp)\b/i.test(ingredient.shoppingText)
+      /\bfl oz total$/i.test(ingredient.shoppingText)
     ))).toBe(true);
 
     const input = planIngredientsAsText(plan.ingredients);
@@ -281,7 +296,7 @@ describe("Cartiva Build My Plan", () => {
       ingredients: [{ name: "Red lentil pasta", amount: 1.8, unit: "lb" }],
     }]).ingredients;
     const edited = updateConsolidatedIngredientAmount(original, original[0].id, 1.8);
-    expect(edited[0]).toMatchObject({ amount: 1.8, shoppingText: "Red lentil pasta 1.8 lb" });
+    expect(edited[0]).toMatchObject({ amount: 1.8, shoppingText: "Red lentil pasta 1.8 lb total" });
     expect(updateConsolidatedIngredientAmount(edited, original[0].id, 0)).toBe(edited);
 
     for (const name of ["Salt", "Black pepper", "Olive oil", "Garlic powder", "Soy sauce"]) {
@@ -327,7 +342,7 @@ describe("Cartiva Build My Plan", () => {
       name: "Rice",
       amount: 176,
       unit: "oz",
-      shoppingText: "Rice 11 lb",
+      shoppingText: "Rice 11 lb total",
     });
   });
 
@@ -517,7 +532,7 @@ Bake for 30 minutes.
     expect(six.ingredients.find((ingredient) => ingredient.name === "Rice")).toMatchObject({
       amount: 3,
       unit: "cup",
-      shoppingText: "Rice 2 lb",
+      shoppingText: "Rice 24 fl oz total",
     });
   });
 
@@ -547,14 +562,14 @@ Bake for 30 minutes.
     const recipe = parseRecipeText("Ingredients\n1.8 lb red lentil pasta\n2 cups rice");
     expect(recipe.servings).toBe(4);
     expect(recipe.servingsConfirmed).toBe(false);
-    expect(recipe.ingredients.find((ingredient) => ingredient.name === "Red Lentil Pasta")?.shoppingText).toBe("Red Lentil Pasta 1.8 lb");
+    expect(recipe.ingredients.find((ingredient) => ingredient.name === "Red Lentil Pasta")?.shoppingText).toBe("Red Lentil Pasta 1.8 lb total");
     const confirmed = confirmRecipeServings(recipe);
     expect(confirmed.servingsConfirmed).toBe(true);
     expect(confirmed.ingredients).toEqual(recipe.ingredients);
     const scaled = scaleRecipeImport(recipe, 8);
     expect(scaled.ingredients.find((ingredient) => ingredient.name === "Red Lentil Pasta")).toMatchObject({
       amount: 3.6,
-      shoppingText: "Red Lentil Pasta 3.6 lb",
+      shoppingText: "Red Lentil Pasta 3.6 lb total",
     });
   });
 });

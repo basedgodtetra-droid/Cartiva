@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import type { KrogerProduct, Measurement, RetailPackageFulfillment } from "@/lib/types";
+import type {
+  KrogerMatchResult,
+  KrogerProduct,
+  Measurement,
+  RankedKrogerProduct,
+  RetailPackageFulfillment,
+} from "@/lib/types";
 import {
   cartiva100LiveFulfillmentFailure,
   cartiva100LiveOracleFailure,
+  selectedMetadata,
 } from "@/tests/support/cartiva-100-live";
 import { cartiva100LiveCases } from "@/tests/support/cartiva-100";
 
@@ -56,6 +63,57 @@ function volumePack(packCount: number, eachFluidOunces = 12): Measurement {
 }
 
 describe("Cartiva 100 independent live oracle", () => {
+  it("retains only genuine, exact-store, HTTPS observation metadata", () => {
+    const fulfillment: RetailPackageFulfillment = {
+      kind: "single_package",
+      cartQuantity: 1,
+      packageCount: 1,
+      overageBaseAmount: 0,
+      overagePercent: 0,
+      label: "1 retailer package",
+      approvalRequired: false,
+    };
+    const observed = product({
+      checkedAt: "2026-09-02T20:00:00.000Z",
+      sourceUrl: "https://www.kroger.com/p/product/0001111000999",
+      priceProvenance: {
+        ...product().priceProvenance,
+        checkedAt: "2026-09-02T20:00:00.000Z",
+      },
+    });
+    const ranked: RankedKrogerProduct = {
+      ...observed,
+      score: 100,
+      confidence: "high",
+      comparablePrice: observed.price,
+      matchedTerms: ["product"],
+      reasons: ["Product identity"],
+    };
+    const result: KrogerMatchResult = {
+      retailer: "kroger",
+      requestedItem: "Kroger Product",
+      status: "matched",
+      resolution: "matched",
+      confidence: "high",
+      recommended: ranked,
+      alternatives: [],
+      explanation: "Verified.",
+      fulfillment,
+    };
+
+    expect(selectedMetadata(result, "03500529")).toMatchObject({
+      locationId: "03500529",
+      checkedAt: "2026-09-02T20:00:00.000Z",
+      sourceUrl: "https://www.kroger.com/p/product/0001111000999",
+    });
+    expect(selectedMetadata({
+      ...result,
+      recommended: { ...ranked, checkedAt: undefined, priceProvenance: { ...ranked.priceProvenance, checkedAt: undefined } },
+    }, "03500529")).toBeUndefined();
+    expect(selectedMetadata({ ...result, recommended: { ...ranked, sourceUrl: "http://example.com/item", link: "http://example.com/item" } }, "03500529")).toBeUndefined();
+    expect(selectedMetadata(result, "DIFFERENT_STORE")).toBeUndefined();
+  });
+
   it("proves a soda pack from retail-unit count and rejects conflicting counts", () => {
     const twelvePack = product({
       title: "Coca-Cola Zero Sugar Soda Cans 12 x 12 fl oz",

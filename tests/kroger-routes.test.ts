@@ -379,6 +379,91 @@ describe("Kroger extension routes", () => {
     });
   });
 
+  it("keeps searching past an unavailable match for a handoff-safe product", async () => {
+    const unavailable = krogerProduct({
+      id: "0001111099912",
+      productId: "0001111099912",
+      upc: "0001111099912",
+      title: "Kroger Large Eggs 12 Count",
+      availabilityStatus: "unknown",
+      inStock: false,
+      cartEligible: false,
+    });
+    const available = krogerProduct({
+      id: "0001111099913",
+      productId: "0001111099913",
+      upc: "0001111099913",
+      title: "Kroger Large Eggs 12 Count",
+    });
+    vi.mocked(searchKrogerProducts)
+      .mockResolvedValueOnce(searchResponse([unavailable]))
+      .mockResolvedValueOnce(searchResponse([available]));
+
+    const response = await searchPost(new Request("http://localhost:3000/api/kroger/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{ text: "Large eggs 12 count" }],
+        locationId: "AB12CD34",
+        fulfillmentMode: "pickup",
+      }),
+    }));
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    const verification = events.find((event) => event.phase === "verification");
+
+    expect(searchKrogerProducts).toHaveBeenCalledTimes(2);
+    expect(verification.result).toMatchObject({
+      status: "matched",
+      recommended: {
+        productId: available.productId,
+        availabilityStatus: "in_stock",
+        cartEligible: true,
+      },
+    });
+  });
+
+  it("does not count an approval-required multipackage review as fulfilled", async () => {
+    const tofu = krogerProduct({
+      id: "0001111099814",
+      productId: "0001111099814",
+      upc: "0001111099814",
+      title: "Simple Truth Extra Firm Tofu 8 oz",
+      productType: "Tofu",
+      size: weightSize(8),
+    });
+    vi.mocked(searchKrogerProducts).mockResolvedValue(searchResponse([tofu]));
+
+    const response = await searchPost(new Request("http://localhost:3000/api/kroger/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{ text: "Extra firm tofu 10 oz total" }],
+        locationId: "AB12CD34",
+        fulfillmentMode: "pickup",
+      }),
+    }));
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    const verification = events.find((event) => event.phase === "verification");
+    const performanceEvent = events.find((event) => event.type === "performance");
+
+    expect(verification.result).toMatchObject({
+      status: "review",
+      resolution: "needs_choice",
+      fulfillment: {
+        kind: "multi_package",
+        cartQuantity: 2,
+        approvalRequired: true,
+      },
+    });
+    expect(performanceEvent.performance.outcomeCounts).toEqual({
+      requestedItems: 1,
+      matchedAutomatically: 0,
+      multiPackageFulfilled: 0,
+      shopperChoiceRequired: 1,
+      trulyUnavailable: 0,
+    });
+  });
+
   it("streams the seven reported requests with exact identities and resolved package quantities", async () => {
     const fixtures = {
       chickpeas: krogerProduct({
@@ -515,7 +600,10 @@ describe("Kroger extension routes", () => {
         shopperChoiceRequired: 0,
         trulyUnavailable: 0,
       });
-    expect(vi.mocked(searchKrogerProducts).mock.calls).toHaveLength(7);
+    // Six handoff-safe lines stop after one call. The unavailable rice line
+    // performs one additional bounded discovery attempt before returning its
+    // truthful check-availability result.
+    expect(vi.mocked(searchKrogerProducts).mock.calls).toHaveLength(8);
     for (const [query] of vi.mocked(searchKrogerProducts).mock.calls) {
       expect(query).not.toMatch(/\b(?:3|8|4|2)\s+cans?\b|\b3\s*lb\b|\b1\.8\s*lb\b/i);
     }

@@ -197,8 +197,8 @@ export function CartivaComparison({
                 : cartReady
                   ? "Connect to Kroger only if you want Cartiva to add these matched products to your Kroger cart."
                   : hasResults ? cartReadiness.reason : "Compare the basket before adding it to Kroger.";
-  const unmatchedIndexes = comparison.results.flatMap((result, index) => (
-    result?.status === "no_match" ? [index] : []
+  const actionableIndexes = comparison.results.flatMap((result, index) => (
+    result && result.status !== "matched" ? [index] : []
   ));
 
   useEffect(() => {
@@ -291,9 +291,9 @@ export function CartivaComparison({
               <small>{comparison.message ?? "Cartiva shows a total only after every requested item has a trustworthy match."}</small>
             </span>
             {comparison.phase === "error" ? <button type="button" onClick={onRetry}>Try again</button> : null}
-            {comparison.phase === "complete" && unmatchedIndexes.length ? (
-              <button type="button" onClick={() => onReviewItem(unmatchedIndexes[0])}>
-                Review {unmatchedIndexes.length} {unmatchedIndexes.length === 1 ? "item" : "items"}
+            {comparison.phase === "complete" && actionableIndexes.length ? (
+              <button type="button" onClick={() => onReviewItem(actionableIndexes[0])}>
+                Review {actionableIndexes.length} {actionableIndexes.length === 1 ? "item" : "items"}
               </button>
             ) : null}
           </div>
@@ -341,6 +341,7 @@ export function CartivaComparison({
               quantities[item.id] ?? 1,
             );
             const status = result?.status;
+            const reviewRequired = status === "review";
             const needsAvailabilityCheck = result?.resolution === "matched_check_availability"
               || product?.availabilityStatus === "unknown"
               || product?.availabilityStatus === "likely_available";
@@ -359,7 +360,7 @@ export function CartivaComparison({
               <div
                 className={styles.basketItem}
                 key={item.id}
-                data-state={product ? "matched" : status === "no_match" ? "unmatched" : "pending"}
+                data-state={reviewRequired ? "review" : product ? "matched" : status === "no_match" ? "unmatched" : "pending"}
               >
                 <span
                   className={styles.productImage}
@@ -371,7 +372,9 @@ export function CartivaComparison({
                   <strong>{product?.title ?? item.name}</strong>
                   <span>
                     {product
-                      ? fulfillmentLabel
+                      ? reviewRequired
+                        ? `${fulfillmentLabel} · ${result?.explanation ?? "Choose or edit this package before continuing."}`
+                        : fulfillmentLabel
                       : busy ? "Searching Kroger for this request…" : status === "no_match" ? result?.explanation : item.detail ?? "Waiting to compare"}
                   </span>
                   {product ? (
@@ -384,9 +387,11 @@ export function CartivaComparison({
                 </div>
                 <div className={styles.basketItemPrice}>
                   <strong>{product && quantity !== undefined ? itemPrice(product.price, quantity) : "—"}</strong>
-                  <span data-tone={transferStatus === "Accepted by Kroger" ? "success" : transferStatus ? "error" : needsAvailabilityCheck ? "muted" : product?.cartEligible ? "success" : status === "no_match" && !product ? "error" : "muted"}>
+                  <span data-tone={transferStatus === "Accepted by Kroger" ? "success" : transferStatus ? "error" : reviewRequired ? "muted" : needsAvailabilityCheck ? "muted" : product?.cartEligible ? "success" : status === "no_match" && !product ? "error" : "muted"}>
                     {transferStatus ?? (needsAvailabilityCheck
-                      ? "Check availability"
+                      ? reviewRequired ? "Needs your choice" : "Check availability"
+                      : reviewRequired
+                        ? "Needs your choice"
                       : product?.cartEligible
                         ? "Available"
                         : product ? "Review at Kroger" : status === "no_match" ? "No suitable product found" : "Pending")}

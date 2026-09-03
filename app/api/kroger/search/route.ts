@@ -569,7 +569,12 @@ export async function handleKrogerSearchRead(
               deduplicatedRequests += response.diagnostics.deduplicated ? 1 : 0;
               return response.products.slice(0, 20);
             },
-            hasVerifiedMatch: (products) => Boolean(verifiedResult(item, products).recommended),
+            hasVerifiedMatch: (products) => {
+              const result = verifiedResult(item, products);
+              // A review candidate is useful evidence, but it must not stop the
+              // bounded search before a later query finds a handoff-safe match.
+              return isRetailerHandoffAcceptedMatch(result);
+            },
             isPlausible: (product) => isPlausibleDiscoveryCandidate(item.intent, product),
           });
           const preliminaryResult = verifiedResult(item, discovery.candidates);
@@ -600,7 +605,7 @@ export async function handleKrogerSearchRead(
             attempts: discovery.attempts,
             candidates: discovery.candidates,
             selectedId: verified.recommended?.productId,
-            rejectionReason: verified.recommended ? undefined : verified.explanation,
+            rejectionReason: verified.status === "matched" ? undefined : verified.explanation,
           });
         } catch (error) {
           searchApiCalls += 1;
@@ -656,7 +661,10 @@ export async function handleKrogerSearchRead(
               result.status === "matched" && Boolean(result.recommended)
             )).length,
             multiPackageFulfilled: verifiedResults.filter((result) => (
-              result.fulfillment?.kind === "multi_package"
+              result.status === "matched"
+              && result.resolution === "multi_package_fulfillment"
+              && result.fulfillment?.kind === "multi_package"
+              && result.fulfillment.approvalRequired !== true
             )).length,
             shopperChoiceRequired: verifiedResults.filter((result) => (
               result.resolution === "needs_choice"

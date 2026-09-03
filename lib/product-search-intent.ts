@@ -1,5 +1,15 @@
-import { extractMeasurement, extractPackOnlyCount } from "./measurements";
+import {
+  extractMeasurement,
+  extractPackOnlyCount,
+  normalizeMeasurementFractions,
+} from "./measurements";
 import { parseRetailerPackageQuantity } from "@/packages/shared/src";
+import {
+  COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE,
+  COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE,
+  COUNTED_CONTENT_UNIT_PATTERN_SOURCE,
+  OUTER_CONTAINER_UNIT_PATTERN_SOURCE,
+} from "@/packages/shared/src/package-grammar";
 import {
   assessProduceForm,
   assessProductFamily,
@@ -42,6 +52,7 @@ export interface ProductIntent {
   requestedTotal?: ReturnType<typeof extractMeasurement>;
   requestedCartQuantity: number;
   requestedContainer?: string;
+  requestedCountUnit?: string;
   strictPackageRequest: boolean;
   discoveryQueries: DiscoveryQuery[];
 }
@@ -120,13 +131,18 @@ function cleanQuery(value: string) {
  * keep their identity when no numeric package expression qualifies them.
  */
 export function stripDiscoveryPackageTerms(value: string) {
-  let text = parseRetailerPackageQuantity(value).searchText
+  const normalizedValue = normalizeMeasurementFractions(value);
+  const parsedQuantity = parseRetailerPackageQuantity(normalizedValue);
+  let text = (explicitAggregateMeasurementMatch(normalizedValue)
+    ? normalizedValue
+    : parsedQuantity.searchText)
     .normalize("NFKC")
     .replace(/^\s*\d{1,2}\s*[x×]\s+(?=\S)/i, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?[\s-]*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*(?:rolls?|sheets?)\b/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
+    .replace(new RegExp(`\\b\\d+(?:\\.\\d+)?${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}(?:${OUTER_CONTAINER_UNIT_PATTERN_SOURCE})\\b(?=[\\s\\S]*\\btotal\\b\\s*$)`, "gi"), " ")
+    .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|gallons?|gal|quarts?|qt|pints?|pt|liters?|litres?|milliliters?|millilitres?|ml|l)\b/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?[\s-]*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|canisters?|cans?|cartons?|containers?|jars?|packages?|pouch(?:es)?|trays?|tubs?))?/gi, " ")
+    .replace(new RegExp(`\\b\\d+(?:\\.\\d+)?${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(?:${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})\\b`, "gi"), " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|gallons?|gal|quarts?|qt|pints?|pt|liters?|litres?|milliliters?|millilitres?|ml|l)\b(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?|pouch(?:es)?|trays?|tubs?))?/gi, " ")
     .replace(/\b(?:half(?:[ -]a)?|one|a)?\s*gallons?\b/gi, " ")
     .replace(/\b(?:one|a)\s+dozen\b/gi, " ")
     .replace(/\b(?:family|party|snack|regular)\s+size\b/gi, " ");
@@ -145,8 +161,184 @@ const FLEXIBLE_RAW_WEIGHT_CATEGORY = new Set([
   "turkey",
 ]);
 
-const EXPLICIT_TOTAL_SIGNAL = /\b(?:desired\s+total|total(?:ing)?|altogether|in\s+total)\b/i;
+// A bare product word such as the cereal brand "Total" is identity, not an
+// aggregate request. Accept "total" only in an unmistakable amount phrase or
+// at the end of the request; the other variants are semantically explicit.
+const EXPLICIT_TOTAL_SIGNAL = /\b(?:desired\s+total|totaling|altogether|in\s+total|a\s+total\s+of)\b|\btotal\b(?=\s*(?:$|[.,;])|\s+[x×]\s*\d+\b)/i;
 const PREPACKAGED_WEIGHT_SIGNAL = /\b(?:bacon|sausage|deli|smoked|frozen|canned|dried|pickled|jarred|steam(?:able|[ -]?in[ -]?bag))\b/i;
+const TRAILING_TOTAL_MEASUREMENT = new RegExp(
+  `\\b(\\d+(?:\\.\\d+)?)\\s*(fl\\s*oz|fluid\\s+ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|liters?|litres?|milliliters?|millilitres?|gallons?|gal|quarts?|qt|pints?|pt|ml|l|count|ct|each|${COUNTED_CONTENT_UNIT_PATTERN_SOURCE}|${OUTER_CONTAINER_UNIT_PATTERN_SOURCE})\\b[\\s,;:-]+(?:(?:in\\s+)?total|altogether)(?:\\s+please)?\\s*[.,;]?\\s*$`,
+  "i",
+);
+const PREFIXED_TOTAL_MEASUREMENT = new RegExp(
+  `\\b(?:desired\\s+total|totaling|a\\s+total\\s+of)\\s+(\\d+(?:\\.\\d+)?)\\s*(fl\\s*oz|fluid\\s+ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|liters?|litres?|milliliters?|millilitres?|gallons?|gal|quarts?|qt|pints?|pt|ml|l|count|ct|each|${COUNTED_CONTENT_UNIT_PATTERN_SOURCE}|${OUTER_CONTAINER_UNIT_PATTERN_SOURCE})\\b`,
+  "i",
+);
+
+function explicitAggregateMeasurementMatch(value: string) {
+  return value.match(TRAILING_TOTAL_MEASUREMENT)
+    ?? value.match(PREFIXED_TOTAL_MEASUREMENT);
+}
+
+function explicitTrailingTotalMeasurement(value: string) {
+  const match = explicitAggregateMeasurementMatch(value);
+  if (!match) return undefined;
+  const countUnit = new RegExp(
+    `^(?:count|ct|each|${COUNTED_CONTENT_UNIT_PATTERN_SOURCE}|${OUTER_CONTAINER_UNIT_PATTERN_SOURCE})$`,
+    "i",
+  ).test(match[2]);
+  return extractMeasurement(countUnit
+    ? `${match[1]} count`
+    : `${match[1]} ${match[2]}`);
+}
+
+const REQUESTED_CONTAINER_ALIASES: Record<string, string> = {
+  bag: "bag",
+  bags: "bag",
+  bottle: "bottle",
+  bottles: "bottle",
+  box: "box",
+  boxes: "box",
+  bunch: "bunch",
+  bunches: "bunch",
+  can: "can",
+  canned: "can",
+  cans: "can",
+  carton: "carton",
+  cartons: "carton",
+  canister: "canister",
+  canisters: "canister",
+  container: "container",
+  containers: "container",
+  each: "each",
+  jar: "jar",
+  jars: "jar",
+  loaf: "loaf",
+  loaves: "loaf",
+  "mini-can": "can",
+  "mini-cans": "can",
+  pouch: "pouch",
+  pouches: "pouch",
+  tray: "tray",
+  trays: "tray",
+  tub: "tub",
+  tubs: "tub",
+};
+
+const REQUESTED_COUNT_UNIT_ALIASES: Record<string, string> = {
+  bar: "bar",
+  bars: "bar",
+  blade: "blade",
+  blades: "blade",
+  pac: "pac",
+  pacs: "pac",
+  piece: "piece",
+  pieces: "piece",
+  pod: "pod",
+  pods: "pod",
+  roll: "roll",
+  rolls: "roll",
+  sheet: "sheet",
+  sheets: "sheet",
+  wipe: "wipe",
+  wipes: "wipe",
+};
+
+function normalizeRequestedContainer(value: string | undefined) {
+  if (!value) return undefined;
+  const normalized = value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/^\s*\d+(?:\.\d+)?\s+/, "")
+    .replace(/[^a-z]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return REQUESTED_CONTAINER_ALIASES[normalized];
+}
+
+function normalizeRequestedCountUnit(value: string | undefined) {
+  if (!value) return undefined;
+  const normalized = value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return REQUESTED_COUNT_UNIT_ALIASES[normalized];
+}
+
+function requestedContainerFor(
+  value: string,
+  packageSizeText: string | undefined,
+  measurement: ReturnType<typeof extractMeasurement>,
+  constraints: ProductConstraint[],
+) {
+  const parsedPackageContainer = normalizeRequestedContainer(packageSizeText);
+  if (parsedPackageContainer) return parsedPackageContainer;
+
+  const aggregateContainer = normalizeRequestedContainer(
+    explicitAggregateMeasurementMatch(value)?.[2],
+  );
+  if (aggregateContainer) return aggregateContainer;
+
+  const totalContainerMatches = /\btotal\b\s*$/i.test(value)
+    ? [...value.matchAll(new RegExp(
+        `\\b\\d+(?:\\.\\d+)?${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}(${OUTER_CONTAINER_UNIT_PATTERN_SOURCE})\\b`,
+        "gi",
+      ))]
+    : [];
+  const totalContainer = normalizeRequestedContainer(totalContainerMatches.at(-1)?.[1]);
+  if (totalContainer) return totalContainer;
+
+  // A package word directly following an explicit measurement is shopper
+  // intent, while an identity such as "can opener" must not become packaging.
+  if (measurement) {
+    const physicalContainerMatch = value.match(
+      /\b\d+(?:\.\d+)?[\s-]*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|gallons?|gal|quarts?|qt|pints?|pt|liters?|litres?|milliliters?|millilitres?|ml|l|count|ct|pack|pk)(?:\s|,|\/|-)+(bags?|bottles?|box(?:es)?|bunch(?:es)?|canisters?|cans?|cartons?|containers?|each|jars?|loaf|loaves|pouch(?:es)?|trays?|tubs?)\b/i,
+    );
+    const countedContainerMatch = value.match(new RegExp(
+      `\\b\\d+(?:\\.\\d+)?${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(?:${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})(?:\\s|,|/|-)+(bags?|bottles?|box(?:es)?|bunch(?:es)?|canisters?|cans?|cartons?|containers?|each|jars?|loaf|loaves|pouch(?:es)?|trays?|tubs?)\\b`,
+      "i",
+    ));
+    const measuredContainerMatch = physicalContainerMatch ?? countedContainerMatch;
+    const matchEnd = measuredContainerMatch?.index !== undefined
+      ? measuredContainerMatch.index + measuredContainerMatch[0].length
+      : 0;
+    const accessoryTail = measuredContainerMatch
+      ? /^\s+(?:opener|cutter|holder|rack|dispenser|brush|cleaner|liner|clip|labels?)\b/i.test(value.slice(matchEnd))
+      : false;
+    const normalizedMeasuredContainer = accessoryTail
+      ? undefined
+      : normalizeRequestedContainer(measuredContainerMatch?.[1]);
+    if (normalizedMeasuredContainer) return normalizedMeasuredContainer;
+  }
+
+  const structuredContainer = constraints.find((constraint) => (
+    constraint.attribute === "containerFormat" || constraint.attribute === "packageType"
+  ));
+  return normalizeRequestedContainer(structuredContainer?.value)
+    ?? normalizeRequestedContainer(structuredContainer?.searchText);
+}
+
+function requestedCountUnitFor(
+  value: string,
+  measurement: ReturnType<typeof extractMeasurement>,
+  constraints: ProductConstraint[],
+) {
+  if (!measurement) return undefined;
+  const aggregateUnit = normalizeRequestedCountUnit(
+    explicitAggregateMeasurementMatch(value)?.[2],
+  );
+  if (aggregateUnit) return aggregateUnit;
+  const measuredUnitPattern = /\btotal\b\s*$/i.test(value)
+    ? new RegExp(`\\b\\d+(?:\\.\\d+)?${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})\\b\\s+total\\s*$`, "i")
+    : new RegExp(`\\b\\d+(?:\\.\\d+)?${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})\\b`, "i");
+  const measuredUnit = normalizeRequestedCountUnit(value.match(measuredUnitPattern)?.[1]);
+  if (measuredUnit) return measuredUnit;
+  const structuredUnit = constraints.find((constraint) => (
+    constraint.attribute === "containerFormat" || constraint.attribute === "packageType"
+  ));
+  return normalizeRequestedCountUnit(structuredUnit?.value)
+    ?? normalizeRequestedCountUnit(structuredUnit?.searchText);
+}
 
 function isFlexibleMeasuredTotal(value: string, category: string | undefined) {
   if (EXPLICIT_TOTAL_SIGNAL.test(value)) return true;
@@ -159,9 +351,10 @@ function isFlexibleMeasuredTotal(value: string, category: string | undefined) {
     // shelf-size requests unless the shopper explicitly says "total".
     return !PREPACKAGED_WEIGHT_SIGNAL.test(value);
   }
-  // Retained compatibility for recipe-generated alternative-pasta totals.
-  // New generated requests should carry an explicit `total` marker so this
-  // narrow bridge can eventually be removed.
+  // Retained compatibility for the original reported red-lentil-pasta
+  // aggregate regression. New planner and recipe requests carry an explicit
+  // `total` marker, but saved/direct requests using the old wording must keep
+  // their verified multi-package behavior.
   return /\bred\s+lentil\s+pasta\b/i.test(value);
 }
 
@@ -171,9 +364,13 @@ function strictPackageRequest(
   category: string | undefined,
 ) {
   if (extractPackOnlyCount(value) !== undefined || measurement?.packCount) return true;
-  if (/\b\d+(?:\.\d+)?\s*[- ]?(?:count|ct|rolls?|sheets?)\b/i.test(value)) return true;
+  // "Total" describes the amount the shopper needs across one or more
+  // packages. It overrides a plain count (for example, 21 eggs) but not an
+  // explicit multipack such as a 24-pack or 24 × 12-ounce case.
+  if (measurement && EXPLICIT_TOTAL_SIGNAL.test(value)) return false;
+  if (measurement?.kind === "count") return true;
   if (!measurement) return false;
-  if (/\b(?:package|pkg|box|bag|tub|bottle|can|carton|container|jar|loaf)\b/i.test(value)) {
+  if (/\b(?:package|pkg|box|bag|tub|tray|pouch|bottle|can|carton|container|jar|loaf)\b/i.test(value)) {
     return true;
   }
   // Explicit measurements are shelf-package requirements by default. Relax
@@ -226,6 +423,7 @@ function constraintIdentityQuery(request: StructuredProductRequest) {
 
 function simplifiedUnknownQuery(value: string) {
   return stripDiscoveryPackageTerms(stripFlexibleProteinPreferences(value))
+    .replace(EXPLICIT_TOTAL_SIGNAL, " ")
     .split(/\s+/)
     .filter(Boolean)
     .filter((word) => !SEARCH_FILLER.has(normalize(word)))
@@ -276,10 +474,33 @@ export function parseProductIntent(
   value: string,
   structuredRequest = analyzeProductFacets(value),
 ): ProductIntent {
-  const quantityIntent = parseRetailerPackageQuantity(value);
-  const requestedContainer = quantityIntent.packageSizeText?.replace(/^1\s+/, "");
+  const normalizedValue = normalizeMeasurementFractions(value);
+  const parsedQuantityIntent = parseRetailerPackageQuantity(normalizedValue);
+  const quantityIntent = explicitAggregateMeasurementMatch(normalizedValue)
+    ? {
+        ...parsedQuantityIntent,
+        quantity: 1,
+        searchText: normalizedValue,
+        packageSizeText: undefined,
+      }
+    : parsedQuantityIntent;
   const verificationText = quantityIntent.searchText.normalize("NFKC").replace(/\s+/g, " ").trim();
-  const measurement = extractMeasurement(verificationText);
+  // In shopper language, a terminal total is the requested aggregate. Bind it
+  // to the immediately preceding amount instead of an earlier per-package
+  // measurement. Catalog-title parsing intentionally keeps its own precedence.
+  const measurement = explicitTrailingTotalMeasurement(verificationText)
+    ?? extractMeasurement(verificationText);
+  const requestedContainer = requestedContainerFor(
+    verificationText,
+    quantityIntent.packageSizeText,
+    measurement,
+    structuredRequest.constraints,
+  );
+  const requestedCountUnit = requestedCountUnitFor(
+    verificationText,
+    measurement,
+    structuredRequest.constraints,
+  );
   const inferredCategory = inferProductCategory(verificationText);
   const packageIsStrict = strictPackageRequest(
     verificationText,
@@ -336,6 +557,7 @@ export function parseProductIntent(
     requestedTotal,
     requestedCartQuantity: quantityIntent.quantity,
     requestedContainer,
+    requestedCountUnit,
     strictPackageRequest: packageIsStrict,
     discoveryQueries: queries.slice(0, 3),
   };

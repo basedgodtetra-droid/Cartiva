@@ -397,6 +397,106 @@ describe("Kroger product ranking", () => {
     });
   });
 
+  it("rejects bottles when an end-to-end juice request explicitly asks for cartons", () => {
+    const bottledSixPack = krogerProduct({
+      id: "orange-juice-bottles",
+      productId: "orange-juice-bottles",
+      upc: "0001111000424",
+      title: "Kroger Orange Juice 6 Bottles 10 fl oz Each",
+      productType: "Orange Juice",
+      size: {
+        amount: 60,
+        unit: "fl oz",
+        kind: "volume",
+        baseAmount: 60,
+        baseUnit: "fl oz",
+        packCount: 6,
+        perPackageAmount: 10,
+        label: "6 × 10 fl oz",
+      },
+    });
+    const interpreted = interpretGroceryInput(
+      "orange juice 6 pack 10 fl oz cartons",
+    ).items[0];
+
+    expect(parseProductIntent(interpreted.canonicalText).requestedContainer).toBe("carton");
+    expect(rankKrogerProducts(interpreted.canonicalText, [bottledSixPack])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+  });
+
+  it("fulfills a blade total with two verified six-blade packs", () => {
+    const bladePack = krogerProduct({
+      id: "razor-refill-blades-6",
+      productId: "razor-refill-blades-6",
+      upc: "0004740066012",
+      title: "Razor Blade Refills 6 Count Box",
+      productType: "Razor Blades",
+      size: countSize(6),
+    });
+    const wrongUnit = krogerProduct({
+      id: "razor-refill-wipes-6",
+      productId: "razor-refill-wipes-6",
+      upc: "0004740066013",
+      title: "Razor Refill Wipes 6 Count",
+      productType: "Razor Wipes",
+      size: countSize(6),
+    });
+    const interpreted = interpretGroceryInput("razor refill 12 blades total").items[0];
+
+    expect(parseProductIntent(interpreted.canonicalText)).toMatchObject({
+      fulfillmentText: "Razor Refill",
+      requestedCountUnit: "blade",
+      requestedTotal: { kind: "count", baseAmount: 12 },
+    });
+    expect(rankKrogerProducts(interpreted.canonicalText, [wrongUnit])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+    expect(rankKrogerProducts(interpreted.canonicalText, [wrongUnit, bladePack])).toMatchObject({
+      status: "matched",
+      resolution: "multi_package_fulfillment",
+      recommended: { id: bladePack.id },
+      fulfillment: {
+        cartQuantity: 2,
+        packageCount: 2,
+        requestedBaseAmount: 12,
+        suppliedBaseAmount: 12,
+      },
+    });
+  });
+
+  it("fulfills a pod total with two boxed twelve-pod packs", () => {
+    const podPack = krogerProduct({
+      id: "coffee-pods-12-box",
+      productId: "coffee-pods-12-box",
+      upc: "0001111000425",
+      title: "K-Cup Coffee Pods 12 Count Box",
+      productType: "Coffee Pods",
+      size: countSize(12),
+    });
+    const interpreted = interpretGroceryInput("coffee pods 24 pods total").items[0];
+
+    expect(parseProductIntent(interpreted.canonicalText)).toMatchObject({
+      fulfillmentText: "Coffee Pods",
+      requestedContainer: undefined,
+      requestedCountUnit: "pod",
+      requestedTotal: { kind: "count", baseAmount: 24 },
+    });
+    expect(rankKrogerProducts(interpreted.canonicalText, [podPack])).toMatchObject({
+      status: "matched",
+      resolution: "multi_package_fulfillment",
+      recommended: { id: podPack.id },
+      fulfillment: {
+        cartQuantity: 2,
+        packageCount: 2,
+        requestedBaseAmount: 24,
+        suppliedBaseAmount: 24,
+      },
+    });
+  });
+
   it("accepts Kroger's Each title for cans only when Kroger's category confirms it", () => {
     const eachWithoutCannedCategory = krogerProduct({
       id: "each-dry",
@@ -572,6 +672,342 @@ describe("Kroger product ranking", () => {
     });
   });
 
+  it("requires an explicitly measured can to stay canned instead of selecting a same-size dry bag", () => {
+    const dryBag = krogerProduct({
+      id: "kidney-beans-bag",
+      productId: "kidney-beans-bag",
+      upc: "0001111000413",
+      title: "Kroger Dry Dark Red Kidney Beans 16 oz Bag",
+      productType: "Dried Beans",
+      size: weightSize(16),
+    });
+    const canned = krogerProduct({
+      id: "kidney-beans-can",
+      productId: "kidney-beans-can",
+      upc: "0001111000414",
+      title: "Kroger Dark Red Kidney Beans 16 oz Can",
+      productType: "Canned & Packaged",
+      size: weightSize(16),
+    });
+
+    expect(rankKrogerProducts("kidney beans 16 oz can", [dryBag, canned])).toMatchObject({
+      status: "matched",
+      recommended: { id: canned.id },
+    });
+    expect(rankKrogerProducts("kidney beans 16 oz can", [dryBag])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+    expect(rankKrogerProducts("kidney beans 16 oz bag", [canned, dryBag])).toMatchObject({
+      status: "matched",
+      recommended: { id: dryBag.id },
+    });
+  });
+
+  it("accepts a counted box when a package word is also part of the product name", () => {
+    const boxedTrashBags = krogerProduct({
+      id: "hefty-trash-bags-30-box",
+      productId: "hefty-trash-bags-30-box",
+      upc: "0001370012001",
+      title: "Hefty Strong Large Trash Bags 30 Count Box",
+      brand: "Hefty",
+      productType: "Trash Bags",
+      size: countSize(30),
+    });
+
+    const interpreted = interpretGroceryInput("trash bags 30 count box").items[0];
+    expect(interpreted.canonicalText).toBe("Trash Bags, 30 ct box");
+    expect(parseProductIntent(interpreted.canonicalText).requestedContainer).toBe("box");
+    expect(rankKrogerProducts(interpreted.canonicalText, [boxedTrashBags])).toMatchObject({
+      status: "matched",
+      recommended: { id: boxedTrashBags.id },
+      fulfillment: {
+        cartQuantity: 1,
+        packageCount: 1,
+      },
+    });
+  });
+
+  it("keeps a hyphenated bar count strict instead of treating it as a model descriptor", () => {
+    const threeBars = krogerProduct({
+      id: "chewy-bars-3",
+      productId: "chewy-bars-3",
+      upc: "0003000012003",
+      title: "Chewy Granola Bars 3-Bar Box",
+      productType: "Granola Bars",
+      size: countSize(3),
+    });
+    const intent = parseProductIntent("chewy granola bars 6-bar box");
+    expect(intent).toMatchObject({
+      strictPackageRequest: true,
+      requestedPackageLabel: "6 count",
+    });
+    expect(rankKrogerProducts(intent.verificationText, [threeBars])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+  });
+
+  it("still rejects a dry bean bag for an explicitly measured can", () => {
+    const dryBlackBeans = krogerProduct({
+      id: "black-beans-dry-bag",
+      productId: "black-beans-dry-bag",
+      upc: "0001111000421",
+      title: "Kroger Dry Black Beans 15 oz Bag",
+      productType: "Dry Beans",
+      size: weightSize(15),
+    });
+
+    expect(rankKrogerProducts("Black beans 15 oz can", [dryBlackBeans])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+  });
+
+  it("rejects a measured tuna pouch even when its title and category say canned", () => {
+    const tunaPouch = krogerProduct({
+      id: "canned-tuna-pouch",
+      productId: "canned-tuna-pouch",
+      upc: "0004800000731",
+      title: "Chicken of the Sea Canned Tuna in Water 5 oz Pouch",
+      brand: "Chicken of the Sea",
+      productType: "Canned Seafood",
+      size: weightSize(5),
+    });
+
+    const interpreted = interpretGroceryInput("canned tuna 5 oz can").items[0];
+    expect(interpreted.canonicalText).toBe("Canned Tuna, 5 oz can");
+    expect(parseProductIntent(interpreted.canonicalText).requestedContainer).toBe("can");
+    expect(rankKrogerProducts(interpreted.canonicalText, [tunaPouch])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+  });
+
+  it("keeps roll totals distinct from sheet counts through the notepad pipeline", () => {
+    const rollPack = krogerProduct({
+      id: "paper-towels-rolls",
+      productId: "paper-towels-rolls",
+      upc: "0001111000422",
+      title: "Kroger Paper Towels 6 Rolls",
+      productType: "Paper Towels",
+      size: countSize(6),
+    });
+    const sheetPack = krogerProduct({
+      id: "paper-towels-sheets",
+      productId: "paper-towels-sheets",
+      upc: "0001111000423",
+      title: "Kroger Paper Towels 6 Sheets",
+      productType: "Paper Towels",
+      size: countSize(6),
+    });
+    const interpreted = interpretGroceryInput("paper towels 6 rolls total").items[0];
+    const intent = parseProductIntent(interpreted.canonicalText);
+
+    expect(interpreted.canonicalText).toBe("Paper Towels, 6 rolls total");
+    expect(intent).toMatchObject({
+      requestedCountUnit: "roll",
+      strictPackageRequest: false,
+      requestedTotal: { kind: "count", baseAmount: 6 },
+    });
+    expect(rankKrogerProducts(interpreted.canonicalText, [sheetPack])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+    expect(rankKrogerProducts(interpreted.canonicalText, [sheetPack, rollPack])).toMatchObject({
+      status: "matched",
+      recommended: { id: rollPack.id },
+    });
+  });
+
+  it.each([
+    "Angel Soft Toilet Paper 12 Rolls 320 Sheets Per Roll",
+    "Charmin Ultra Soft Toilet Paper 12 Mega Rolls 244 Sheets Per Roll",
+  ])("accepts a real toilet-paper roll title with inner sheet capacity: %s", (title) => {
+    const toiletPaper = krogerProduct({
+      id: `toilet-paper-${title.includes("Mega") ? "mega" : "regular"}`,
+      productId: `toilet-paper-${title.includes("Mega") ? "mega" : "regular"}`,
+      upc: title.includes("Mega") ? "0003700012345" : "0004200012345",
+      title,
+      productType: "Toilet Paper",
+      size: countSize(12),
+    });
+    const interpreted = interpretGroceryInput("toilet paper 12 rolls").items[0];
+
+    expect(parseProductIntent(interpreted.canonicalText).requestedCountUnit).toBe("roll");
+    expect(rankKrogerProducts(interpreted.canonicalText, [toiletPaper])).toMatchObject({
+      status: "matched",
+      recommended: { id: toiletPaper.id },
+    });
+  });
+
+  it.each([
+    "toilet paper 12-rolls",
+    "toilet paper 12 giant rolls",
+    "toilet paper 12 super mega rolls",
+    "paper towels 12 select-a-size rolls",
+  ])("never hands off a six-roll package for a strict twelve-roll request: %s", (request) => {
+    const sixRoll = krogerProduct({
+      id: "paper-product-6-roll",
+      productId: "paper-product-6-roll",
+      upc: "0001111000606",
+      title: request.startsWith("paper towels")
+        ? "Kroger Paper Towels 6 Select-A-Size Rolls"
+        : "Kroger Toilet Paper 6 Giant Rolls",
+      productType: request.startsWith("paper towels") ? "Paper Towels" : "Toilet Paper",
+      size: countSize(6),
+    });
+    const interpreted = interpretGroceryInput(request).items[0];
+
+    expect(parseProductIntent(interpreted.canonicalText)).toMatchObject({
+      requestedCountUnit: "roll",
+      strictPackageRequest: true,
+      requestedPackageLabel: "12 count",
+    });
+    expect(rankKrogerProducts(interpreted.canonicalText, [sixRoll])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+  });
+
+  it("never undersupplies an exact shelf size while allowing a slightly larger label variance", () => {
+    const fifteenPointFive = krogerProduct({
+      id: "kidney-beans-15-5",
+      productId: "kidney-beans-15-5",
+      upc: "0001111000415",
+      title: "Kroger Dark Red Kidney Beans 15.5 oz Can",
+      productType: "Canned & Packaged",
+      size: weightSize(15.5),
+    });
+
+    expect(rankKrogerProducts("kidney beans 16 oz can", [fifteenPointFive])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+    expect(rankKrogerProducts("kidney beans 15 oz can", [fifteenPointFive])).toMatchObject({
+      status: "matched",
+      recommended: { id: fifteenPointFive.id },
+    });
+  });
+
+  it("compares an exact metric shelf size with equivalent retailer pounds", () => {
+    const rice = krogerProduct({
+      id: "rice-kg-equivalent",
+      productId: "rice-kg-equivalent",
+      upc: "0001111000420",
+      title: "Kroger Long Grain White Rice 2.21 lb Bag",
+      productType: "Rice",
+      size: weightSize(2.21, "lb"),
+    });
+
+    expect(rankKrogerProducts("white rice 1 kilogram bag", [rice])).toMatchObject({
+      status: "matched",
+      recommended: { id: rice.id },
+    });
+  });
+
+  it("fulfills a planner count total with multiple ordinary packages and no undersupply", () => {
+    const dozenEggs = krogerProduct({
+      id: "eggs-12",
+      productId: "eggs-12",
+      upc: "0001111000416",
+      title: "Kroger Grade A Large Eggs 12 Count",
+      productType: "Eggs",
+      size: countSize(12),
+    });
+
+    const result = rankKrogerProducts("Eggs 21 count total", [dozenEggs]);
+    expect(result).toMatchObject({
+      status: "matched",
+      resolution: "multi_package_fulfillment",
+      recommended: { id: dozenEggs.id },
+      fulfillment: {
+        cartQuantity: 2,
+        requestedBaseAmount: 21,
+        suppliedBaseAmount: 24,
+      },
+    });
+    expect(result.fulfillment!.suppliedBaseAmount).toBeGreaterThanOrEqual(
+      result.fulfillment!.requestedBaseAmount!,
+    );
+  });
+
+  it("fulfills a rounded planner weight total from ordinary smaller packages", () => {
+    const eightOunceCheese = krogerProduct({
+      id: "cheddar-8",
+      productId: "cheddar-8",
+      upc: "0001111000417",
+      title: "Kroger Shredded Cheddar Cheese 8 oz Bag",
+      productType: "Cheese",
+      size: weightSize(8),
+    });
+
+    const result = rankKrogerProducts(
+      "Shredded cheddar cheese 12 oz total",
+      [eightOunceCheese],
+    );
+    expect(result).toMatchObject({
+      status: "matched",
+      resolution: "multi_package_fulfillment",
+      recommended: { id: eightOunceCheese.id },
+      fulfillment: {
+        cartQuantity: 2,
+        requestedBaseAmount: 12,
+        suppliedBaseAmount: 16,
+        overagePercent: 33.3,
+      },
+    });
+  });
+
+  it("fulfills a metric planner total through the real ranker without undersupplying", () => {
+    const chickenPackage = krogerProduct({
+      id: "chicken-8-82",
+      productId: "chicken-8-82",
+      upc: "0001111000418",
+      title: "Kroger Boneless Skinless Chicken Breast 8.82 oz Package",
+      productType: "Chicken Breast",
+      size: weightSize(8.82),
+    });
+
+    const result = rankKrogerProducts(
+      "Boneless skinless chicken breast 500 g total",
+      [chickenPackage],
+    );
+    expect(result).toMatchObject({
+      status: "matched",
+      resolution: "multi_package_fulfillment",
+      recommended: { id: chickenPackage.id },
+      fulfillment: {
+        cartQuantity: 2,
+        requestedBaseAmount: 17.637,
+        suppliedBaseAmount: 17.64,
+      },
+    });
+    expect(result.fulfillment!.suppliedBaseAmount).toBeGreaterThanOrEqual(
+      result.fulfillment!.requestedBaseAmount!,
+    );
+  });
+
+  it("does not discard a cooking-volume total or compare it with a weight-only package", () => {
+    const tinyJar = krogerProduct({
+      id: "peanut-butter-4",
+      productId: "peanut-butter-4",
+      upc: "0001111000419",
+      title: "Kroger Creamy Peanut Butter 4 oz Jar",
+      productType: "Peanut Butter",
+      size: weightSize(4),
+    });
+
+    const result = rankKrogerProducts("Peanut butter 16 fl oz total", [tinyJar]);
+    expect(result).toMatchObject({
+      status: "review",
+      resolution: "needs_choice",
+      recommended: { id: tinyJar.id },
+    });
+    expect(result.fulfillment).toBeUndefined();
+    expect(result.explanation).toMatch(/will not guess a weight-to-volume conversion/i);
+  });
+
   it("chooses two 16-ounce red-lentil boxes over three 12-ounce boxes while never undersupplying", () => {
     const twelveOunce = krogerProduct({
       id: "red-lentil-12",
@@ -619,7 +1055,7 @@ describe("Kroger product ranking", () => {
     );
   });
 
-  it("never returns an automatic recommendation after package fulfillment fails", () => {
+  it("keeps an extreme-overage product in review without presenting unsafe quantity math", () => {
     const oversized = krogerProduct({
       id: "ground-turkey-oversized",
       productId: "ground-turkey-oversized",
@@ -635,18 +1071,21 @@ describe("Kroger product ranking", () => {
       strictPackageRequest: false,
     };
 
-    expect(rankKrogerProducts(
+    const result = rankKrogerProducts(
       intent.originalText,
       [oversized],
       [],
       undefined,
       { intent },
-    )).toMatchObject({
-      status: "no_match",
-      resolution: "truly_unavailable",
-      confidence: "low",
-      recommended: null,
+    );
+    expect(result).toMatchObject({
+      status: "review",
+      resolution: "needs_choice",
+      confidence: "high",
+      recommended: { id: oversized.id },
     });
+    expect(result.fulfillment).toBeUndefined();
+    expect(result.explanation).toMatch(/far larger than the requested amount/i);
   });
 
   it("never accepts a low-confidence packaged strawberry-banana item for bananas", () => {

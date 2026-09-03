@@ -163,6 +163,65 @@ describe("retailer-neutral product discovery intent", () => {
     });
   });
 
+  it.each([
+    ["coffee 2 lb bags 4 lb total", "coffee", "weight", 64],
+    ["cola 12 fl oz cans 144 fl oz total", "cola", "volume", 144],
+    ["rice 1 lb bags 5 lb total", "rice", "weight", 80],
+    ["cat food 6 pouches per box 24 pouches total", "cat food per box", "count", 24],
+    ["coffee 2 lb bags totaling 4 lb", "coffee", "weight", 64],
+    ["coffee 2 lb bags 4 lb altogether", "coffee", "weight", 64],
+    ["coffee 2 lb bags desired total 4 lb", "coffee", "weight", 64],
+    ["coffee 2 lb bags a total of 4 lb", "coffee", "weight", 64],
+    ["coffee 2 lb bags totaling 4 lb of coffee", "coffee of coffee", "weight", 64],
+    ["coffee 2 lb bags desired total 4 lb please", "coffee please", "weight", 64],
+  ])("binds a terminal aggregate to its final measurement in %s", (
+    request,
+    fulfillmentText,
+    kind,
+    baseAmount,
+  ) => {
+    expect(parseProductIntent(request as string)).toMatchObject({
+      fulfillmentText,
+      requestedCartQuantity: 1,
+      requestedTotal: {
+        kind,
+        baseAmount,
+      },
+      strictPackageRequest: false,
+    });
+  });
+
+  it.each([
+    ["flour 1/2 lb total", "flour", 8],
+    ["flour ½ lb total", "flour", 8],
+    ["cheese 3/4 lb total", "cheese", 12],
+    ["turkey 1 1/2 lb total", "turkey", 24],
+    ["turkey 1-1/2 lb total", "turkey", 24],
+    ["flour 1 / 2 lb total", "flour", 8],
+    ["flour 1/ 2 lb total", "flour", 8],
+    ["flour .5 lb total", "flour", 8],
+    ["flour .25 lb total", "flour", 4],
+    ["flour ⅛ lb total", "flour", 2],
+    ["flour ⅜ lb total", "flour", 6],
+    ["flour ⅝ lb total", "flour", 10],
+    ["flour ⅞ lb total", "flour", 14],
+    ["flour 1 ⅛ lb total", "flour", 18],
+    ["flour 0,5 kg total", "flour", 17.637],
+  ])("normalizes fractional totals before discovery and fulfillment: %s", (
+    request,
+    fulfillmentText,
+    baseAmount,
+  ) => {
+    const intent = parseProductIntent(request as string);
+    expect(intent).toMatchObject({
+      originalText: request,
+      fulfillmentText,
+      requestedTotal: { kind: "weight", baseAmount, baseUnit: "oz" },
+      strictPackageRequest: false,
+    });
+    expect(intent.discoveryQueries[0]?.query).toBe(fulfillmentText);
+  });
+
   it("keeps explicit pack identity strict while allowing an explicit line multiplier", () => {
     expect(parseProductIntent("Coke Zero 24 pack")).toMatchObject({
       verificationText: "Coke Zero 24 pack",
@@ -178,6 +237,140 @@ describe("retailer-neutral product discovery intent", () => {
       requestedTotal: undefined,
       strictPackageRequest: true,
     });
+    expect(parseProductIntent("Chicken breast 2 pack 500 g")).toMatchObject({
+      requestedPackageLabel: "2-pack of 17.637 oz",
+      requestedTotal: undefined,
+      strictPackageRequest: true,
+    });
+  });
+
+  it("treats an explicit count total as fulfillable across ordinary packages", () => {
+    expect(parseProductIntent("Eggs 21 count total")).toMatchObject({
+      verificationText: "Eggs 21 count total",
+      fulfillmentText: "Eggs",
+      requestedCartQuantity: 1,
+      requestedPackageLabel: undefined,
+      requestedTotal: {
+        kind: "count",
+        baseAmount: 21,
+        baseUnit: "each",
+      },
+      strictPackageRequest: false,
+    });
+  });
+
+  it.each([
+    ["hummus 4 tubs total", "hummus", "tub", 4],
+    ["water 24 bottles total", "water", "bottle", 24],
+    ["12 pouches cat food total", "cat food", "pouch", 12],
+  ])("keeps a container total aggregate instead of repeating a multipack: %s", (
+    request,
+    fulfillmentText,
+    requestedContainer,
+    total,
+  ) => {
+    expect(parseProductIntent(request)).toMatchObject({
+      fulfillmentText,
+      requestedCartQuantity: 1,
+      requestedContainer,
+      requestedTotal: {
+        kind: "count",
+        baseAmount: total,
+        baseUnit: "each",
+      },
+      strictPackageRequest: false,
+    });
+  });
+
+  it("keeps a counted sell-unit while stripping it from total fulfillment identity", () => {
+    expect(parseProductIntent("razor refill 12 blades total")).toMatchObject({
+      fulfillmentText: "razor refill",
+      requestedCountUnit: "blade",
+      requestedTotal: {
+        kind: "count",
+        baseAmount: 12,
+        baseUnit: "each",
+      },
+      strictPackageRequest: false,
+      discoveryQueries: [{ level: "normalized", query: "razor refill" }],
+    });
+  });
+
+  it.each([
+    "toilet paper 12 rolls total",
+    "toilet paper 12 rolls in total",
+    "toilet paper 12 rolls, total",
+  ])("retains count-unit proof across total punctuation in %s", (request) => {
+    expect(parseProductIntent(request)).toMatchObject({
+      requestedCountUnit: "roll",
+      requestedTotal: { kind: "count", baseAmount: 12 },
+      strictPackageRequest: false,
+    });
+  });
+
+  it("normalizes a metric recipe total without sending the quantity to discovery", () => {
+    const intent = parseProductIntent("Chicken Breast 500 g total");
+    expect(intent).toMatchObject({
+      fulfillmentText: "Chicken Breast",
+      requestedTotal: {
+        kind: "weight",
+        baseAmount: 17.637,
+        baseUnit: "oz",
+      },
+      strictPackageRequest: false,
+    });
+    expect(intent.discoveryQueries[0]).toEqual({ level: "normalized", query: "Chicken Breast" });
+    expect(intent.discoveryQueries.every((query) => !/500\s*g/i.test(query.query))).toBe(true);
+
+    const uncategorized = parseProductIntent("Flour 1 kg total");
+    expect(uncategorized.fulfillmentText).toBe("Flour");
+    expect(uncategorized.discoveryQueries.every((query) => (
+      !/\b(?:1\s*kg|total)\b/i.test(query.query)
+    ))).toBe(true);
+  });
+
+  it("keeps Total cereal as product identity instead of an aggregate marker", () => {
+    const intent = parseProductIntent("Total cereal 18 oz");
+    expect(intent).toMatchObject({
+      fulfillmentText: "Total cereal 18 oz",
+      strictPackageRequest: true,
+      requestedPackageLabel: "18 oz",
+      requestedTotal: undefined,
+    });
+    expect(intent.discoveryQueries[0]).toEqual({ level: "normalized", query: "Total cereal" });
+
+    const sizeBeforeCategory = parseProductIntent("Total 18 oz cereal");
+    expect(sizeBeforeCategory).toMatchObject({
+      fulfillmentText: "Total 18 oz cereal",
+      strictPackageRequest: true,
+      requestedPackageLabel: "18 oz",
+      requestedTotal: undefined,
+    });
+    expect(sizeBeforeCategory.discoveryQueries[0]?.query).toContain("Total");
+  });
+
+  it.each([
+    ["kidney beans 16 oz can", "can"],
+    ["kidney beans 16 oz bag", "bag"],
+    ["pasta sauce 24 oz jar", "jar"],
+    ["olive oil 16 oz bottle", "bottle"],
+    ["orange juice 52 fl oz carton", "carton"],
+    ["cereal 12 oz box", "box"],
+    ["tuna 5 oz pouch", "pouch"],
+    ["yogurt 32 oz tub", "tub"],
+    ["fruit slices 12 oz tray", "tray"],
+  ])("keeps an explicit measured container in intent: %s", (request, requestedContainer) => {
+    expect(parseProductIntent(request).requestedContainer).toBe(requestedContainer);
+  });
+
+  it.each([
+    "can opener 16 oz",
+    "1 count can opener",
+    "1 count bottle opener",
+    "trash bags 30 ct",
+    "30 count trash bags",
+  ])("does not mistake a product identity for packaging: %s", (request) => {
+    expect(parseProductIntent(request).requestedContainer).toBeUndefined();
   });
 
   it.each([

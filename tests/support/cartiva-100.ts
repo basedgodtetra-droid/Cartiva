@@ -9,6 +9,7 @@ import {
   retrieveCandidatesProgressively,
 } from "@/lib/product-search-intent";
 import type { KrogerProduct, Measurement } from "@/lib/types";
+import { isRetailerHandoffAcceptedMatch } from "@/packages/shared/src/comparison-session";
 import {
   interpretGroceryInput,
   resolveGroceryClarification,
@@ -513,7 +514,7 @@ async function automaticOutcome(
       },
       hasVerifiedMatch: (candidates) => {
         latest = rankKrogerProducts(item.canonicalText, candidates, [], undefined, { intent });
-        return Boolean(latest.recommended);
+        return isRetailerHandoffAcceptedMatch(latest);
       },
       isPlausible: (candidate) => isPlausibleDiscoveryCandidate(intent, candidate),
       candidateKey: (candidate) => candidate.id,
