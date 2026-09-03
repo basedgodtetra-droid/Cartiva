@@ -8,11 +8,15 @@ import type {
   RetailPackageFulfillment,
 } from "@/lib/types";
 import {
+  cartiva100LiveCaseDisposition,
   cartiva100LiveFulfillmentFailure,
+  cartiva100LiveIndependentCandidateReady,
   cartiva100LiveOracleFailure,
+  formatCartiva100LiveReport,
   selectedMetadata,
 } from "@/tests/support/cartiva-100-live";
 import { cartiva100LiveCases } from "@/tests/support/cartiva-100";
+import { parseProductIntent } from "@/lib/product-search-intent";
 
 function product(overrides: Partial<KrogerProduct> = {}): KrogerProduct {
   return {
@@ -201,5 +205,170 @@ describe("Cartiva 100 independent live oracle", () => {
       packageCount: 5,
       suppliedBaseAmount: 80,
     })).toContain("safe limit");
+  });
+
+  it("passes only confirmed in-stock handoffs and externally blocks likely availability", () => {
+    const checkedAt = "2026-09-02T20:00:00.000Z";
+    const fulfillment: RetailPackageFulfillment = {
+      kind: "single_package",
+      cartQuantity: 1,
+      packageCount: 1,
+      overageBaseAmount: 0,
+      overagePercent: 0,
+      label: "20 oz loaf",
+      approvalRequired: false,
+    };
+    const observed = product({
+      title: "Kroger Enriched White Bread 20 oz Loaf",
+      productType: "White Bread",
+      checkedAt,
+      sourceUrl: "https://www.kroger.com/p/product/0001111000999",
+      priceProvenance: {
+        ...product().priceProvenance,
+        checkedAt,
+      },
+    });
+    const ranked: RankedKrogerProduct = {
+      ...observed,
+      score: 100,
+      confidence: "high",
+      comparablePrice: observed.price,
+      matchedTerms: ["white", "bread"],
+      reasons: ["Product identity"],
+    };
+    const ready: KrogerMatchResult = {
+      retailer: "kroger",
+      requestedItem: "white bread",
+      status: "matched",
+      resolution: "matched",
+      confidence: "high",
+      recommended: ranked,
+      alternatives: [],
+      explanation: "Verified.",
+      fulfillment,
+    };
+    const likelyProduct: RankedKrogerProduct = {
+      ...ranked,
+      inStock: false,
+      availabilityStatus: "likely_available",
+    };
+    const likely: KrogerMatchResult = {
+      ...ready,
+      resolution: "matched_check_availability",
+      recommended: likelyProduct,
+    };
+
+    expect(cartiva100LiveCaseDisposition({
+      result: ready,
+      provenanceMatches: true,
+    })).toMatchObject({
+      status: "LIVE_PASSED",
+      reason: expect.stringMatching(/handoff ready/i),
+    });
+    const blocked = cartiva100LiveCaseDisposition({
+      result: likely,
+      provenanceMatches: true,
+    });
+    expect(blocked).toMatchObject({
+      status: "EXTERNAL_BLOCKED",
+      reason: expect.stringMatching(/likely availability.*in-stock.*handoff/i),
+    });
+    const blockedMetadata = selectedMetadata(likely, "03500529");
+    expect(blockedMetadata).toMatchObject({
+      productId: "live-oracle-product",
+      availabilityStatus: "likely_available",
+    });
+    const blockedReport = formatCartiva100LiveReport({
+      suiteId: "cartiva-100-kroger-live",
+      status: "EXTERNAL_BLOCKED",
+      checkedAt,
+      retailerCalls: 1,
+      matched: 0,
+      blocked: 1,
+      failed: 0,
+      cases: [{
+        id: "C100-L1-002",
+        input: "white bread",
+        status: blocked.status,
+        reason: blocked.reason,
+        searchAttempts: [],
+        returnedCandidateCount: 1,
+        selectedProduct: blockedMetadata,
+      }],
+    });
+    expect(blockedReport).toContain("Kroger Enriched White Bread 20 oz Loaf");
+    expect(blockedReport).toContain(blocked.reason);
+
+    const testCase = cartiva100LiveCases().find((item) => item.id === "C100-L1-002")!;
+    const intent = parseProductIntent("white bread");
+    expect(cartiva100LiveIndependentCandidateReady(
+      testCase,
+      intent,
+      ranked,
+      "03500529",
+    )).toBe(true);
+    expect(cartiva100LiveIndependentCandidateReady(
+      testCase,
+      intent,
+      likelyProduct,
+      "03500529",
+    )).toBe(false);
+    expect(cartiva100LiveIndependentCandidateReady(
+      testCase,
+      intent,
+      { ...ranked, inStock: false, availabilityStatus: "unknown" },
+      "03500529",
+    )).toBe(false);
+    expect(cartiva100LiveIndependentCandidateReady(
+      testCase,
+      intent,
+      { ...ranked, inStock: false, availabilityStatus: "out_of_stock" },
+      "03500529",
+    )).toBe(false);
+
+    expect(cartiva100LiveCaseDisposition({
+      result: {
+        ...ready,
+        recommended: { ...ranked, cartEligible: false },
+      },
+      provenanceMatches: true,
+    })).toMatchObject({
+      status: "EXTERNAL_BLOCKED",
+      reason: expect.stringMatching(/eligible.*handoff/i),
+    });
+    expect(cartiva100LiveCaseDisposition({
+      result: {
+        ...ready,
+        status: "review",
+        resolution: "needs_choice",
+        fulfillment: { ...fulfillment, approvalRequired: true },
+      },
+      provenanceMatches: true,
+    })).toMatchObject({
+      status: "EXTERNAL_BLOCKED",
+      reason: expect.stringMatching(/shopper review.*handoff/i),
+    });
+    expect(cartiva100LiveCaseDisposition({
+      result: likely,
+      provenanceMatches: false,
+    })).toMatchObject({
+      status: "LIVE_FAILED",
+      reason: expect.stringMatching(/exact-store provenance/i),
+    });
+  });
+
+  it("labels successful live results as handoff ready", () => {
+    const formatted = formatCartiva100LiveReport({
+      suiteId: "cartiva-100-kroger-live",
+      status: "LIVE_PASSED",
+      checkedAt: "2026-09-02T20:00:00.000Z",
+      retailerCalls: 1,
+      matched: 1,
+      blocked: 0,
+      failed: 0,
+      cases: [],
+    });
+    expect(formatted).toContain("HANDOFF READY: 1");
+    expect(formatted).not.toContain("MATCHED:");
   });
 });

@@ -8,6 +8,7 @@ import {
   isPlausibleDiscoveryCandidate,
   parseProductIntent,
   retrieveCandidatesProgressively,
+  type ProductIntent,
 } from "@/lib/product-search-intent";
 import {
   findKrogerLocations,
@@ -255,7 +256,71 @@ function exactStoreCandidate(product: KrogerProduct, locationId: string) {
   return product.priceProvenance.exactStoreVerified
     && product.priceProvenance.locationId === locationId
     && product.priceProvenance.priceReliability === "verified"
-    && product.availabilityStatus !== "out_of_stock";
+    && product.availabilityStatus === "in_stock";
+}
+
+export function cartiva100LiveIndependentCandidateReady(
+  testCase: ReturnType<typeof cartiva100LiveCases>[number],
+  intent: ProductIntent,
+  product: KrogerProduct,
+  locationId: string,
+) {
+  const fulfillment = packageFulfillmentForProduct(intent, product);
+  return product.cartEligible
+    && exactStoreCandidate(product, locationId)
+    && !cartiva100LiveOracleFailure(testCase.id, product)
+    && Boolean(fulfillment && !cartiva100LiveFulfillmentFailure(testCase, product, fulfillment));
+}
+
+export function cartiva100LiveHandoffBlockReason(result: KrogerMatchResult) {
+  if (isRetailerHandoffAcceptedMatch(result)) return undefined;
+  const product = result.recommended;
+  if (!product) return "Kroger did not return a selected product for retailer handoff.";
+  if (product.availabilityStatus !== "in_stock") {
+    const availability = product.availabilityStatus === "likely_available"
+      ? "likely availability rather than confirmed stock"
+      : product.availabilityStatus === "out_of_stock"
+        ? "the product out of stock"
+        : "unknown availability";
+    return `Kroger reported ${availability}; verified in-stock availability is required for retailer handoff.`;
+  }
+  if (!product.cartEligible) {
+    return "Kroger did not confirm that the selected product is eligible for retailer handoff.";
+  }
+  if (result.status !== "matched" || result.resolution === "needs_choice") {
+    return "The selected product still needs shopper review before retailer handoff.";
+  }
+  if (result.fulfillment?.approvalRequired !== false) {
+    return "The selected product does not have an approved package plan for retailer handoff.";
+  }
+  return "The selected product does not have an accepted retailer handoff resolution.";
+}
+
+export function cartiva100LiveCaseDisposition(options: {
+  result: KrogerMatchResult;
+  provenanceMatches: boolean;
+  independentFailure?: string;
+  fulfillmentIssue?: string;
+}): Pick<Cartiva100LiveCaseResult, "status" | "reason"> {
+  if (options.independentFailure) {
+    return { status: "LIVE_FAILED", reason: options.independentFailure };
+  }
+  if (!options.provenanceMatches) {
+    return {
+      status: "LIVE_FAILED",
+      reason: "The selected product did not preserve exact-store provenance.",
+    };
+  }
+  if (options.fulfillmentIssue) {
+    return { status: "LIVE_FAILED", reason: options.fulfillmentIssue };
+  }
+  const handoffBlock = cartiva100LiveHandoffBlockReason(options.result);
+  return handoffBlock
+    ? { status: "EXTERNAL_BLOCKED", reason: handoffBlock }
+    : {
+        status: "LIVE_PASSED",
+        reason: "Handoff ready with exact-store Kroger metadata and safe fulfillment.",
+      };
 }
 
 function resolveLiveRequest(testCase: ReturnType<typeof cartiva100LiveCases>[number]) {
@@ -412,13 +477,14 @@ export async function runCartiva100KrogerLive(): Promise<Cartiva100LiveReport> {
       const metadata = selectedMetadata(latest, location.locationId);
       if (!metadata) {
         let independentCandidates = discovered.candidates;
-        const alreadyValid = independentCandidates.some((candidate) => {
-          const fulfillment = packageFulfillmentForProduct(intent, candidate);
-          return candidate.cartEligible
-            && exactStoreCandidate(candidate, location.locationId)
-            && !cartiva100LiveOracleFailure(testCase.id, candidate)
-            && Boolean(fulfillment && !cartiva100LiveFulfillmentFailure(testCase, candidate, fulfillment));
-        });
+        const alreadyValid = independentCandidates.some((candidate) => (
+          cartiva100LiveIndependentCandidateReady(
+            testCase,
+            intent,
+            candidate,
+            location.locationId,
+          )
+        ));
         if (!alreadyValid) {
           const oracleQuery = LIVE_ORACLES[testCase.id].requiredGroups.map((group) => group[0]).join(" ");
           if (!discovered.attempts.some((attempt) => normalizeOraclePhrase(attempt.query) === normalizeOraclePhrase(oracleQuery))) {
@@ -444,13 +510,14 @@ export async function runCartiva100KrogerLive(): Promise<Cartiva100LiveReport> {
             });
           }
         }
-        const independentlyValid = independentCandidates.find((candidate) => {
-          const fulfillment = packageFulfillmentForProduct(intent, candidate);
-          return candidate.cartEligible
-            && exactStoreCandidate(candidate, location.locationId)
-            && !cartiva100LiveOracleFailure(testCase.id, candidate)
-            && Boolean(fulfillment && !cartiva100LiveFulfillmentFailure(testCase, candidate, fulfillment));
-        });
+        const independentlyValid = independentCandidates.find((candidate) => (
+          cartiva100LiveIndependentCandidateReady(
+            testCase,
+            intent,
+            candidate,
+            location.locationId,
+          )
+        ));
         results.push({
           id: testCase.id,
           input: testCase.input,
@@ -472,17 +539,18 @@ export async function runCartiva100KrogerLive(): Promise<Cartiva100LiveReport> {
         && metadata.locationId === location.locationId;
       const independentFailure = cartiva100LiveOracleFailure(testCase.id, latest.recommended!);
       const fulfillmentIssue = cartiva100LiveFulfillmentFailure(testCase, latest.recommended!, latest.fulfillment!);
+      const disposition = cartiva100LiveCaseDisposition({
+        result: latest,
+        provenanceMatches: Boolean(provenanceMatches),
+        independentFailure,
+        fulfillmentIssue,
+      });
       results.push({
         id: testCase.id,
         input: testCase.input,
         resolvedRequest,
-        status: provenanceMatches && !fulfillmentIssue && !independentFailure ? "LIVE_PASSED" : "LIVE_FAILED",
-        reason: independentFailure
-          ?? (!provenanceMatches
-          ? "The selected product did not preserve exact-store provenance."
-          : fulfillmentIssue
-            ? fulfillmentIssue
-            : "Matched with exact-store Kroger metadata and safe fulfillment."),
+        status: disposition.status,
+        reason: disposition.reason,
         searchAttempts: discovered.attempts.map(({ level, query, returnedCount }) => ({
           level,
           query,
@@ -548,7 +616,7 @@ export function formatCartiva100LiveReport(report: Cartiva100LiveReport) {
     "",
     "CARTIVA 100 · LIVE KROGER SUBSET",
     `STATUS: ${report.status}`,
-    `MATCHED: ${report.matched} · EXTERNAL BLOCKED: ${report.blocked} · FAILED: ${report.failed}`,
+    `HANDOFF READY: ${report.matched} · EXTERNAL BLOCKED: ${report.blocked} · FAILED: ${report.failed}`,
     `RETAILER CALLS: ${report.retailerCalls}`,
   ];
   if (report.location) {
@@ -556,7 +624,11 @@ export function formatCartiva100LiveReport(report: Cartiva100LiveReport) {
   }
   if (report.reason) lines.push(`REASON: ${report.reason}`);
   for (const result of report.cases) {
-    lines.push(`${result.id} ${result.status}: ${result.selectedProduct?.title ?? result.reason}`);
+    const selectedTitle = result.selectedProduct?.title;
+    const detail = selectedTitle && result.status !== "LIVE_PASSED"
+      ? `${selectedTitle} — ${result.reason}`
+      : selectedTitle ?? result.reason;
+    lines.push(`${result.id} ${result.status}: ${detail}`);
   }
   return lines.join("\n");
 }
