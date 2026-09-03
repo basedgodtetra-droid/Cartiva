@@ -67,6 +67,26 @@ describe("Cartiva Kroger handoff state", () => {
     expect(handoffBlock).toContain("authWindow.location.replace(cartUrl)");
   });
 
+  it("does not mistake the active same-tab cart request for an interrupted handoff", () => {
+    const source = readFileSync(path.join(process.cwd(), "components", "cartiva-workspace.tsx"), "utf8");
+    const resumeBlock = source.slice(
+      source.indexOf("const resumeConnectedBasket = async"),
+      source.indexOf("const resolveCartReview"),
+    );
+    const submittedCheck = resumeBlock.indexOf("if (pending.submittedAt !== undefined)");
+    const handoffGuard = resumeBlock.indexOf("if (handoffAttemptRef.current === pending.operationId) return;");
+    const transferGuard = resumeBlock.indexOf("if (cartTransferRef.current === pending.operationId) return;");
+    const submittedBranchEnd = resumeBlock.indexOf("\n        return;", submittedCheck);
+    expect(submittedCheck).toBeGreaterThanOrEqual(0);
+    expect(handoffGuard).toBeGreaterThanOrEqual(0);
+    expect(transferGuard).toBeGreaterThanOrEqual(0);
+    expect(submittedBranchEnd).toBeGreaterThan(submittedCheck);
+    expect(handoffGuard).toBeLessThan(submittedCheck);
+    expect(transferGuard).toBeLessThan(submittedCheck);
+    expect(resumeBlock.slice(submittedCheck, submittedBranchEnd)).toContain("await completePendingCart(pending)");
+    expect(resumeBlock).not.toContain('window.addEventListener("storage", resumeConnectedBasket)');
+  });
+
   it("keeps comparison free of popup, OAuth-start, and pending-transfer side effects", () => {
     const source = readFileSync(path.join(process.cwd(), "components", "cartiva-workspace.tsx"), "utf8");
     const comparisonBlock = source.slice(

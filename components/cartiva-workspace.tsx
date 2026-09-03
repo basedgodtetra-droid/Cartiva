@@ -199,16 +199,23 @@ async function checkKrogerConnection() {
 }
 
 async function postPendingKrogerCart(pending: PendingKrogerCart) {
-  return fetch("/api/kroger/cart", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      operationId: pending.operationId,
-      locationId: pending.locationId,
-      fulfillmentMode: pending.fulfillmentMode,
-      items: pending.items,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 45_000);
+  try {
+    return await fetch("/api/kroger/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: pending.operationId,
+        locationId: pending.locationId,
+        fulfillmentMode: pending.fulfillmentMode,
+        items: pending.items,
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function clearPendingKrogerCartBeforeBasketChange() {
@@ -1494,15 +1501,25 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         });
         return;
       }
-      if (pending.submittedAt !== undefined) {
-        const message = "A Kroger cart request was interrupted before Cartiva could confirm it. Check your retailer cart before starting another handoff.";
-        const blocked = blockPendingKrogerCart(pending, message);
-        window.localStorage.setItem(KROGER_PENDING_CART_STORAGE_KEY, JSON.stringify(blocked));
-        setCart({ phase: "error", code: "outcome_unknown", retrySafe: false, message });
-        return;
-      }
+      // React re-runs this recovery effect when the click flow advances from
+      // authorizing to adding. The active refs identify that same-tab request;
+      // check them before interpreting submittedAt as an interrupted reload.
       if (handoffAttemptRef.current === pending.operationId) return;
       if (cartTransferRef.current === pending.operationId) return;
+      if (pending.submittedAt !== undefined) {
+        // Re-enter through the operation lock. A different live tab may still
+        // own the request; in that case this waits for its confirmed result and
+        // sees the cleared pending record instead of reporting a false failure.
+        try {
+          await completePendingCart(pending);
+        } catch {
+          const message = "Cartiva could not recover the Kroger cart request safely. Check your retailer cart before starting another handoff.";
+          const blocked = blockPendingKrogerCart(pending, message);
+          window.localStorage.setItem(KROGER_PENDING_CART_STORAGE_KEY, JSON.stringify(blocked));
+          setCart({ phase: "error", code: "outcome_unknown", retrySafe: false, message });
+        }
+        return;
+      }
       try {
         const preflight = await checkKrogerConnection();
         if (disposed || preflight.state === "unavailable") return;
@@ -1536,12 +1553,10 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     };
     void resumeConnectedBasket();
     window.addEventListener("focus", resumeConnectedBasket);
-    window.addEventListener("storage", resumeConnectedBasket);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       disposed = true;
       window.removeEventListener("focus", resumeConnectedBasket);
-      window.removeEventListener("storage", resumeConnectedBasket);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [cart.phase, completePendingCart, hydrated]);
