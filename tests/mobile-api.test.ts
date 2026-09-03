@@ -278,7 +278,7 @@ describe("anonymous mobile v1 read boundary", () => {
       .toBe(comparisonBasketDigest(persistedReceipt!));
   });
 
-  it("persists a likely-available catalog match as rejected and incomplete for handoff", async () => {
+  it("persists a likely-available catalog match as a complete warning-enabled handoff", async () => {
     vi.stubEnv("CARTIVA_SESSION_SECRET", "test-only-mobile-session-secret-at-least-32-bytes");
     const session = issueMobileSession();
     const comparisonId = randomUUID();
@@ -287,8 +287,7 @@ describe("anonymous mobile v1 read boundary", () => {
         ...eggProduct(),
         inStock: false,
         availabilityStatus: "likely_available",
-        // Catalog visibility and retailer-cart safety are independent. The
-        // shared handoff predicate must still reject this inventory state.
+        // Limited inventory confirmation is a warning, not a cart blocker.
         cartEligible: true,
       }],
       diagnostics: { apiCall: true, cacheHit: false, deduplicated: false, durationMs: 1 },
@@ -322,21 +321,21 @@ describe("anonymous mobile v1 read boundary", () => {
       },
     });
     expect(events.at(-1)).toMatchObject({
-      comparisonReceipt: { comparisonId, completeness: "INCOMPLETE", persisted: true },
+      comparisonReceipt: { comparisonId, completeness: "COMPLETE", persisted: true },
     });
 
     resetComparisonReceiptsForTests();
     const persistedReceipt = await loadComparisonReceipt(session.ownerId, comparisonId);
     expect(persistedReceipt).toMatchObject({
-      completeness: "INCOMPLETE",
+      completeness: "COMPLETE",
       basketLines: [{
         requestedItemId: "eggs-line",
-        status: "REJECTED",
+        status: "ACCEPTED",
         availabilityStatus: "LIKELY_AVAILABLE",
+        retailerProductId: "0001111012345",
+        upc: "0001111012345",
       }],
     });
-    expect(persistedReceipt!.basketLines[0]).not.toHaveProperty("retailerProductId");
-    expect(persistedReceipt!.basketLines[0]).not.toHaveProperty("upc");
   });
 
   it("rejects duplicate requested line IDs before a signed comparison searches Kroger", async () => {
@@ -376,7 +375,7 @@ describe("anonymous mobile v1 read boundary", () => {
       price: 11.99,
       inStock: false,
       availabilityStatus: "likely_available",
-      cartEligible: false,
+      cartEligible: true,
       size: {
         amount: 144,
         unit: "fl oz",
@@ -442,7 +441,7 @@ describe("anonymous mobile v1 read boundary", () => {
         recommended: {
           productId: regularCoke.productId,
           availabilityStatus: "likely_available",
-          cartEligible: false,
+          cartEligible: true,
         },
       },
     });
@@ -452,7 +451,7 @@ describe("anonymous mobile v1 read boundary", () => {
         recommended: {
           productId: cokeZero.productId,
           availabilityStatus: "likely_available",
-          cartEligible: false,
+          cartEligible: true,
         },
       },
     });

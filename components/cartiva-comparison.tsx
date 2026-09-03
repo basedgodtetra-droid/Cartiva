@@ -87,6 +87,7 @@ export function CartivaComparison({
   )).length;
   const complete = cartReadiness.basketComplete;
   const cartReady = cartReadiness.canAddToKroger;
+  const availabilityCheckCount = cartReadiness.availabilityUnconfirmedCount;
   const subtotalCents = comparison.results.reduce((sum, result, index) => {
     const product = result?.status === "matched" ? result.recommended : null;
     const quantity = resolvedKrogerCartQuantity(
@@ -147,7 +148,7 @@ export function CartivaComparison({
             ? "Review your Kroger cart before trying again"
             : "Your Cartiva basket is ready";
   const handoffDetail = handoffStage === "transfer_success"
-    ? `${cart.message ?? `${cart.itemCount ?? items.length} items were added to Kroger.`} If Kroger asks you to sign in in this browser, it will return you to the cart.`
+    ? `${cart.message ?? `${cart.itemCount ?? items.length} items were added to Kroger.`} Review availability and checkout with Kroger.`
     : handoffStage === "review_complete"
       ? cart.message ?? "Cartiva will not send this basket again."
       : handoffStage === "adding"
@@ -342,6 +343,7 @@ export function CartivaComparison({
             );
             const status = result?.status;
             const reviewRequired = status === "review";
+            const explicitlyUnavailable = product?.availabilityStatus === "out_of_stock";
             const needsAvailabilityCheck = result?.resolution === "matched_check_availability"
               || product?.availabilityStatus === "unknown"
               || product?.availabilityStatus === "likely_available";
@@ -387,8 +389,10 @@ export function CartivaComparison({
                 </div>
                 <div className={styles.basketItemPrice}>
                   <strong>{product && quantity !== undefined ? itemPrice(product.price, quantity) : "—"}</strong>
-                  <span data-tone={transferStatus === "Accepted by Kroger" ? "success" : transferStatus ? "error" : reviewRequired ? "muted" : needsAvailabilityCheck ? "muted" : product?.cartEligible ? "success" : status === "no_match" && !product ? "error" : "muted"}>
-                    {transferStatus ?? (needsAvailabilityCheck
+                  <span data-tone={transferStatus === "Accepted by Kroger" ? "success" : transferStatus ? "error" : explicitlyUnavailable ? "error" : reviewRequired ? "muted" : needsAvailabilityCheck ? "muted" : product?.cartEligible ? "success" : status === "no_match" && !product ? "error" : "muted"}>
+                    {transferStatus ?? (explicitlyUnavailable
+                      ? "Out of stock"
+                      : needsAvailabilityCheck
                       ? reviewRequired ? "Needs your choice" : "Check availability"
                       : reviewRequired
                         ? "Needs your choice"
@@ -407,6 +411,15 @@ export function CartivaComparison({
             <span>Product subtotal</span>
             <strong>{complete ? money.format(subtotalCents / 100) : "—"}</strong>
           </div>
+          {complete && availabilityCheckCount > 0 ? (
+            <div className={styles.availabilitySummary} role="status">
+              <AlertCircle aria-hidden="true" />
+              <span>
+                <strong>{availabilityCheckCount} {availabilityCheckCount === 1 ? "item needs" : "items need"} availability confirmation at Kroger.</strong>
+                <small>Kroger will confirm final availability when you review your cart.</small>
+              </span>
+            </div>
+          ) : null}
           <p>Taxes, fees, substitutions, and final availability are confirmed at Kroger.</p>
 
           {cart.phase === "error" ? (

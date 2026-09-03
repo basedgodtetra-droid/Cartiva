@@ -211,7 +211,7 @@ describe("persisted mobile comparison decoder", () => {
   it.each([
     ["likely available", "likely_available" as const, AvailabilityStatus.LIKELY_AVAILABLE],
     ["unknown availability", "unknown" as const, AvailabilityStatus.UNKNOWN],
-  ])("restores a retained %s match as a rejected line", (
+  ])("restores a retained %s match as an accepted warning line", (
     _label,
     availabilityStatus,
     receiptAvailability,
@@ -223,15 +223,6 @@ describe("persisted mobile comparison decoder", () => {
       availabilityStatus,
       cartEligible: true,
     };
-    const unacceptedLine: Partial<(typeof base.basketLines)[number]> = {
-      ...base.basketLines[0],
-    };
-    delete unacceptedLine.retailerProductId;
-    delete unacceptedLine.upc;
-    delete unacceptedLine.matchedProduct;
-    delete unacceptedLine.matchedPackage;
-    delete unacceptedLine.priceCents;
-    delete unacceptedLine.provenance;
     const snapshot = {
       ...base,
       results: [{
@@ -247,17 +238,18 @@ describe("persisted mobile comparison decoder", () => {
         },
       }],
       basketLines: [{
-        ...unacceptedLine,
-        status: "REJECTED",
+        ...base.basketLines[0],
+        status: "ACCEPTED",
         availabilityStatus: receiptAvailability,
         matchConfidence: "high",
       }],
-      completeness: BasketCompleteness.INCOMPLETE,
+      completeness: BasketCompleteness.COMPLETE,
       summary: {
-        status: BasketCompleteness.INCOMPLETE,
+        status: BasketCompleteness.COMPLETE,
         requestedCount: 1,
-        matchedCount: 0,
-        matchedSubtotalCents: 0,
+        matchedCount: 1,
+        totalCents: 299,
+        matchedSubtotalCents: 299,
       },
     };
 

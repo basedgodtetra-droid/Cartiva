@@ -146,7 +146,7 @@ describe("Kroger product ranking", () => {
     expect(result.status).toBe("matched");
   });
 
-  it("keeps non-definitive availability truthful and prevents unknown stock from cart handoff", () => {
+  it("keeps non-definitive availability truthful without blocking an otherwise valid handoff", () => {
     const likely = krogerProduct({
       id: "0004900002890",
       productId: "0004900002890",
@@ -186,7 +186,7 @@ describe("Kroger product ranking", () => {
       recommended: {
         productId: likely.productId,
         availabilityStatus: "unknown",
-        cartEligible: false,
+        cartEligible: true,
       },
     });
     expect(unknown.explanation).toMatch(/check availability/i);
@@ -312,7 +312,7 @@ describe("Kroger product ranking", () => {
     });
     expect(result.recommended?.id).not.toBe(wrong.id);
     if (resolvedAvailabilityStatus === "unknown") {
-      expect(result.recommended?.cartEligible).toBe(false);
+      expect(result.recommended?.cartEligible).toBe(true);
     }
   });
 

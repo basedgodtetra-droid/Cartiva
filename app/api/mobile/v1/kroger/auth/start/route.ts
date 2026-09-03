@@ -82,12 +82,13 @@ async function validateAuthorizationStartState(ownerId: string, comparisonId: st
   }
   const mutationReadiness = comparisonCartMutationReadiness(receipt);
   if (!mutationReadiness.ready) {
-    const inventoryUnverified = mutationReadiness.reason === "INVENTORY_UNVERIFIED";
     throw new MobileAuthorizationStartStateError({
-      error: inventoryUnverified
-        ? "One or more matches do not have confirmed store inventory. Continue to the retailer without automatic cart transfer."
+      error: mutationReadiness.reason === "BASKET_INCOMPLETE"
+        ? "Complete every required basket line before connecting Kroger."
         : "This store verification is too old for cart transfer. Compare the basket again before connecting Kroger.",
-      code: inventoryUnverified ? "inventory_unverified" : "comparison_stale",
+      code: mutationReadiness.reason === "BASKET_INCOMPLETE"
+        ? "basket_incomplete"
+        : "comparison_stale",
     }, 409);
   }
 }

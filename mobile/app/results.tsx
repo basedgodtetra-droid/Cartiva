@@ -652,8 +652,6 @@ export default function ResultsScreen() {
   const retailerCapability = comparison.capabilities.retailers.find((retailer) => retailer.id === "kroger");
   const banner = retailerBanner(comparison.retailerBanner);
   const cartMutationReadiness = comparisonCartMutationReadiness(comparison);
-  const cartInventoryVerified = cartMutationReadiness.ready
-    || cartMutationReadiness.reason !== "INVENTORY_UNVERIFIED";
   const cartEvidenceFresh = cartMutationReadiness.ready
     || cartMutationReadiness.reason !== "RECEIPT_STALE";
   const ownerRecoveryAllowsCartWrite = ownerCartRecovery.kind === "none";
@@ -712,7 +710,6 @@ export default function ResultsScreen() {
     hasDestination: Boolean(retailerDestination),
     cartState: currentCartState,
     cartWriteReady: comparison.serverReceiptPersisted && !currentCartNeedsRecompare && cartEvidenceFresh,
-    cartInventoryVerified,
     locationBoundByCartApi: currentLocationBoundByCartApi,
     hasCartReviewDestination: Boolean(currentCartReviewUrl),
   });
@@ -964,7 +961,6 @@ export default function ResultsScreen() {
     }
     if (
       cartTransferMode
-      && cartInventoryVerified
       && !["confirmed", "outcome_unknown", "unavailable"].includes(currentCartState)
     ) {
       void addCart();
@@ -974,7 +970,6 @@ export default function ResultsScreen() {
   };
 
   const showShoppingFallback = cartTransferMode
-    && cartInventoryVerified
     && Boolean(retailerDestination)
     && !cartBusy
     && !["confirmed", "outcome_unknown", "unavailable"].includes(currentCartState);
@@ -1229,7 +1224,7 @@ export default function ResultsScreen() {
             loading={cartBusy}
             icon={requiresRecompare
               ? "refresh"
-              : cartTransferMode && cartInventoryVerified && !["confirmed", "outcome_unknown", "unavailable"].includes(currentCartState)
+              : cartTransferMode && !["confirmed", "outcome_unknown", "unavailable"].includes(currentCartState)
                 ? "cart-plus"
                 : "open-in-new"}
           />

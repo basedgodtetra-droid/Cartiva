@@ -181,7 +181,6 @@ describe("mobile handoff presentation", () => {
       hasDestination: true,
       cartState: "confirmed",
       cartWriteReady: false,
-      cartInventoryVerified: false,
     });
     expect(confirmed.statusTitle).toBe("Added to your King Soopers cart");
     expect(confirmed.success).toBe(true);
@@ -194,7 +193,6 @@ describe("mobile handoff presentation", () => {
       hasDestination: true,
       cartState: "outcome_unknown",
       cartWriteReady: false,
-      cartInventoryVerified: false,
     });
     expect(unknown.statusTitle).toBe("The cart update could not be confirmed");
     expect(unknown.statusDetail).toContain("Do not retry");
@@ -229,19 +227,18 @@ describe("mobile handoff presentation", () => {
     expect(state.statusDetail).toContain("Nothing has been transferred");
   });
 
-  it("keeps a complete but inventory-unverified basket out of cart mutation", () => {
+  it("keeps a complete basket eligible when inventory confirmation is limited", () => {
     const state = handoffPresentation({
       complete: true,
       mode: "CART_TRANSFER_SUPPORTED",
       chain: "King Soopers",
       locationName: "Union Station",
       hasDestination: true,
-      cartInventoryVerified: false,
     });
-    expect(state.kind).toBe("shopping_page");
-    expect(state.primaryLabel).toBe("Continue at King Soopers");
-    expect(state.statusTitle).toContain("confirmed inventory");
-    expect(state.statusDetail).toContain("nothing will be transferred automatically");
+    expect(state.kind).toBe("cart_transfer");
+    expect(state.primaryLabel).toBe("Add to King Soopers cart");
+    expect(state.statusTitle).toContain("complete basket");
+    expect(state.statusDetail).toContain("confirm final availability");
     expect(state.success).toBe(false);
   });
 

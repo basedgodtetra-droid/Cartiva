@@ -296,11 +296,15 @@ describe("one comparison equals one Kroger-family location", () => {
       ...accepted,
       recommended: { ...accepted.recommended, availabilityStatus: "likely_available" },
       resolution: "matched_check_availability",
-    })).toBe(false);
+    })).toBe(true);
     expect(isRetailerHandoffAcceptedMatch({
       ...accepted,
       recommended: { ...accepted.recommended, availabilityStatus: "unknown" },
       resolution: "matched_check_availability",
+    })).toBe(true);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      recommended: { ...accepted.recommended, availabilityStatus: "out_of_stock" },
     })).toBe(false);
     expect(isRetailerHandoffAcceptedMatch({
       ...accepted,
@@ -351,7 +355,7 @@ describe("one comparison equals one Kroger-family location", () => {
     });
   });
 
-  it("requires verified in-stock evidence for an accepted handoff receipt", () => {
+  it("allows limited inventory telemetry but still requires a fresh accepted handoff receipt", () => {
     const verified = receipt();
     expect(comparisonCartMutationReadiness(
       verified,
@@ -360,7 +364,23 @@ describe("one comparison equals one Kroger-family location", () => {
 
     const likely = receipt();
     likely.basketLines[0].availabilityStatus = AvailabilityStatus.LIKELY_AVAILABLE;
-    expect(() => assertComparisonStoreInvariant(likely)).toThrow(/availability evidence/i);
+    expect(assertComparisonStoreInvariant(likely)).toBe(likely);
+    expect(comparisonCartMutationReadiness(
+      likely,
+      Date.parse("2026-08-24T15:10:00.000Z"),
+    )).toEqual({ ready: true });
+
+    const unknown = receipt();
+    unknown.basketLines[0].availabilityStatus = AvailabilityStatus.UNKNOWN;
+    expect(assertComparisonStoreInvariant(unknown)).toBe(unknown);
+    expect(comparisonCartMutationReadiness(
+      unknown,
+      Date.parse("2026-08-24T15:10:00.000Z"),
+    )).toEqual({ ready: true });
+
+    const unavailable = receipt();
+    unavailable.basketLines[0].availabilityStatus = AvailabilityStatus.OUT_OF_STOCK;
+    expect(() => assertComparisonStoreInvariant(unavailable)).toThrow(/explicitly unavailable/i);
 
     expect(comparisonCartMutationReadiness(
       verified,

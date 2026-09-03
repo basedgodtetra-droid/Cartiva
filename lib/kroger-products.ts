@@ -56,7 +56,10 @@ function restoreRankedProduct(
   if (!product) return null;
   return {
     ...product,
-    cartEligible: product.cartEligible && product.availabilityStatus !== "unknown",
+    // Inventory confidence is not cart eligibility. Kroger can validate an
+    // otherwise verified UPC again when it receives the cart add. Only an
+    // explicit negative inventory signal may remove that UPC from handoff.
+    cartEligible: product.cartEligible && product.availabilityStatus !== "out_of_stock",
     score: ranked.score,
     confidence: ranked.confidence,
     unitPrice: ranked.unitPrice,
@@ -289,9 +292,9 @@ export function rankKrogerProducts(
   const intent = options.intent ?? parseProductIntent(request);
   const cartQuantity = validCartQuantity(options.cartQuantity)
     ?? intent.requestedCartQuantity;
-  // Product matching and cart mutation remain separate decisions. A verified
-  // identity and price may remain useful when Kroger omits inventory details;
-  // cartEligible continues to enforce the stricter handoff boundary.
+  // Product matching, inventory confidence, and cart mutation are separate
+  // decisions. Missing inventory telemetry remains a truthful warning, while
+  // an explicit out-of-stock signal remains a hard blocker.
   const eligible = products.filter((product) => (
     hasMatchEligibleStoreEvidence(product)
     && retailerContainerCompatible(intent, product)

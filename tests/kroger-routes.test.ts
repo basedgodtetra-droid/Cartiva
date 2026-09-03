@@ -379,13 +379,13 @@ describe("Kroger extension routes", () => {
     });
   });
 
-  it("keeps searching past an unavailable match for a handoff-safe product", async () => {
+  it("keeps searching past an explicitly unavailable match for a handoff-safe product", async () => {
     const unavailable = krogerProduct({
       id: "0001111099912",
       productId: "0001111099912",
       upc: "0001111099912",
       title: "Kroger Large Eggs 12 Count",
-      availabilityStatus: "unknown",
+      availabilityStatus: "out_of_stock",
       inStock: false,
       cartEligible: false,
     });
@@ -509,7 +509,7 @@ describe("Kroger extension routes", () => {
         size: weightSize(2, "lb"),
         inStock: false,
         availabilityStatus: "unknown",
-        cartEligible: false,
+        cartEligible: true,
       }),
     };
     vi.mocked(searchKrogerProducts).mockImplementation(async (query) => {
@@ -575,7 +575,7 @@ describe("Kroger extension routes", () => {
           resolution,
           recommended: {
             productId,
-            cartEligible: resolution !== "matched_check_availability",
+            cartEligible: true,
           },
           fulfillment: {
             cartQuantity,
@@ -600,10 +600,9 @@ describe("Kroger extension routes", () => {
         shopperChoiceRequired: 0,
         trulyUnavailable: 0,
       });
-    // Six handoff-safe lines stop after one call. The unavailable rice line
-    // performs one additional bounded discovery attempt before returning its
-    // truthful check-availability result.
-    expect(vi.mocked(searchKrogerProducts).mock.calls).toHaveLength(8);
+    // Inventory uncertainty is a warning, so all seven handoff-safe lines stop
+    // after one call without wasting another bounded discovery attempt.
+    expect(vi.mocked(searchKrogerProducts).mock.calls).toHaveLength(7);
     for (const [query] of vi.mocked(searchKrogerProducts).mock.calls) {
       expect(query).not.toMatch(/\b(?:3|8|4|2)\s+cans?\b|\b3\s*lb\b|\b1\.8\s*lb\b/i);
     }
@@ -758,12 +757,12 @@ describe("Kroger extension routes", () => {
   });
 
   it("retains a strict product match when Kroger does not report inventory", async () => {
-    const unavailableEggs = krogerProduct({
+    const availabilityUnknownEggs = krogerProduct({
       inStock: false,
       availabilityStatus: "unknown",
-      cartEligible: false,
+      cartEligible: true,
     });
-    vi.mocked(searchKrogerProducts).mockResolvedValue(searchResponse([unavailableEggs]));
+    vi.mocked(searchKrogerProducts).mockResolvedValue(searchResponse([availabilityUnknownEggs]));
 
     const response = await searchPost(new Request("http://localhost:3000/api/kroger/search", {
       method: "POST",
@@ -783,7 +782,7 @@ describe("Kroger extension routes", () => {
       recommended: {
         productId: "0001111012345",
         availabilityStatus: "unknown",
-        cartEligible: false,
+        cartEligible: true,
       },
     });
     expect(verification.result.explanation).toMatch(/check availability/i);

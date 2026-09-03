@@ -33,6 +33,9 @@ export interface KrogerCartReadiness {
   acceptedLineCount: number;
   cartEligibleLineCount: number;
   upcLineCount: number;
+  pricedLineCount: number;
+  availabilityUnconfirmedCount: number;
+  explicitlyUnavailableCount: number;
   totalLineCount: number;
   quantitiesValid: boolean;
   customerConnected?: boolean;
@@ -121,6 +124,17 @@ export function getKrogerCartReadiness({
   const acceptedLineCount = results.filter((result) => Boolean(acceptedProduct(result))).length;
   const cartEligibleLineCount = results.filter((result) => Boolean(acceptedProduct(result)?.cartEligible)).length;
   const upcLineCount = results.filter((result) => validUpc(acceptedProduct(result)?.upc)).length;
+  const pricedLineCount = results.filter((result) => {
+    const price = acceptedProduct(result)?.price;
+    return typeof price === "number" && Number.isFinite(price) && price > 0;
+  }).length;
+  const availabilityUnconfirmedCount = results.filter((result) => {
+    const availability = acceptedProduct(result)?.availabilityStatus;
+    return availability === "likely_available" || availability === "unknown";
+  }).length;
+  const explicitlyUnavailableCount = results.filter((result) => (
+    result?.recommended?.availabilityStatus === "out_of_stock"
+  )).length;
   const individualQuantitiesValid = items.every((item, index) => (
     resolvedKrogerCartQuantity(results[index], quantities[item.id] ?? 1) !== undefined
   ));
@@ -141,18 +155,23 @@ export function getKrogerCartReadiness({
     && [...aggregatedQuantities.values()].every(validQuantity);
   const basketComplete = comparisonComplete
     && totalLineCount > 0
-    && acceptedLineCount === totalLineCount;
+    && acceptedLineCount === totalLineCount
+    && pricedLineCount === totalLineCount;
   // Customer connection is deliberately not a readiness prerequisite. OAuth
   // begins only after an explicit shopper transfer request.
   const canAddToKroger = basketComplete
     && cartEligibleLineCount === totalLineCount
     && upcLineCount === totalLineCount
+    && pricedLineCount === totalLineCount
     && quantitiesValid
     && cartCapability !== false;
 
   let reason = "Ready to connect to Kroger and add the exact verified UPCs.";
   if (!totalLineCount) reason = "Add groceries before starting a Kroger handoff.";
-  else if (!basketComplete) reason = "Complete the basket comparison before adding it to Kroger.";
+  else if (!comparisonComplete || acceptedLineCount !== totalLineCount) {
+    reason = "Complete the basket comparison before adding it to Kroger.";
+  }
+  else if (pricedLineCount !== totalLineCount) reason = "At least one accepted Kroger match is missing a valid price.";
   else if (upcLineCount !== totalLineCount) reason = "At least one accepted Kroger match is missing its cart UPC.";
   else if (!quantitiesValid) reason = "Every Kroger cart quantity must be a whole number from 1 to 99.";
   else if (cartEligibleLineCount !== totalLineCount) reason = "At least one accepted product is not eligible for this Kroger handoff.";
@@ -163,6 +182,9 @@ export function getKrogerCartReadiness({
     acceptedLineCount,
     cartEligibleLineCount,
     upcLineCount,
+    pricedLineCount,
+    availabilityUnconfirmedCount,
+    explicitlyUnavailableCount,
     totalLineCount,
     quantitiesValid,
     customerConnected,

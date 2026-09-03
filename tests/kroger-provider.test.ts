@@ -635,6 +635,28 @@ describe("Kroger provider normalization", () => {
           price: { regular: 6.99 },
         }],
       },
+      {
+        productId: "0001111077777",
+        upc: "0001111077777",
+        description: "Kroger Large Eggs 30 Count",
+        items: [{
+          itemId: "0001111077777",
+          inventory: { stockLevel: "HIGH" },
+          fulfillment: { curbside: false, delivery: true },
+          price: { regular: 8.99 },
+        }],
+      },
+      {
+        productId: "0001111066666",
+        upc: "0001111066666",
+        description: "Kroger Large Eggs 36 Count",
+        items: [{
+          itemId: "0001111066666",
+          inventory: { stockLevel: "ZERO" },
+          fulfillment: { curbside: true },
+          price: { regular: 9.99 },
+        }],
+      },
     ] }]);
     const result = await searchKrogerProducts("eggs", {
       locationId: "01400912",
@@ -679,7 +701,20 @@ describe("Kroger provider normalization", () => {
     expect(result.products[2]).toMatchObject({
       availabilityStatus: "unknown",
       inStock: false,
+      cartEligible: true,
+      priceProvenance: { fulfillment: ["pickup"] },
+    });
+    expect(result.products[3]).toMatchObject({
+      availabilityStatus: "out_of_stock",
+      inStock: false,
       cartEligible: false,
+      priceProvenance: { fulfillment: ["delivery"] },
+    });
+    expect(result.products[4]).toMatchObject({
+      availabilityStatus: "out_of_stock",
+      inStock: false,
+      cartEligible: false,
+      priceProvenance: { fulfillment: ["pickup"] },
     });
   });
 

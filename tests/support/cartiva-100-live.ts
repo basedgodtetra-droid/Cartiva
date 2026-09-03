@@ -256,7 +256,7 @@ function exactStoreCandidate(product: KrogerProduct, locationId: string) {
   return product.priceProvenance.exactStoreVerified
     && product.priceProvenance.locationId === locationId
     && product.priceProvenance.priceReliability === "verified"
-    && product.availabilityStatus === "in_stock";
+    && product.availabilityStatus !== "out_of_stock";
 }
 
 export function cartiva100LiveIndependentCandidateReady(
@@ -276,13 +276,8 @@ export function cartiva100LiveHandoffBlockReason(result: KrogerMatchResult) {
   if (isRetailerHandoffAcceptedMatch(result)) return undefined;
   const product = result.recommended;
   if (!product) return "Kroger did not return a selected product for retailer handoff.";
-  if (product.availabilityStatus !== "in_stock") {
-    const availability = product.availabilityStatus === "likely_available"
-      ? "likely availability rather than confirmed stock"
-      : product.availabilityStatus === "out_of_stock"
-        ? "the product out of stock"
-        : "unknown availability";
-    return `Kroger reported ${availability}; verified in-stock availability is required for retailer handoff.`;
+  if (product.availabilityStatus === "out_of_stock") {
+    return "Kroger explicitly reported the product out of stock; it cannot be handed off.";
   }
   if (!product.cartEligible) {
     return "Kroger did not confirm that the selected product is eligible for retailer handoff.";

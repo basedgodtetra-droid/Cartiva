@@ -370,9 +370,11 @@ export interface RetailerHandoffMatchCandidate {
 
 /**
  * A retained catalog match is not automatically a handoff-safe cart line.
- * Only verified in-stock, cart-eligible matches with an accepted package plan
- * may be transferred. Missing resolution/fulfillment data remains compatible
- * with older, otherwise verified single-package results.
+ * Cart eligibility depends on an accepted product/package decision and the
+ * retailer's ability to attempt the UPC. Limited or missing inventory
+ * telemetry remains a warning; only explicit out-of-stock evidence blocks the
+ * line. Missing resolution/fulfillment data remains compatible with older,
+ * otherwise verified single-package results.
  */
 export function isRetailerHandoffAcceptedMatch(
   result: RetailerHandoffMatchCandidate | null | undefined,
@@ -382,6 +384,7 @@ export function isRetailerHandoffAcceptedMatch(
   const verifiedResolution = result?.fulfillment?.approvalRequired === false
     && (
       result.resolution === "matched"
+      || result.resolution === "matched_check_availability"
       || (
         result.resolution === "multi_package_fulfillment"
         && result.fulfillment.kind === "multi_package"
@@ -390,7 +393,8 @@ export function isRetailerHandoffAcceptedMatch(
   return Boolean(
     result?.status === "matched"
     && (legacyResult || verifiedResolution)
-    && result.recommended?.availabilityStatus === "in_stock"
+    && result.recommended
+    && result.recommended.availabilityStatus !== "out_of_stock"
     && result.recommended.cartEligible
   );
 }
@@ -441,8 +445,8 @@ export function assertComparisonStoreInvariant(receipt: ComparisonSessionReceipt
       ) {
         throw new Error("Accepted basket evidence must be verified for the comparison store.");
       }
-      if (line.availabilityStatus !== AvailabilityStatus.VERIFIED_IN_STOCK) {
-        throw new Error("Accepted basket lines require truthful retailer availability evidence.");
+      if (line.availabilityStatus === AvailabilityStatus.OUT_OF_STOCK) {
+        throw new Error("Accepted basket lines cannot contain explicitly unavailable products.");
       }
     }
   }
@@ -458,13 +462,15 @@ export type ComparisonCartMutationReadiness =
   | { ready: true }
   | {
       ready: false;
-      reason: "BASKET_INCOMPLETE" | "INVENTORY_UNVERIFIED" | "RECEIPT_STALE";
+      reason: "BASKET_INCOMPLETE" | "RECEIPT_STALE";
     };
 
 /**
- * Matching and cart mutation deliberately have different evidence thresholds.
- * A pickup listing without an inventory level may complete a comparison, but
- * only fresh, retailer-confirmed in-stock lines may be written automatically.
+ * Missing inventory telemetry does not make a verified product identifier
+ * unusable. A complete, fresh receipt may contain VERIFIED_IN_STOCK,
+ * LIKELY_AVAILABLE, or UNKNOWN lines; Kroger remains the final availability
+ * authority during cart review. Explicit OUT_OF_STOCK lines can never be
+ * ACCEPTED, so the basket-incomplete check remains the hard blocker.
  */
 export function comparisonCartMutationReadiness(
   receipt: Pick<ComparisonSessionReceipt, "basketLines" | "checkedAt" | "completeness">,
@@ -476,11 +482,6 @@ export function comparisonCartMutationReadiness(
     || receipt.basketLines.some((line) => line.status !== "ACCEPTED")
   ) {
     return { ready: false, reason: "BASKET_INCOMPLETE" };
-  }
-  if (receipt.basketLines.some(
-    (line) => line.availabilityStatus !== AvailabilityStatus.VERIFIED_IN_STOCK,
-  )) {
-    return { ready: false, reason: "INVENTORY_UNVERIFIED" };
   }
   const evidenceTimes = [
     receipt.checkedAt,

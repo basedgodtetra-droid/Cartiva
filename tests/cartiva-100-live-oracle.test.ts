@@ -207,7 +207,7 @@ describe("Cartiva 100 independent live oracle", () => {
     })).toContain("safe limit");
   });
 
-  it("passes only confirmed in-stock handoffs and externally blocks likely availability", () => {
+  it("accepts limited inventory telemetry and blocks explicit unavailability", () => {
     const checkedAt = "2026-09-02T20:00:00.000Z";
     const fulfillment: RetailPackageFulfillment = {
       kind: "single_package",
@@ -257,6 +257,16 @@ describe("Cartiva 100 independent live oracle", () => {
       resolution: "matched_check_availability",
       recommended: likelyProduct,
     };
+    const unavailable: KrogerMatchResult = {
+      ...ready,
+      resolution: "matched_check_availability",
+      recommended: {
+        ...ranked,
+        inStock: false,
+        availabilityStatus: "out_of_stock",
+        cartEligible: false,
+      },
+    };
 
     expect(cartiva100LiveCaseDisposition({
       result: ready,
@@ -265,18 +275,26 @@ describe("Cartiva 100 independent live oracle", () => {
       status: "LIVE_PASSED",
       reason: expect.stringMatching(/handoff ready/i),
     });
-    const blocked = cartiva100LiveCaseDisposition({
+    const warningReady = cartiva100LiveCaseDisposition({
       result: likely,
+      provenanceMatches: true,
+    });
+    expect(warningReady).toMatchObject({
+      status: "LIVE_PASSED",
+      reason: expect.stringMatching(/handoff ready/i),
+    });
+    const blocked = cartiva100LiveCaseDisposition({
+      result: unavailable,
       provenanceMatches: true,
     });
     expect(blocked).toMatchObject({
       status: "EXTERNAL_BLOCKED",
-      reason: expect.stringMatching(/likely availability.*in-stock.*handoff/i),
+      reason: expect.stringMatching(/out of stock.*cannot be handed off/i),
     });
-    const blockedMetadata = selectedMetadata(likely, "03500529");
+    const blockedMetadata = selectedMetadata(unavailable, "03500529");
     expect(blockedMetadata).toMatchObject({
       productId: "live-oracle-product",
-      availabilityStatus: "likely_available",
+      availabilityStatus: "out_of_stock",
     });
     const blockedReport = formatCartiva100LiveReport({
       suiteId: "cartiva-100-kroger-live",
@@ -312,13 +330,13 @@ describe("Cartiva 100 independent live oracle", () => {
       intent,
       likelyProduct,
       "03500529",
-    )).toBe(false);
+    )).toBe(true);
     expect(cartiva100LiveIndependentCandidateReady(
       testCase,
       intent,
       { ...ranked, inStock: false, availabilityStatus: "unknown" },
       "03500529",
-    )).toBe(false);
+    )).toBe(true);
     expect(cartiva100LiveIndependentCandidateReady(
       testCase,
       intent,

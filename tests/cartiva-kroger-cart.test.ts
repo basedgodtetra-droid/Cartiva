@@ -128,22 +128,53 @@ describe("Cartiva Kroger cart readiness", () => {
   it.each([
     ["likely available", "likely_available" as const],
     ["unknown availability", "unknown" as const],
-  ])("retains a %s match but excludes it from readiness and cart lines", (_label, availabilityStatus) => {
+  ])("retains a %s match as a warning and includes it in the cart handoff", (_label, availabilityStatus) => {
     const retained = result("0001111011111");
     retained.recommended!.availabilityStatus = availabilityStatus;
     retained.recommended!.inStock = false;
     retained.resolution = "matched_check_availability";
+    retained.fulfillment = {
+      kind: "single_package",
+      cartQuantity: 1,
+      packageCount: 1,
+      label: "1 retailer package",
+      approvalRequired: false,
+    };
 
-    expect(buildKrogerCartLines([items[0]], [retained], { eggs: 1 })).toEqual([]);
+    expect(buildKrogerCartLines([items[0]], [retained], { eggs: 1 })).toEqual([
+      { upc: "0001111011111", quantity: 1 },
+    ]);
     expect(getKrogerCartReadiness({
       items: [items[0]],
       results: [retained],
       quantities: { eggs: 1 },
       comparisonComplete: true,
     })).toMatchObject({
+      basketComplete: true,
+      acceptedLineCount: 1,
+      cartEligibleLineCount: 1,
+      pricedLineCount: 1,
+      availabilityUnconfirmedCount: 1,
+      canAddToKroger: true,
+    });
+  });
+
+  it("keeps an explicitly out-of-stock product out of a complete basket", () => {
+    const unavailable = result("0001111011111");
+    unavailable.recommended!.availabilityStatus = "out_of_stock";
+    unavailable.recommended!.inStock = false;
+    unavailable.recommended!.cartEligible = false;
+
+    expect(buildKrogerCartLines([items[0]], [unavailable], { eggs: 1 })).toEqual([]);
+    expect(getKrogerCartReadiness({
+      items: [items[0]],
+      results: [unavailable],
+      quantities: { eggs: 1 },
+      comparisonComplete: true,
+    })).toMatchObject({
       basketComplete: false,
       acceptedLineCount: 0,
-      cartEligibleLineCount: 0,
+      explicitlyUnavailableCount: 1,
       canAddToKroger: false,
     });
   });

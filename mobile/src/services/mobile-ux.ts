@@ -122,7 +122,6 @@ export function handoffPresentation({
   cartState = "idle",
   locationBoundByCartApi = false,
   cartWriteReady = true,
-  cartInventoryVerified = true,
   hasCartReviewDestination = false,
 }: {
   complete: boolean;
@@ -133,7 +132,6 @@ export function handoffPresentation({
   cartState?: CartHandoffState;
   locationBoundByCartApi?: boolean;
   cartWriteReady?: boolean;
-  cartInventoryVerified?: boolean;
   hasCartReviewDestination?: boolean;
 }): HandoffPresentation {
   const banner = retailerBanner(chain);
@@ -176,17 +174,6 @@ export function handoffPresentation({
         primaryEnabled: hasDestination,
         statusTitle: "The cart update could not be confirmed",
         statusDetail: `Do not retry yet because that could add duplicates. Open ${banner} and review the cart before taking another action.`,
-        requiresStoreConfirmation: true,
-        success: false,
-      };
-    }
-    if (!cartInventoryVerified) {
-      return {
-        kind: "shopping_page",
-        primaryLabel: hasDestination ? `Continue at ${banner}` : undefined,
-        primaryEnabled: hasDestination,
-        statusTitle: "Automatic cart add needs confirmed inventory",
-        statusDetail: `One or more matches are listed at ${selectedStore}, but ${banner} did not confirm their inventory. Your complete matched basket remains in Cartiva and nothing will be transferred automatically.`,
         requiresStoreConfirmation: true,
         success: false,
       };
@@ -284,7 +271,7 @@ export function handoffPresentation({
       primaryLabel: `Add to ${banner} cart`,
       primaryEnabled: true,
       statusTitle: `Ready to add your complete basket`,
-      statusDetail: `You may be asked to sign in to ${banner}. Cartiva never receives your payment information.`,
+      statusDetail: `You may be asked to sign in to ${banner}. The retailer will confirm final availability during cart review, and Cartiva never receives your payment information.`,
       requiresStoreConfirmation: false,
       success: false,
     };

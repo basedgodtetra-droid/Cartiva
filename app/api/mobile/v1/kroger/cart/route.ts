@@ -176,20 +176,15 @@ function mutationReadinessFailureResponse(
   reason: Extract<ComparisonCartMutationReadiness, { ready: false }>["reason"],
 ) {
   const basketIncomplete = reason === "BASKET_INCOMPLETE";
-  const inventoryUnverified = reason === "INVENTORY_UNVERIFIED";
   return withMobileSessionCors(Response.json({
     status: "FAILED",
     success: false,
     error: basketIncomplete
       ? "Cartiva can add only a complete basket. Review the unmatched items first."
-      : inventoryUnverified
-        ? "One or more matches do not have confirmed store inventory. Cartiva kept the complete matched basket but will not add it automatically."
-        : "This store verification is too old for an automatic cart update. Compare the basket again first.",
+      : "This store verification is too old for an automatic cart update. Compare the basket again first.",
     code: basketIncomplete
       ? "basket_incomplete"
-      : inventoryUnverified
-        ? "inventory_unverified"
-        : "comparison_stale",
+      : "comparison_stale",
     retrySafe: true,
   }, { status: 409, headers: { "Cache-Control": "no-store" } }), request);
 }

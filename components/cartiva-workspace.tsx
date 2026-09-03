@@ -744,11 +744,60 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
 
   useEffect(() => {
     if (!hydrated || comparison.phase !== "complete") return;
+    const lineDecisions = comparison.results.map((result, index) => {
+      const product = result?.recommended;
+      const item = interpretation.items[index];
+      const quantity = resolvedKrogerCartQuantity(
+        result,
+        effectiveQuantities[item?.id] ?? 1,
+      );
+      const availability = product?.availabilityStatus === "in_stock"
+        ? "VERIFIED_AVAILABLE"
+        : product?.availabilityStatus === "likely_available"
+          ? "LIKELY_AVAILABLE"
+          : product?.availabilityStatus === "out_of_stock"
+            ? "EXPLICITLY_UNAVAILABLE"
+            : "AVAILABILITY_UNKNOWN";
+      const productMatch = result?.status === "matched" && Boolean(product);
+      const packagePass = productMatch && (
+        !result?.fulfillment || result.fulfillment.approvalRequired === false
+      );
+      const cartEligible = Boolean(
+        productMatch
+        && packagePass
+        && product?.cartEligible
+        && product.availabilityStatus !== "out_of_stock"
+        && /^\d{8,14}$/.test(product.upc)
+        && Number.isFinite(product.price)
+        && product.price > 0
+        && quantity !== undefined,
+      );
+      return {
+        item: item?.canonicalText ?? result?.requestedItem ?? `Line ${index + 1}`,
+        identity: productMatch && product?.identityVerified ? "PASS" : "FAIL",
+        package: packagePass ? "PASS" : "FAIL",
+        upc: product && /^\d{8,14}$/.test(product.upc) ? "PRESENT" : "MISSING",
+        price: product && Number.isFinite(product.price) && product.price > 0
+          ? money(product.price * 100)
+          : "MISSING",
+        availability,
+        productMatch: productMatch ? "PASS" : "FAIL",
+        cartEligible: cartEligible ? "YES" : "NO",
+        display: product?.availabilityStatus === "in_stock"
+          ? "Available"
+          : product?.availabilityStatus === "out_of_stock"
+            ? "Out of stock"
+            : "Check availability",
+      };
+    });
     console.info("[Cartiva] KROGER CART READINESS", {
       basketComplete: cartReadiness.basketComplete ? "YES" : "NO",
       acceptedLines: `${cartReadiness.acceptedLineCount} / ${cartReadiness.totalLineCount}`,
       cartEligibleLines: `${cartReadiness.cartEligibleLineCount} / ${cartReadiness.totalLineCount}`,
       upcsAvailable: `${cartReadiness.upcLineCount} / ${cartReadiness.totalLineCount}`,
+      pricesAvailable: `${cartReadiness.pricedLineCount} / ${cartReadiness.totalLineCount}`,
+      availabilityUnconfirmed: cartReadiness.availabilityUnconfirmedCount,
+      explicitlyUnavailable: cartReadiness.explicitlyUnavailableCount,
       quantitiesValid: cartReadiness.quantitiesValid ? "YES" : "NO",
       customerConnected: cartReadiness.customerConnected === undefined
         ? "UNKNOWN"
@@ -758,20 +807,27 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         : cartReadiness.cartCapability ? "YES" : "NO",
       canAddToKroger: cartReadiness.canAddToKroger ? "YES" : "NO",
       reason: cartReadiness.canAddToKroger ? undefined : cartReadiness.reason,
+      lines: lineDecisions,
     });
   }, [
     cartReadiness.acceptedLineCount,
+    cartReadiness.availabilityUnconfirmedCount,
     cartReadiness.basketComplete,
     cartReadiness.canAddToKroger,
     cartReadiness.cartCapability,
     cartReadiness.cartEligibleLineCount,
     cartReadiness.customerConnected,
+    cartReadiness.explicitlyUnavailableCount,
+    cartReadiness.pricedLineCount,
     cartReadiness.quantitiesValid,
     cartReadiness.reason,
     cartReadiness.totalLineCount,
     cartReadiness.upcLineCount,
     comparison.phase,
+    comparison.results,
+    effectiveQuantities,
     hydrated,
+    interpretation.items,
   ]);
 
   const invalidateComparison = () => {

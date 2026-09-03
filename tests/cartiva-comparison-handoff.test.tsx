@@ -198,9 +198,134 @@ describe("Cartiva comparison handoff UI", () => {
     const html = markup({ phase: "idle" }, false, "required", checkAvailability);
     expect(html).toContain("Kroger Large Grade A Eggs");
     expect(html).toContain("Check availability");
-    expect(html).toContain('data-complete="false"');
-    expect(html).not.toContain("Kroger basket receipt");
+    expect(html).toContain('data-complete="true"');
+    expect(html).toContain("Kroger basket receipt");
+    expect(html).toContain("1 item needs availability confirmation at Kroger");
+    expect(html).toContain("Kroger will confirm final availability when you review your cart");
+    expect(html).toContain("$4.79");
+    expect(html).toContain("Connect Kroger");
     expect(html).not.toContain("No match");
+  });
+
+  it("keeps the current ten-item basket complete with three inventory warnings", () => {
+    const currentBasket = [
+      ["Springdale Whole Milk", 3.49, "in_stock"],
+      ["Kroger Cookies & Cream Ice Cream", 4.99, "in_stock"],
+      ["Coca-Cola Zero Sugar", 8.99, "in_stock"],
+      ["Kroger Spring Water", 5.49, "in_stock"],
+      ["Oscar Mayer Honey Ham", 6.99, "in_stock"],
+      ["Kroger 93/7 Ground Beef", 9.79, "unknown"],
+      ["Simple Truth Chicken Breast", 5.99, "likely_available"],
+      ["Kroger Turkey Bacon", 4.49, "unknown"],
+      ["Mustard", 1.99, "in_stock"],
+      ["Ketchup", 2.49, "in_stock"],
+    ] as const;
+    const basketItems: GroceryNotepadItem[] = currentBasket.map(([name], index) => ({
+      id: `basket-${index}`,
+      raw: name,
+      name,
+      canonicalText: name,
+      status: "ready",
+    }));
+    const basketResults: KrogerMatchResult[] = currentBasket.map(([title, price, availabilityStatus], index) => {
+      const upc = String(1111000000 + index).padStart(13, "0");
+      return {
+        ...result,
+        requestedItem: title,
+        resolution: availabilityStatus === "in_stock" ? "matched" : "matched_check_availability",
+        fulfillment: {
+          kind: "single_package",
+          cartQuantity: 1,
+          packageCount: 1,
+          label: "1 retailer package",
+          approvalRequired: false,
+        },
+        recommended: {
+          ...product,
+          id: upc,
+          productId: upc,
+          upc,
+          title,
+          price,
+          priceCents: Math.round(price * 100),
+          inStock: availabilityStatus === "in_stock",
+          availabilityStatus,
+          cartEligible: true,
+        },
+      };
+    });
+    const quantities = Object.fromEntries(basketItems.map((item) => [item.id, 1]));
+    const cartReadiness = getKrogerCartReadiness({
+      items: basketItems,
+      results: basketResults,
+      quantities,
+      comparisonComplete: true,
+      customerConnected: false,
+      cartCapability: true,
+    });
+    const html = renderToStaticMarkup(createElement(CartivaComparison, {
+      items: basketItems,
+      quantities,
+      comparison: {
+        phase: "complete",
+        results: basketResults,
+        completedItems: basketItems.length,
+        checkedAt: "2026-09-03T20:00:00.000Z",
+      },
+      selectedLocation: {
+        locationId: "01400912",
+        name: "Mockingbird Kroger",
+        chain: "Kroger",
+        address: { addressLine1: "5665 E Mockingbird Ln", city: "Dallas", state: "TX", zipCode: "75206" },
+      },
+      fulfillmentMode: "pickup",
+      cart: { phase: "idle" },
+      cartReadiness,
+      basketSaved: false,
+      connectionChecking: false,
+      connectionState: "required",
+      onChangeStore: vi.fn(),
+      onRetry: vi.fn(),
+      onReviewItem: vi.fn(),
+      onSaveBasket: vi.fn(),
+      onAddToKroger: vi.fn(),
+      onContinueWithoutTransfer: vi.fn(),
+      onResolveCartReview: vi.fn(),
+    }));
+
+    expect(cartReadiness).toMatchObject({
+      basketComplete: true,
+      acceptedLineCount: 10,
+      cartEligibleLineCount: 10,
+      pricedLineCount: 10,
+      availabilityUnconfirmedCount: 3,
+      canAddToKroger: true,
+    });
+    expect(html).toContain("10 of 10");
+    expect(html).toContain("3 items need availability confirmation at Kroger");
+    expect(html).toContain("$54.70");
+    expect(html.match(/Check availability/g)).toHaveLength(3);
+    const connectButton = html.match(/<button[^>]*>Connect Kroger/)?.[0];
+    expect(connectButton).toBeTruthy();
+    expect(connectButton).not.toContain("disabled");
+  });
+
+  it("labels explicit unavailability and keeps handoff blocked", () => {
+    const unavailable: KrogerMatchResult = {
+      ...result,
+      recommended: {
+        ...product,
+        inStock: false,
+        availabilityStatus: "out_of_stock",
+        cartEligible: false,
+      },
+    };
+
+    const html = markup({ phase: "idle" }, true, "connected", unavailable);
+    expect(html).toContain("Out of stock");
+    expect(html).toContain('data-complete="false"');
+    const addButton = html.match(/<button[^>]*>Add basket to Kroger/)?.[0];
+    expect(addButton).toContain("disabled");
   });
 
   it("shows a safe, editable review candidate without treating it as cart-ready", () => {
@@ -272,7 +397,7 @@ describe("Cartiva comparison handoff UI", () => {
     expect(html).toContain("Open Kroger cart");
     expect(html).toContain('href="https://www.kroger.com/cart"');
     expect(html).toContain("Accepted by Kroger");
-    expect(html).toContain("If Kroger asks you to sign in in this browser");
+    expect(html).toContain("Review availability and checkout with Kroger");
     expect(html).toContain("confirm Kroger&#x27;s active store before checkout");
     expect(html).not.toContain("Add basket to Kroger");
   });

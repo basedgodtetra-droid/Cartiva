@@ -170,6 +170,26 @@ function fulfillmentFor(item: UnknownRecord) {
   return modes;
 }
 
+type RequestedFulfillmentEvidence = "supported" | "unsupported" | "unknown";
+
+/**
+ * Retailer omission is not a negative signal. Kroger may return a product from
+ * a fulfillment-filtered search without repeating the requested boolean on
+ * every item. Only an explicit false value is treated as unsupported.
+ */
+function requestedFulfillmentEvidence(
+  item: UnknownRecord,
+  mode: RetailFulfillmentMode,
+): RequestedFulfillmentEvidence {
+  const fulfillment = record(item.fulfillment);
+  if (!fulfillment) return "unknown";
+  const key = mode === "pickup" ? "curbside" : mode;
+  const value = fulfillment[key];
+  if (value === true || value === "true") return "supported";
+  if (value === false || value === "false") return "unsupported";
+  return "unknown";
+}
+
 function requestedFulfillmentFilter(mode: RetailFulfillmentMode) {
   if (mode === "pickup") return "csp";
   if (mode === "delivery") return "dth";
@@ -236,8 +256,11 @@ function normalizeKrogerProduct(
   if (!productId || !upc || !title || !/^\d{8,14}$/.test(upc)) return null;
 
   const items = records(raw.items);
-  const selectedItem = items.find((item) => fulfillmentFor(item).includes(context.fulfillmentMode))
-    ?? items[0];
+  const selectedItem = items.find((item) => (
+    requestedFulfillmentEvidence(item, context.fulfillmentMode) === "supported"
+  )) ?? items.find((item) => (
+    requestedFulfillmentEvidence(item, context.fulfillmentMode) === "unknown"
+  )) ?? items[0];
   if (!selectedItem) return null;
   const price = record(selectedItem.price);
   const regularPrice = numberValue(price?.regular);
@@ -250,13 +273,24 @@ function normalizeKrogerProduct(
   if (!currentPrice || currentPrice <= 0) return null;
 
   const stockLevel = textValue(record(selectedItem.inventory)?.stockLevel)?.toUpperCase();
-  const fulfillment = fulfillmentFor(selectedItem);
-  const supportsRequestedFulfillment = fulfillment.includes(context.fulfillmentMode);
-  const availabilityStatus = stockLevel === "HIGH" || stockLevel === "LOW"
-    ? "in_stock"
-    : stockLevel && /OUT_OF_STOCK|TEMPORARILY_OUT/.test(stockLevel)
+  const reportedFulfillment = fulfillmentFor(selectedItem);
+  const fulfillmentEvidence = requestedFulfillmentEvidence(
+    selectedItem,
+    context.fulfillmentMode,
+  );
+  // Inclusion in a request filtered to this fulfillment mode is sufficient to
+  // attempt the UPC when the per-item boolean is omitted. Preserve that scope
+  // in provenance without turning the missing inventory signal into stock.
+  const fulfillment = fulfillmentEvidence === "unknown"
+    ? [...new Set([...reportedFulfillment, context.fulfillmentMode])]
+    : reportedFulfillment;
+  const availabilityStatus = fulfillmentEvidence === "unsupported"
+    ? "out_of_stock"
+    : stockLevel === "HIGH" || stockLevel === "LOW"
+      ? "in_stock"
+      : stockLevel && /OUT_OF_STOCK|TEMPORARILY_OUT|UNAVAILABLE|ZERO|NONE|^0$/.test(stockLevel)
       ? "out_of_stock"
-      : supportsRequestedFulfillment
+      : fulfillmentEvidence === "supported"
         ? "likely_available"
         : "unknown";
   const sizeText = textValue(selectedItem.size) ?? "";
@@ -401,7 +435,7 @@ function normalizeKrogerProduct(
     // the selected fulfillment method. Keep that distinction in
     // availabilityStatus/inStock, but do not turn missing inventory metadata
     // into a false cart-ineligible state for an otherwise verified UPC.
-    cartEligible: supportsRequestedFulfillment
+    cartEligible: fulfillmentEvidence !== "unsupported"
       && availabilityStatus !== "out_of_stock",
     dataSource: "kroger_public_api",
     identityVerified: true,
