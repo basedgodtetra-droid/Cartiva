@@ -9,6 +9,7 @@ import {
   comparisonCanReuseLocation,
   comparisonCartMutationReadiness,
   comparisonSearchItem,
+  isRetailerHandoffAcceptedMatch,
   krogerRetailerBanner,
   parseRetailerPackageQuantity,
   type ComparisonSessionReceipt,
@@ -81,22 +82,52 @@ describe("retailer package quantity semantics", () => {
   it("preserves three cans as retailer quantity three", () => {
     expect(parseRetailerPackageQuantity("3 cans black beans")).toEqual({
       quantity: 3,
-      searchText: "can black beans",
+      searchText: "black beans",
       packageSizeText: "1 can",
       origin: AttributeOrigin.USER_EXPLICIT,
+    });
+  });
+
+  it.each([
+    ["Chickpeas 3 cans", 3, "Chickpeas"],
+    ["Diced Tomatoes 8 cans", 8, "Diced Tomatoes"],
+    ["Kidney Beans 4 cans", 4, "Kidney Beans"],
+    ["Light Coconut Milk 2 cans", 2, "Light Coconut Milk"],
+  ])("treats a trailing container total as retailer quantity: %s", (
+    request,
+    quantity,
+    searchText,
+  ) => {
+    expect(parseRetailerPackageQuantity(request)).toEqual({
+      quantity,
+      searchText,
+      packageSizeText: "1 can",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+  });
+
+  it.each([
+    "Ground Turkey 93/7 3 lb",
+    "Red Lentil Pasta 1.8 lb",
+    "White Rice",
+  ])("does not reinterpret a physical total or plain identity as cart quantity: %s", (request) => {
+    expect(parseRetailerPackageQuantity(request)).toMatchObject({
+      quantity: 1,
+      searchText: request,
+      origin: AttributeOrigin.INFERRED,
     });
   });
 
   it("supports natural package quantities before a product", () => {
     expect(parseRetailerPackageQuantity("2 loaves white bread")).toEqual({
       quantity: 2,
-      searchText: "loaf white bread",
+      searchText: "white bread",
       packageSizeText: "1 loaf",
       origin: AttributeOrigin.USER_EXPLICIT,
     });
     expect(parseRetailerPackageQuantity("2 cartons eggs 18 count")).toEqual({
       quantity: 2,
-      searchText: "carton eggs 18 count",
+      searchText: "eggs 18 count",
       packageSizeText: "1 carton",
       origin: AttributeOrigin.USER_EXPLICIT,
     });
@@ -189,6 +220,48 @@ describe("retailer package quantity semantics", () => {
 });
 
 describe("one comparison equals one Kroger-family location", () => {
+  it("uses one strict acceptance rule for every retailer handoff surface", () => {
+    const accepted = {
+      status: "matched" as const,
+      resolution: "matched",
+      recommended: {
+        availabilityStatus: "in_stock" as const,
+        cartEligible: true,
+      },
+      fulfillment: { approvalRequired: false },
+    };
+
+    expect(isRetailerHandoffAcceptedMatch(accepted)).toBe(true);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      recommended: { ...accepted.recommended, availabilityStatus: "likely_available" },
+      resolution: "matched_check_availability",
+    })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      recommended: { ...accepted.recommended, availabilityStatus: "unknown" },
+      resolution: "matched_check_availability",
+    })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      recommended: { ...accepted.recommended, cartEligible: false },
+    })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      fulfillment: { approvalRequired: true },
+    })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      resolution: "multi_package_fulfillment",
+      fulfillment: undefined,
+    })).toBe(false);
+    expect(isRetailerHandoffAcceptedMatch({
+      ...accepted,
+      resolution: "multi_package_fulfillment",
+      fulfillment: { approvalRequired: false, kind: "multi_package" },
+    })).toBe(true);
+  });
+
   it("preserves official Kroger-family banner names", () => {
     expect(krogerRetailerBanner("KINGSOOPERS")).toBe("King Soopers");
     expect(krogerRetailerBanner("Ralphs")).toBe("Ralphs");
@@ -205,7 +278,7 @@ describe("one comparison equals one Kroger-family location", () => {
     });
   });
 
-  it("separates complete-basket matching from safe automatic cart mutation", () => {
+  it("requires verified in-stock evidence for an accepted handoff receipt", () => {
     const verified = receipt();
     expect(comparisonCartMutationReadiness(
       verified,
@@ -214,11 +287,7 @@ describe("one comparison equals one Kroger-family location", () => {
 
     const likely = receipt();
     likely.basketLines[0].availabilityStatus = AvailabilityStatus.LIKELY_AVAILABLE;
-    expect(assertComparisonStoreInvariant(likely).completeness).toBe(BasketCompleteness.COMPLETE);
-    expect(comparisonCartMutationReadiness(
-      likely,
-      Date.parse("2026-08-24T15:10:00.000Z"),
-    )).toEqual({ ready: false, reason: "INVENTORY_UNVERIFIED" });
+    expect(() => assertComparisonStoreInvariant(likely)).toThrow(/availability evidence/i);
 
     expect(comparisonCartMutationReadiness(
       verified,
@@ -307,7 +376,7 @@ describe("same-store revalidation", () => {
       { id: "coke-zero-line", raw: "Coke Zero 12 pack x2" },
       { productId: "0004900003714", title: "Coca-Cola Zero Sugar Soda 12 Pack" },
     )).toEqual({
-      text: "Coke Zero 12 pack",
+      text: "Coke Zero 12 pack x2",
       requestedItemId: "coke-zero-line",
       quantity: 2,
       preferredProductId: "0004900003714",

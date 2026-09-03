@@ -6,7 +6,7 @@ const CATALOG_UNIT = "fl\\s*oz|fluid ounces?|oz|ounces?|lbs?|pounds?|liters?|lit
 const FRESH_HERB = /\b(?:cilantro|coriander|parsley|basil|mint|rosemary|thyme|dill|sage|chives?)\b/i;
 
 export function extractPackOnlyCount(value: string) {
-  const pack = value.match(/\b(\d+)\s*(?:pack|pk)\b/i);
+  const pack = value.match(/\b(\d+)[\s-]*(?:pack|pk)\b/i);
   const individualSize = value.match(
     new RegExp(`\\b\\d+(?:\\.\\d+)?[\\s-]*(?:${CATALOG_UNIT})\\b`, "i"),
   );
@@ -160,7 +160,7 @@ export function extractMeasurement(value: string): Measurement | undefined {
   const canCount = text.match(new RegExp(`\\b${NUMBER}\\s*cans?\\b`, "i"));
   if (canCount) return buildMeasurement(Number(canCount[1]), "count");
 
-  const packOnly = text.match(new RegExp(`\\b${NUMBER}\\s*(?:pack|pk)\\b`, "i"));
+  const packOnly = text.match(new RegExp(`\\b${NUMBER}[\\s-]*(?:pack|pk)\\b`, "i"));
   if (packOnly) return buildMeasurement(Number(packOnly[1]), "count");
 
   if (/\b(?:one|a) dozen\b/i.test(text)) return buildMeasurement(12, "count");

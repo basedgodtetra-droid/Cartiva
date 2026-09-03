@@ -6,6 +6,7 @@ import {
   parseRetailerPackageQuantity,
 } from "@/packages/shared/src";
 import { decodePersistedComparisonSnapshot } from "@/mobile/src/state/comparison-snapshot-decoder";
+import { decodeRetailPackageFulfillment } from "@/mobile/src/services/cartiva-api";
 
 const checkedAt = "2026-08-24T18:00:00.000Z";
 
@@ -167,6 +168,122 @@ describe("persisted mobile comparison decoder", () => {
 
     expect(decodePersistedComparisonSnapshot(snapshot, "eggs 12 count", "80202"))
       .toEqual(snapshot);
+  });
+
+  it("restores a multi-package result and verifies totals from fulfillment cart quantity", () => {
+    const base = validSnapshot();
+    const fulfillment = {
+      kind: "multi_package" as const,
+      cartQuantity: 2,
+      packageCount: 2,
+      requestedBaseAmount: 24,
+      suppliedBaseAmount: 24,
+      baseUnit: "each" as const,
+      overageBaseAmount: 0,
+      overagePercent: 0,
+      label: "2 × 12 count · 24 each total",
+      approvalRequired: false,
+      recoveredFromStrictNoMatch: true,
+    };
+    const snapshot = {
+      ...base,
+      results: [{
+        ...base.results[0],
+        resolution: "multi_package_fulfillment",
+        fulfillment,
+      }],
+      basketLines: [{ ...base.basketLines[0], quantity: 2 }],
+      summary: {
+        ...base.summary,
+        totalCents: 598,
+        matchedSubtotalCents: 598,
+      },
+    };
+
+    expect(decodePersistedComparisonSnapshot(snapshot, "eggs 12 count", "80202"))
+      .toEqual(snapshot);
+    expect(decodePersistedComparisonSnapshot({
+      ...snapshot,
+      basketLines: [{ ...snapshot.basketLines[0], quantity: 1 }],
+    }, "eggs 12 count", "80202")).toBeNull();
+  });
+
+  it.each([
+    ["likely available", "likely_available" as const, AvailabilityStatus.LIKELY_AVAILABLE],
+    ["unknown availability", "unknown" as const, AvailabilityStatus.UNKNOWN],
+  ])("restores a retained %s match as a rejected line", (
+    _label,
+    availabilityStatus,
+    receiptAvailability,
+  ) => {
+    const base = validSnapshot();
+    const recommended = {
+      ...base.results[0].recommended,
+      inStock: false,
+      availabilityStatus,
+      cartEligible: true,
+    };
+    const unacceptedLine: Partial<(typeof base.basketLines)[number]> = {
+      ...base.basketLines[0],
+    };
+    delete unacceptedLine.retailerProductId;
+    delete unacceptedLine.upc;
+    delete unacceptedLine.matchedProduct;
+    delete unacceptedLine.matchedPackage;
+    delete unacceptedLine.priceCents;
+    delete unacceptedLine.provenance;
+    const snapshot = {
+      ...base,
+      results: [{
+        ...base.results[0],
+        recommended,
+        resolution: "matched_check_availability",
+        fulfillment: {
+          kind: "single_package",
+          cartQuantity: 1,
+          packageCount: 1,
+          label: "12 count",
+          approvalRequired: false,
+        },
+      }],
+      basketLines: [{
+        ...unacceptedLine,
+        status: "REJECTED",
+        availabilityStatus: receiptAvailability,
+        matchConfidence: "high",
+      }],
+      completeness: BasketCompleteness.INCOMPLETE,
+      summary: {
+        status: BasketCompleteness.INCOMPLETE,
+        requestedCount: 1,
+        matchedCount: 0,
+        matchedSubtotalCents: 0,
+      },
+    };
+
+    expect(decodePersistedComparisonSnapshot(snapshot, "eggs 12 count", "80202"))
+      .toEqual(snapshot);
+  });
+
+  it("strictly rejects malformed package-fulfillment metadata", () => {
+    const valid = {
+      kind: "multi_package",
+      cartQuantity: 2,
+      packageCount: 2,
+      requestedBaseAmount: 24,
+      suppliedBaseAmount: 24,
+      baseUnit: "each",
+      overageBaseAmount: 0,
+      overagePercent: 0,
+      label: "2 × 12 count",
+      approvalRequired: false,
+    };
+
+    expect(decodeRetailPackageFulfillment(valid)).toEqual(valid);
+    expect(decodeRetailPackageFulfillment({ ...valid, cartQuantity: 1 })).toBeNull();
+    expect(decodeRetailPackageFulfillment({ ...valid, cartQuantity: 2.5 })).toBeNull();
+    expect(decodeRetailPackageFulfillment({ ...valid, baseUnit: "lb" })).toBeNull();
+    expect(decodeRetailPackageFulfillment({ ...valid, unexpected: true })).toBeNull();
   });
 
   it("fails closed for missing capability structure", () => {

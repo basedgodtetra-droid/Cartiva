@@ -85,6 +85,28 @@ function krogerProduct(overrides: Partial<KrogerProduct> = {}): KrogerProduct {
   };
 }
 
+function weightSize(amount: number, unit: "oz" | "lb" = "oz"): NonNullable<KrogerProduct["size"]> {
+  return {
+    amount,
+    unit,
+    kind: "weight",
+    baseAmount: unit === "lb" ? amount * 16 : amount,
+    baseUnit: "oz",
+    label: `${amount} ${unit}`,
+  };
+}
+
+function volumeSize(amount: number): NonNullable<KrogerProduct["size"]> {
+  return {
+    amount,
+    unit: "fl oz",
+    kind: "volume",
+    baseAmount: amount,
+    baseUnit: "fl oz",
+    label: `${amount} fl oz`,
+  };
+}
+
 function searchResponse(products: KrogerProduct[]) {
   return {
     products,
@@ -357,6 +379,148 @@ describe("Kroger extension routes", () => {
     });
   });
 
+  it("streams the seven reported requests with exact identities and resolved package quantities", async () => {
+    const fixtures = {
+      chickpeas: krogerProduct({
+        id: "0001111000101",
+        title: "Kroger Garbanzo Beans Each",
+        productType: "Canned & Packaged",
+        size: weightSize(15),
+      }),
+      dicedTomatoes: krogerProduct({
+        id: "0001111000102",
+        title: "Kroger Petite Diced Tomatoes in Tomato Juice",
+        productType: "Canned & Packaged",
+        size: weightSize(14.5),
+      }),
+      kidneyBeans: krogerProduct({
+        id: "0001111000103",
+        title: "Kroger Dark Red Kidney Beans 15.5 oz Can",
+        productType: "Canned & Packaged",
+        size: weightSize(15.5),
+      }),
+      coconutMilk: krogerProduct({
+        id: "0001111000104",
+        title: "Thai Kitchen Lite Coconut Milk 13.66 fl oz Can",
+        productType: "International",
+        size: volumeSize(13.66),
+      }),
+      groundTurkey: krogerProduct({
+        id: "0001111000105",
+        title: "Kroger 93/7 Lean Ground Turkey 1 lb Tray",
+        productType: "Ground Turkey",
+        size: weightSize(1, "lb"),
+      }),
+      redLentilPasta: krogerProduct({
+        id: "0001111000106",
+        title: "Barilla Red Lentil Penne Pasta 16 oz",
+        productType: "Pasta",
+        size: weightSize(16),
+      }),
+      whiteRice: krogerProduct({
+        id: "0001111000107",
+        title: "Kroger Long Grain White Rice 2 lb Bag",
+        productType: "Rice",
+        size: weightSize(2, "lb"),
+        inStock: false,
+        availabilityStatus: "unknown",
+        cartEligible: false,
+      }),
+    };
+    vi.mocked(searchKrogerProducts).mockImplementation(async (query) => {
+      const product = /chickpeas?/i.test(query)
+        ? fixtures.chickpeas
+        : /diced\s+tomatoes?/i.test(query)
+          ? fixtures.dicedTomatoes
+          : /kidney\s+beans?/i.test(query)
+            ? fixtures.kidneyBeans
+            : /coconut\s+milk/i.test(query)
+              ? fixtures.coconutMilk
+              : /ground\s+turkey/i.test(query)
+                ? fixtures.groundTurkey
+                : /red\s+lentil/i.test(query)
+                  ? fixtures.redLentilPasta
+                  : /white\s+rice/i.test(query)
+                    ? fixtures.whiteRice
+                    : undefined;
+      return searchResponse(product ? [product] : []);
+    });
+
+    const requested = [
+      { text: "Chickpeas 3 cans", quantity: 3, requestedItemId: "chickpeas-line" },
+      { text: "Diced Tomatoes 8 cans", quantity: 8, requestedItemId: "diced-tomatoes-line" },
+      { text: "Kidney Beans 4 cans", quantity: 4, requestedItemId: "kidney-beans-line" },
+      { text: "Light Coconut Milk 2 cans", quantity: 2, requestedItemId: "coconut-milk-line" },
+      { text: "Ground Turkey 93/7 3 lb", quantity: 1, requestedItemId: "ground-turkey-line" },
+      { text: "Red Lentil Pasta 1.8 lb", quantity: 1, requestedItemId: "red-lentil-pasta-line" },
+      { text: "White Rice", quantity: 1, requestedItemId: "white-rice-line" },
+    ];
+    const response = await searchPost(new Request("http://localhost:3000/api/kroger/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: requested,
+        locationId: "AB12CD34",
+        fulfillmentMode: "pickup",
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    const verification = events
+      .filter((event) => event.phase === "verification")
+      .sort((left, right) => left.index - right.index);
+    const expected = [
+      [fixtures.chickpeas.productId, "multi_package_fulfillment", 3],
+      [fixtures.dicedTomatoes.productId, "multi_package_fulfillment", 8],
+      [fixtures.kidneyBeans.productId, "multi_package_fulfillment", 4],
+      [fixtures.coconutMilk.productId, "multi_package_fulfillment", 2],
+      [fixtures.groundTurkey.productId, "multi_package_fulfillment", 3],
+      [fixtures.redLentilPasta.productId, "multi_package_fulfillment", 2],
+      [fixtures.whiteRice.productId, "matched_check_availability", 1],
+    ] as const;
+
+    expect(verification).toHaveLength(requested.length);
+    verification.forEach((event, index) => {
+      const [productId, resolution, cartQuantity] = expected[index];
+      expect(event).toMatchObject({
+        index,
+        result: {
+          requestedItem: requested[index].text,
+          status: "matched",
+          resolution,
+          recommended: {
+            productId,
+            cartEligible: resolution !== "matched_check_availability",
+          },
+          fulfillment: {
+            cartQuantity,
+            packageCount: cartQuantity,
+          },
+        },
+      });
+    });
+    expect(verification[4].result.fulfillment).toMatchObject({
+      requestedBaseAmount: 48,
+      suppliedBaseAmount: 48,
+    });
+    expect(verification[5].result.fulfillment).toMatchObject({
+      requestedBaseAmount: 28.8,
+      suppliedBaseAmount: 32,
+    });
+    expect(events.find((event) => event.type === "performance")?.performance.outcomeCounts)
+      .toEqual({
+        requestedItems: 7,
+        matchedAutomatically: 7,
+        multiPackageFulfilled: 6,
+        shopperChoiceRequired: 0,
+        trulyUnavailable: 0,
+      });
+    expect(vi.mocked(searchKrogerProducts).mock.calls).toHaveLength(7);
+    for (const [query] of vi.mocked(searchKrogerProducts).mock.calls) {
+      expect(query).not.toMatch(/\b(?:3|8|4|2)\s+cans?\b|\b3\s*lb\b|\b1\.8\s*lb\b/i);
+    }
+  });
+
   it("broadens discovery but never substitutes a closest pack", async () => {
     const twelvePack = krogerProduct({
       id: "0001111088812",
@@ -397,6 +561,65 @@ describe("Kroger extension routes", () => {
     expect(queries.every((query) => !/24\s*(?:pack|pk)/i.test(query))).toBe(true);
     expect(verification.result).toMatchObject({ status: "no_match", recommended: null });
     expect(verification.result.explanation).toMatch(/no verified 24-pack package/i);
+  });
+
+  it("streams an explicit 12-pack x2 as exactly two verified 12-packs", async () => {
+    const twelvePack = krogerProduct({
+      id: "0001111088819",
+      productId: "0001111088819",
+      upc: "0001111088819",
+      title: "Coca-Cola Zero Sugar Soda 12 Pack 12 fl oz Cans",
+      brand: "Coca-Cola",
+      productType: "Soft Drinks",
+      price: 8.49,
+      size: {
+        amount: 144,
+        unit: "fl oz",
+        kind: "volume",
+        baseAmount: 144,
+        baseUnit: "fl oz",
+        packCount: 12,
+        perPackageAmount: 12,
+        label: "12 x 12 fl oz",
+      },
+    });
+    vi.mocked(searchKrogerProducts).mockResolvedValue(searchResponse([twelvePack]));
+
+    const response = await searchPost(new Request("http://localhost:3000/api/kroger/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{
+          text: "Coke Zero 12 pack x2",
+          quantity: 2,
+          requestedItemId: "coke-zero-line",
+        }],
+        locationId: "AB12CD34",
+        fulfillmentMode: "pickup",
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    const verification = events.find((event) => event.phase === "verification");
+
+    expect(vi.mocked(searchKrogerProducts).mock.calls[0]?.[0]).toMatch(/coke zero/i);
+    expect(vi.mocked(searchKrogerProducts).mock.calls[0]?.[0]).not.toMatch(/12\s*(?:pack|pk)|x2/i);
+    expect(verification).toMatchObject({
+      result: {
+        requestedItem: "Coke Zero 12 pack x2",
+        status: "matched",
+        resolution: "multi_package_fulfillment",
+        recommended: {
+          productId: twelvePack.productId,
+          comparablePrice: 16.98,
+        },
+        fulfillment: {
+          kind: "multi_package",
+          cartQuantity: 2,
+          packageCount: 2,
+        },
+      },
+    });
   });
 
   it("preserves extension package fields for strict verification without putting them in discovery", async () => {
@@ -446,7 +669,7 @@ describe("Kroger extension routes", () => {
     expect(verification.result.explanation).toMatch(/no verified 24-pack of 12 fl oz package/i);
   });
 
-  it("explains when a strict identity and package lack pickup commerce evidence", async () => {
+  it("retains a strict product match when Kroger does not report inventory", async () => {
     const unavailableEggs = krogerProduct({
       inStock: false,
       availabilityStatus: "unknown",
@@ -466,8 +689,16 @@ describe("Kroger extension routes", () => {
     const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
     const verification = events.find((event) => event.phase === "verification");
 
-    expect(verification.result).toMatchObject({ status: "no_match", recommended: null });
-    expect(verification.result.explanation).toMatch(/did not confirm it as in stock/i);
+    expect(verification.result).toMatchObject({
+      status: "matched",
+      resolution: "matched_check_availability",
+      recommended: {
+        productId: "0001111012345",
+        availabilityStatus: "unknown",
+        cartEligible: false,
+      },
+    });
+    expect(verification.result.explanation).toMatch(/check availability/i);
   });
 });
 

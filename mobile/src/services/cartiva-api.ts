@@ -109,6 +109,28 @@ export interface RankedKrogerProduct {
   };
 }
 
+export type RetailMatchResolution =
+  | "matched"
+  | "matched_check_availability"
+  | "multi_package_fulfillment"
+  | "substitute_available"
+  | "needs_choice"
+  | "truly_unavailable";
+
+export interface RetailPackageFulfillment {
+  kind: "single_package" | "multi_package" | "variable_weight";
+  cartQuantity: number;
+  packageCount: number;
+  requestedBaseAmount?: number;
+  suppliedBaseAmount?: number;
+  baseUnit?: "oz" | "fl oz" | "each";
+  overageBaseAmount?: number;
+  overagePercent?: number;
+  label: string;
+  approvalRequired: boolean;
+  recoveredFromStrictNoMatch?: boolean;
+}
+
 export interface KrogerMatchResult {
   retailer: "kroger";
   requestedItem: string;
@@ -117,6 +139,8 @@ export interface KrogerMatchResult {
   assumptions?: string[];
   confidence: "high" | "medium" | "low";
   status: "matched" | "review" | "no_match";
+  resolution?: RetailMatchResolution;
+  fulfillment?: RetailPackageFulfillment;
   explanation: string;
   clarification?: string;
   verifiedAt?: string;
@@ -167,6 +191,13 @@ export interface KrogerSearchPerformanceEvent {
     productApiCalls: number;
     deduplicatedRequests: number;
     upstreamCacheUsed: "yes" | "no" | "unknown" | "local cache only";
+    outcomeCounts?: {
+      requestedItems: number;
+      matchedAutomatically: number;
+      multiPackageFulfilled: number;
+      shopperChoiceRequired: number;
+      trulyUnavailable: number;
+    };
     items: {
       index: number;
       item: string;
@@ -438,6 +469,87 @@ function decodeMeasurement(value: unknown): ProductMeasurement | null {
   return value as ProductMeasurement;
 }
 
+export function decodeRetailPackageFulfillment(value: unknown): RetailPackageFulfillment | null {
+  const fulfillment = record(value);
+  if (
+    !fulfillment
+    || !exactKeys(
+      fulfillment,
+      ["kind", "cartQuantity", "packageCount", "label", "approvalRequired"],
+      [
+        "requestedBaseAmount", "suppliedBaseAmount", "baseUnit", "overageBaseAmount",
+        "overagePercent", "recoveredFromStrictNoMatch",
+      ],
+    )
+    || !["single_package", "multi_package", "variable_weight"].includes(String(fulfillment.kind))
+    || !safeInteger(fulfillment.cartQuantity, 1, 99)
+    || !safeInteger(fulfillment.packageCount, 1, 99)
+    || fulfillment.cartQuantity !== fulfillment.packageCount
+    || (
+      fulfillment.kind === "multi_package"
+        ? fulfillment.packageCount < 2
+        : fulfillment.packageCount !== 1
+    )
+    || (
+      fulfillment.requestedBaseAmount !== undefined
+      && !finiteNumber(fulfillment.requestedBaseAmount, 0.001, 10_000_000)
+    )
+    || (
+      fulfillment.suppliedBaseAmount !== undefined
+      && !finiteNumber(fulfillment.suppliedBaseAmount, 0.001, 10_000_000)
+    )
+    || (
+      fulfillment.requestedBaseAmount !== undefined
+      && fulfillment.suppliedBaseAmount !== undefined
+      && fulfillment.suppliedBaseAmount + 0.0001 < fulfillment.requestedBaseAmount
+    )
+    || (
+      fulfillment.baseUnit !== undefined
+      && !["oz", "fl oz", "each"].includes(String(fulfillment.baseUnit))
+    )
+    || (
+      fulfillment.overageBaseAmount !== undefined
+      && !finiteNumber(fulfillment.overageBaseAmount, 0, 10_000_000)
+    )
+    || (
+      fulfillment.overagePercent !== undefined
+      && !finiteNumber(fulfillment.overagePercent, 0, 100_000)
+    )
+    || !boundedText(fulfillment.label, 200)
+    || typeof fulfillment.approvalRequired !== "boolean"
+    || (
+      fulfillment.recoveredFromStrictNoMatch !== undefined
+      && typeof fulfillment.recoveredFromStrictNoMatch !== "boolean"
+    )
+  ) return null;
+
+  return {
+    kind: fulfillment.kind as RetailPackageFulfillment["kind"],
+    cartQuantity: fulfillment.cartQuantity,
+    packageCount: fulfillment.packageCount,
+    ...(fulfillment.requestedBaseAmount !== undefined
+      ? { requestedBaseAmount: fulfillment.requestedBaseAmount as number }
+      : {}),
+    ...(fulfillment.suppliedBaseAmount !== undefined
+      ? { suppliedBaseAmount: fulfillment.suppliedBaseAmount as number }
+      : {}),
+    ...(fulfillment.baseUnit !== undefined
+      ? { baseUnit: fulfillment.baseUnit as RetailPackageFulfillment["baseUnit"] }
+      : {}),
+    ...(fulfillment.overageBaseAmount !== undefined
+      ? { overageBaseAmount: fulfillment.overageBaseAmount as number }
+      : {}),
+    ...(fulfillment.overagePercent !== undefined
+      ? { overagePercent: fulfillment.overagePercent as number }
+      : {}),
+    label: fulfillment.label as string,
+    approvalRequired: fulfillment.approvalRequired,
+    ...(fulfillment.recoveredFromStrictNoMatch !== undefined
+      ? { recoveredFromStrictNoMatch: fulfillment.recoveredFromStrictNoMatch as boolean }
+      : {}),
+  };
+}
+
 function decodeRankedKrogerProduct(
   value: unknown,
   request: KrogerSearchRequest,
@@ -595,11 +707,18 @@ function decodeKrogerMatchResult(
     || !exactKeys(result, [
       "retailer", "requestedItem", "recommended", "alternatives", "confidence", "status",
       "explanation",
-    ], ["assumptions", "clarification", "verifiedAt", "error"])
+    ], ["assumptions", "resolution", "fulfillment", "clarification", "verifiedAt", "error"])
     || result.retailer !== "kroger"
     || result.requestedItem !== request.items[index]?.text
     || !["high", "medium", "low"].includes(String(result.confidence))
     || !["matched", "review", "no_match"].includes(String(result.status))
+    || (
+      result.resolution !== undefined
+      && ![
+        "matched", "matched_check_availability", "multi_package_fulfillment",
+        "substitute_available", "needs_choice", "truly_unavailable",
+      ].includes(String(result.resolution))
+    )
     || !boundedText(result.explanation, 1_000)
     || (result.assumptions !== undefined && !boundedStringArray(result.assumptions, 20, 300))
     || (result.clarification !== undefined && !boundedText(result.clarification, 500))
@@ -608,6 +727,10 @@ function decodeKrogerMatchResult(
     || !Array.isArray(result.alternatives)
     || result.alternatives.length > 3
   ) return null;
+  const fulfillment = result.fulfillment === undefined
+    ? undefined
+    : decodeRetailPackageFulfillment(result.fulfillment);
+  if (result.fulfillment !== undefined && !fulfillment) return null;
   const recommended = result.recommended === null
     ? null
     : decodeRankedKrogerProduct(result.recommended, request);
@@ -616,6 +739,13 @@ function decodeKrogerMatchResult(
   if (alternatives.some((entry) => !entry)) return null;
   if (result.status === "matched" && !recommended) return null;
   if (result.status === "no_match" && recommended) return null;
+  if (result.status === "no_match" && fulfillment) return null;
+  if (result.resolution === "truly_unavailable" && result.status !== "no_match") return null;
+  if (result.resolution === "needs_choice" && result.status !== "review") return null;
+  if (
+    result.resolution === "multi_package_fulfillment"
+    && fulfillment?.kind !== "multi_package"
+  ) return null;
   if (recommended && result.confidence !== recommended.confidence) return null;
   const ids = [recommended?.id, ...alternatives.map((entry) => entry!.id)].filter(Boolean);
   if (new Set(ids).size !== ids.length) return null;
@@ -627,6 +757,10 @@ function decodeKrogerMatchResult(
     ...(result.assumptions !== undefined ? { assumptions: result.assumptions as string[] } : {}),
     confidence: result.confidence as KrogerMatchResult["confidence"],
     status: result.status as KrogerMatchResult["status"],
+    ...(result.resolution !== undefined
+      ? { resolution: result.resolution as RetailMatchResolution }
+      : {}),
+    ...(fulfillment ? { fulfillment } : {}),
     explanation: result.explanation as string,
     ...(result.clarification !== undefined ? { clarification: result.clarification as string } : {}),
     ...(result.verifiedAt !== undefined ? { verifiedAt: result.verifiedAt as string } : {}),
@@ -733,7 +867,7 @@ export function decodeKrogerSearchEvent(
     || !exactKeys(performance, [
       "totalDurationMs", "cacheHits", "searchApiCalls", "productApiCalls",
       "deduplicatedRequests", "upstreamCacheUsed", "items",
-    ])
+    ], ["outcomeCounts"])
     || !safeInteger(performance.totalDurationMs, 0, 600_000)
     || !safeInteger(performance.cacheHits, 0, maximumCalls)
     || !safeInteger(performance.searchApiCalls, 0, maximumCalls)
@@ -742,6 +876,26 @@ export function decodeKrogerSearchEvent(
     || !["yes", "no", "unknown", "local cache only"].includes(String(performance.upstreamCacheUsed))
     || !Array.isArray(performance.items)
     || performance.items.length !== request.items.length
+  ) throw invalid();
+  const outcomeCounts = performance.outcomeCounts === undefined
+    ? undefined
+    : record(performance.outcomeCounts);
+  if (
+    performance.outcomeCounts !== undefined
+    && (
+      !outcomeCounts
+      || !exactKeys(outcomeCounts, [
+        "requestedItems", "matchedAutomatically", "multiPackageFulfilled",
+        "shopperChoiceRequired", "trulyUnavailable",
+      ])
+      || outcomeCounts.requestedItems !== request.items.length
+      || !safeInteger(outcomeCounts.matchedAutomatically, 0, request.items.length)
+      || !safeInteger(outcomeCounts.multiPackageFulfilled, 0, request.items.length)
+      || !safeInteger(outcomeCounts.shopperChoiceRequired, 0, request.items.length)
+      || !safeInteger(outcomeCounts.trulyUnavailable, 0, request.items.length)
+      || outcomeCounts.multiPackageFulfilled > outcomeCounts.matchedAutomatically
+      || outcomeCounts.shopperChoiceRequired + outcomeCounts.trulyUnavailable > request.items.length
+    )
   ) throw invalid();
   const decodedTimings = performance.items.map((value, index) => {
     const timing = record(value);
@@ -797,6 +951,15 @@ export function decodeKrogerSearchEvent(
       productApiCalls: performance.productApiCalls,
       deduplicatedRequests: performance.deduplicatedRequests,
       upstreamCacheUsed: performance.upstreamCacheUsed as KrogerSearchPerformanceEvent["performance"]["upstreamCacheUsed"],
+      ...(outcomeCounts ? {
+        outcomeCounts: {
+          requestedItems: outcomeCounts.requestedItems as number,
+          matchedAutomatically: outcomeCounts.matchedAutomatically as number,
+          multiPackageFulfilled: outcomeCounts.multiPackageFulfilled as number,
+          shopperChoiceRequired: outcomeCounts.shopperChoiceRequired as number,
+          trulyUnavailable: outcomeCounts.trulyUnavailable as number,
+        },
+      } : {}),
       items: decodedTimings,
     },
   };

@@ -504,6 +504,18 @@ function amountLabel(amount: number, unit: IngredientUnit) {
   return `${value} gallon${plural}`;
 }
 
+/**
+ * Generated recipe totals should become useful purchase targets, not false
+ * package precision. The underlying ingredient amount stays untouched; only
+ * the shopper-facing list target is rounded upward so fulfillment never
+ * silently undersupplies the plan.
+ */
+export function roundGeneratedPurchaseWeightOunces(ounces: number) {
+  if (!Number.isFinite(ounces) || ounces <= 0) return 1;
+  if (ounces >= 16) return Math.ceil(ounces / 8) * 8;
+  return Math.max(1, Math.ceil(ounces));
+}
+
 function shoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
   if (unit === "lb" || unit === "oz" || unit === "g" || unit === "kg") {
     const ounces = unit === "lb"
@@ -513,9 +525,10 @@ function shoppingTextFor(name: string, amount: number, unit: IngredientUnit) {
         : unit === "g"
           ? amount * 0.035274
           : amount;
-    return ounces >= 16
-      ? `${name} ${cleanNumber(ounces / 16, 1)} lb`
-      : `${name} ${Math.max(1, Math.ceil(ounces))} oz`;
+    const purchaseOunces = roundGeneratedPurchaseWeightOunces(ounces);
+    return purchaseOunces >= 16
+      ? `${name} ${cleanNumber(purchaseOunces / 16, 1)} lb`
+      : `${name} ${purchaseOunces} oz`;
   }
   if (unit === "count") return `${name} ${Math.max(1, Math.ceil(amount))} count`;
   if (unit === "can") return `${name} ${Math.max(1, Math.ceil(amount))} can${amount > 1 ? "s" : ""}`;

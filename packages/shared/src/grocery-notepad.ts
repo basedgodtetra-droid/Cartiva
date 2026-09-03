@@ -91,6 +91,10 @@ const BARE_GALLON_PATTERN = /\bgallon\b/i;
 const DOZEN_PATTERN = /\b(?:(\d+|one|two|three|a)\s+)?dozen\b/i;
 const BARE_EGG_COUNT_PREFIX = /\b(12|18|24)(?=\s+eggs?\b)/i;
 const BARE_EGG_COUNT_SUFFIX = /\beggs?\s+(12|18|24)\b/i;
+const CONTAINER_QUANTITY_PATTERN = /\b(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)\b/i;
+const CART_QUANTITY_SUFFIX_PATTERN = /\s+(?:x|×)\s*(\d{1,2})\s*$/i;
+const LEADING_EACH_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\b/i;
+const TRAILING_EACH_QUANTITY_PATTERN = /\b(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\s+(\d{1,2})\s*$/i;
 
 const EGG_COUNTS: GroceryClarificationOption[] = [
   { id: "eggs-12", label: "12 count", value: "12 count" },
@@ -654,6 +658,21 @@ function normalizeDetail(raw: string) {
   const dozen = lower.match(DOZEN_PATTERN);
   if (dozen) return { source: dozen[0], detail: `${dozenCount(dozen[1])} ct` };
 
+  const containerQuantity = lower.match(CONTAINER_QUANTITY_PATTERN);
+  if (containerQuantity) {
+    return { source: containerQuantity[0], detail: `${containerQuantity[1]} ${containerQuantity[2].toLowerCase()}` };
+  }
+
+  const leadingEachQuantity = lower.match(LEADING_EACH_QUANTITY_PATTERN);
+  if (leadingEachQuantity) {
+    return { source: leadingEachQuantity[1], detail: `${leadingEachQuantity[1]} each` };
+  }
+
+  const trailingEachQuantity = lower.match(TRAILING_EACH_QUANTITY_PATTERN);
+  if (trailingEachQuantity) {
+    return { source: trailingEachQuantity[2], detail: `${trailingEachQuantity[2]} each` };
+  }
+
   const pack = lower.match(PACK_PATTERN);
   if (pack) return { source: pack[0], detail: `${pack[1]} pack` };
 
@@ -686,6 +705,7 @@ function normalizeDetail(raw: string) {
 function categoryFor(raw: string) {
   const lower = raw.toLowerCase();
   if (/\beggs?\b/.test(lower)) return "eggs";
+  if (/\bcoconut\s+milk\b/.test(lower) && /\b(?:cans?|canned)\b/.test(lower)) return "canned-goods";
   if (/\b(?:almond|oat|coconut|soy)\s+milk\b/.test(lower)) return "alt-milk";
   if (/\bmilk\b/.test(lower)) return "milk";
   if (/\byogurt\b/.test(lower)) return "yogurt";
@@ -769,13 +789,17 @@ function itemFromRaw(
   proteinOrigins: GroceryProteinOriginMap = {},
 ): GroceryNotepadItem {
   const raw = clean(rawValue);
+  const cartQuantitySuffix = raw.match(CART_QUANTITY_SUFFIX_PATTERN);
+  const displayRaw = cartQuantitySuffix
+    ? clean(raw.slice(0, cartQuantitySuffix.index))
+    : raw;
   const proteinIntent = proteinIntentFor(
     raw,
     proteinOrigins[groceryProteinOriginKey(raw, index)]
       ?? proteinOrigins[groceryProteinOriginKey(raw)],
   );
-  const category = categoryFor(raw);
-  const withoutPreferences = stripProteinPreferences(raw);
+  const category = categoryFor(displayRaw);
+  const withoutPreferences = stripProteinPreferences(displayRaw);
   const ratio = proteinIntent?.leanRatio?.value !== "any" ? proteinIntent?.leanRatio?.value : undefined;
   const displaySource = ratio ? stripLeanRatioText(withoutPreferences) : withoutPreferences;
   const detailResult = normalizeDetail(displaySource);
@@ -786,12 +810,15 @@ function itemFromRaw(
   const preferenceDetail = proteinPreferenceDetail(raw);
   const detailParts = [ratio, preferenceDetail, detailResult?.detail].filter(Boolean) as string[];
   const detail = detailParts.length ? detailParts.join(" · ") : undefined;
-  const clarification = clarificationFor(raw, category, proteinIntent);
+  const clarification = clarificationFor(displayRaw, category, proteinIntent);
   // Keep an explicit no-preference marker in verification text so matching can
   // relax only the attribute the shopper chose as "Any". Retailer discovery
   // strips these markers before searching, while verification retains them.
   const canonicalDetails = [ratio, preferenceDetail, detailResult?.detail].filter(Boolean);
-  const canonicalText = canonicalDetails.length ? `${name}, ${canonicalDetails.join(", ")}` : name;
+  const canonicalBase = canonicalDetails.length ? `${name}, ${canonicalDetails.join(", ")}` : name;
+  const canonicalText = cartQuantitySuffix
+    ? `${canonicalBase} x${cartQuantitySuffix[1]}`
+    : canonicalBase;
 
   return {
     id: stableId(raw, index),

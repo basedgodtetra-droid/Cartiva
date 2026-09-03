@@ -466,10 +466,20 @@ describe("owner-scoped mobile Kroger cart route", () => {
     expect(addToKrogerCart).not.toHaveBeenCalled();
   });
 
-  it("never mutates a complete basket whose inventory was not confirmed", async () => {
+  it("never mutates a retained match whose inventory was not confirmed", async () => {
     const issued = issueMobileSession();
     const comparison = receipt("comparison_unverified_inventory_1");
-    comparison.basketLines[0].availabilityStatus = AvailabilityStatus.LIKELY_AVAILABLE;
+    comparison.basketLines[0] = {
+      ...comparison.basketLines[0],
+      status: "REJECTED",
+      retailerProductId: undefined,
+      upc: undefined,
+      matchedProduct: undefined,
+      priceCents: undefined,
+      provenance: undefined,
+      availabilityStatus: AvailabilityStatus.LIKELY_AVAILABLE,
+    };
+    comparison.completeness = BasketCompleteness.INCOMPLETE;
     await saveComparisonReceipt(issued.ownerId, comparison);
 
     const response = await cartPost(request(issued.sessionToken, {
@@ -479,7 +489,7 @@ describe("owner-scoped mobile Kroger cart route", () => {
     expect(await response.json()).toMatchObject({
       status: "FAILED",
       success: false,
-      code: "inventory_unverified",
+      code: "basket_incomplete",
       retrySafe: true,
     });
     expect(addToKrogerCart).not.toHaveBeenCalled();

@@ -79,16 +79,18 @@ function markup(
   cart: Parameters<typeof CartivaComparison>[0]["cart"],
   connected = false,
   connectionState: CartivaKrogerConnectionState = connected ? "connected" : "required",
+  comparisonResult: KrogerMatchResult = result,
+  quantity = 1,
 ) {
   const comparison = {
     phase: "complete" as const,
-    results: [result],
+    results: [comparisonResult],
     completedItems: 1,
     checkedAt: "2026-08-31T20:00:00.000Z",
   };
   const props: Parameters<typeof CartivaComparison>[0] = {
     items: [grocery],
-    quantities: { eggs: 1 },
+    quantities: { eggs: quantity },
     comparison,
     selectedLocation: {
       locationId: "01400912",
@@ -100,8 +102,8 @@ function markup(
     cart,
     cartReadiness: getKrogerCartReadiness({
       items: [grocery],
-      results: [result],
-      quantities: { eggs: 1 },
+      results: [comparisonResult],
+      quantities: { eggs: quantity },
       comparisonComplete: true,
       customerConnected: connected,
       cartCapability: true,
@@ -136,6 +138,58 @@ describe("Cartiva comparison handoff UI", () => {
     const html = markup({ phase: "idle" }, true);
     expect(html).toContain("Kroger API connection is active");
     expect(html).toContain("Add basket to Kroger");
+  });
+
+  it("shows the resolved multi-package plan and prices every retailer package", () => {
+    const multiPackage: KrogerMatchResult = {
+      ...result,
+      resolution: "multi_package_fulfillment",
+      fulfillment: {
+        kind: "multi_package",
+        cartQuantity: 3,
+        packageCount: 3,
+        requestedBaseAmount: 28.8,
+        suppliedBaseAmount: 36,
+        baseUnit: "oz",
+        overageBaseAmount: 7.2,
+        overagePercent: 25,
+        label: "3 × 12 oz boxes · 36 oz total",
+        approvalRequired: false,
+      },
+    };
+
+    const html = markup({ phase: "idle" }, true, "connected", multiPackage);
+    expect(html).toContain("3 × 12 oz boxes · 36 oz total");
+    expect(html).toContain("$14.37");
+    expect(html).not.toContain("Qty 1");
+  });
+
+  it("keeps a verified product visible when Kroger availability is unknown", () => {
+    const checkAvailability: KrogerMatchResult = {
+      ...result,
+      recommended: {
+        ...product,
+        inStock: false,
+        availabilityStatus: "unknown",
+        cartEligible: true,
+      },
+      resolution: "matched_check_availability",
+      fulfillment: {
+        kind: "single_package",
+        cartQuantity: 1,
+        packageCount: 1,
+        label: "18 count",
+        approvalRequired: false,
+      },
+      explanation: "Product and price verified; check current availability.",
+    };
+
+    const html = markup({ phase: "idle" }, false, "required", checkAvailability);
+    expect(html).toContain("Kroger Large Grade A Eggs");
+    expect(html).toContain("Check availability");
+    expect(html).toContain('data-complete="false"');
+    expect(html).not.toContain("Kroger basket receipt");
+    expect(html).not.toContain("No match");
   });
 
   it("shows an expired connection as reconnectable without claiming transfer success", () => {

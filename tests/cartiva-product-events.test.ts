@@ -33,6 +33,11 @@ describe("privacy-conscious Cartiva product events", () => {
       fulfillmentMode: "pickup",
       itemCount: 5.9,
       matchedCount: 5,
+      directMatchedCount: 3,
+      multiPackageFulfilledCount: 2,
+      availabilityCheckCount: 1,
+      shopperChoiceRequiredCount: 0,
+      trulyUnavailableCount: 0,
       complete: true,
     }, "2026-08-31T12:00:00.000Z")).toEqual({
       schemaVersion: 1,
@@ -44,6 +49,11 @@ describe("privacy-conscious Cartiva product events", () => {
         fulfillmentMode: "pickup",
         itemCount: 5,
         matchedCount: 5,
+        directMatchedCount: 3,
+        multiPackageFulfilledCount: 2,
+        availabilityCheckCount: 1,
+        shopperChoiceRequiredCount: 0,
+        trulyUnavailableCount: 0,
         complete: true,
       },
     });

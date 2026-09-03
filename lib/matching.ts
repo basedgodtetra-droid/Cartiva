@@ -67,6 +67,19 @@ function importantWords(value: string) {
   );
 }
 
+const TERM_MATCH_ALIASES: Record<string, string[]> = {
+  chickpea: ["chickpeas", "garbanzo", "peas"],
+  chickpeas: ["chickpea", "garbanzo", "peas"],
+  garbanzo: ["chickpea", "chickpeas", "peas"],
+  light: ["lite"],
+  lite: ["light"],
+};
+
+function titleMatchesImportantWord(word: string, titleWords: Set<string>) {
+  return titleWords.has(word)
+    || (TERM_MATCH_ALIASES[word] ?? []).some((alias) => titleWords.has(alias));
+}
+
 function confidenceFor(score: number): Confidence {
   if (score >= 78) return "high";
   if (score >= 62) return "medium";
@@ -140,7 +153,9 @@ function scoreProduct(
 ) {
   const requestWords = importantWords(stripFlexibleProteinPreferences(request));
   const titleWords = new Set(words(`${product.brand ?? ""} ${product.title}`));
-  const matchedTerms = [...new Set(requestWords.filter((word) => titleWords.has(word)))];
+  const matchedTerms = [...new Set(requestWords.filter((word) => (
+    titleMatchesImportantWord(word, titleWords)
+  )))];
   const ratio = requestWords.length ? matchedTerms.length / requestWords.length : 0;
   const reasons: string[] = [];
   let score = ratio * 58;
@@ -157,11 +172,11 @@ function scoreProduct(
   } else if (product.availabilityStatus === "likely_available") {
     score += 6;
     reasons.push("listed for the selected fulfillment method; inventory level was not reported");
+  } else if (product.availabilityStatus === "unknown") {
+    reasons.push("product and price verified; current availability was not reported");
   } else {
     rejected = true;
-    reasons.push(product.availabilityStatus === "out_of_stock"
-      ? "out of stock"
-      : "availability could not be established");
+    reasons.push("out of stock");
   }
 
   if (product.priceProvenance?.sellerType === "marketplace") {

@@ -6,6 +6,7 @@ import {
   emptyCartivaLibrary,
   parseCartivaLibrary,
   recordComparison,
+  savedProductPackageLabel,
   saveHistoricalBasket,
   serializeCartivaLibrary,
   upsertSavedList,
@@ -170,6 +171,77 @@ describe("Cartiva local library", () => {
       fulfillmentMode: "pickup",
       observedAt: now,
     })).toBeNull();
+  });
+
+  it("stores the resolved retailer package quantity and extended subtotal", () => {
+    const item = { id: "pasta", raw: "Red lentil pasta 1.8 lb", name: "Red lentil pasta", canonicalText: "Red lentil pasta, 1.8 lb", status: "ready" as const };
+    const multiPackage = verifiedResult("000000000020", 2.99, "Red Lentil Pasta", "12 oz box");
+    multiPackage.fulfillment = {
+      kind: "multi_package",
+      cartQuantity: 3,
+      packageCount: 3,
+      requestedBaseAmount: 28.8,
+      suppliedBaseAmount: 36,
+      baseUnit: "oz",
+      overageBaseAmount: 7.2,
+      overagePercent: 25,
+      label: "3 × 12 oz boxes · 36 oz total",
+      approvalRequired: false,
+    };
+    const comparison = buildCartivaComparisonRecord({
+      listName: "Meal plan",
+      listSnapshot: { rawInput: item.raw, quantities: { pasta: 1 }, fulfillmentMode: "pickup", zipCode: "75201" },
+      items: [item],
+      quantities: { pasta: 1 },
+      results: [multiPackage],
+      location: { locationId: "store-1", name: "Capitol Ave", chain: "Kroger", address: { addressLine1: "4241 Capitol Ave" } },
+      fulfillmentMode: "pickup",
+      observedAt: now,
+    });
+
+    expect(comparison?.products[0]).toMatchObject({
+      quantity: 3,
+      fulfillmentLabel: "3 × 12 oz boxes · 36 oz total",
+      unitPriceCents: 299,
+      lineTotalCents: 897,
+    });
+    expect(savedProductPackageLabel(comparison!.products[0])).toBe("3 × 12 oz boxes · 36 oz total");
+    expect(comparison?.subtotalCents).toBe(897);
+  });
+
+  it("keeps older saved baskets readable and includes their resolved package quantity", () => {
+    const item = { id: "beef", raw: "Ground beef 3 lb", name: "Ground beef", canonicalText: "Ground beef, 3 lb", status: "ready" as const };
+    const multiPackage = verifiedResult("000000000030", 5.49, "Ground Beef", "1 lb");
+    multiPackage.fulfillment = {
+      kind: "multi_package",
+      cartQuantity: 3,
+      packageCount: 3,
+      requestedBaseAmount: 48,
+      suppliedBaseAmount: 48,
+      baseUnit: "oz",
+      overageBaseAmount: 0,
+      overagePercent: 0,
+      label: "3 × 1 lb packages · 3 lb total",
+      approvalRequired: false,
+    };
+    const comparison = buildCartivaComparisonRecord({
+      listName: "Cookout",
+      listSnapshot: { rawInput: item.raw, quantities: {}, fulfillmentMode: "pickup", zipCode: "75201" },
+      items: [item],
+      quantities: {},
+      results: [multiPackage],
+      location: { locationId: "store-1", name: "Capitol Ave", chain: "Kroger", address: { addressLine1: "4241 Capitol Ave" } },
+      fulfillmentMode: "pickup",
+      observedAt: now,
+    });
+    const saved = saveHistoricalBasket(emptyCartivaLibrary(), comparison!, "2026-08-31T12:10:00.000Z");
+    const legacy = structuredClone(saved);
+    delete legacy.baskets[0].products[0].fulfillmentLabel;
+
+    const reloaded = parseCartivaLibrary(serializeCartivaLibrary(legacy));
+    expect(reloaded.baskets).toHaveLength(1);
+    expect(savedProductPackageLabel(reloaded.baskets[0].products[0])).toBe("3 × 1 lb");
+    expect(reloaded.baskets[0].products[0].lineTotalCents).toBe(1_647);
   });
 
   it("fails closed on corrupt or unsupported local data", () => {

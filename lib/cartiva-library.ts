@@ -3,6 +3,7 @@ import {
   type GroceryNotepadItem,
   type GroceryProteinOriginMap,
 } from "@/lib/grocery-notepad";
+import { resolvedKrogerCartQuantity } from "@/lib/cartiva-kroger-cart";
 import type { KrogerMatchResult } from "@/lib/types";
 
 export const CARTIVA_LIBRARY_KEY = "cartiva-local-library-v1";
@@ -31,6 +32,7 @@ export interface CartivaSavedProduct {
   upc: string;
   title: string;
   packageLabel: string;
+  fulfillmentLabel?: string;
   packageKey: string;
   unitPriceCents: number;
   lineTotalCents: number;
@@ -199,6 +201,8 @@ function isSavedProduct(value: unknown): value is CartivaSavedProduct {
     && /^\d{8,14}$/.test(String(value.upc))
     && typeof value.title === "string"
     && typeof value.packageLabel === "string"
+    && (value.fulfillmentLabel === undefined
+      || (typeof value.fulfillmentLabel === "string" && value.fulfillmentLabel.length <= 200))
     && typeof value.packageKey === "string"
     && positiveInteger(value.unitPriceCents)
     && positiveInteger(value.lineTotalCents)
@@ -352,6 +356,16 @@ export function serializeCartivaLibrary(state: CartivaLibraryState) {
   return JSON.stringify(state);
 }
 
+export function savedProductPackageLabel(
+  product: Pick<CartivaSavedProduct, "quantity" | "packageLabel" | "fulfillmentLabel">,
+) {
+  const fulfillmentLabel = cleanString(product.fulfillmentLabel, 200).trim();
+  if (fulfillmentLabel) return fulfillmentLabel;
+
+  const packageLabel = cleanString(product.packageLabel, 200).trim() || "Package not specified";
+  return product.quantity > 1 ? `${product.quantity} × ${packageLabel}` : packageLabel;
+}
+
 export function createLibraryId(prefix: string) {
   const random = typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID().replace(/-/g, "")
@@ -475,9 +489,11 @@ export function buildCartivaComparisonRecord(
     if (!item) return [];
     const productObservedAt = new Date(provenance.checkedAt);
     if (Number.isNaN(productObservedAt.valueOf())) return [];
-    const requestedQuantity = input.quantities[item.id] ?? 1;
-    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > 99) return [];
-    const quantity = requestedQuantity;
+    const quantity = resolvedKrogerCartQuantity(
+      result,
+      input.quantities[item.id] ?? 1,
+    );
+    if (quantity === undefined) return [];
     const unitPriceCents = authoritativePriceCents as number;
     return [{
       requestedItem: item.canonicalText,
@@ -487,6 +503,9 @@ export function buildCartivaComparisonRecord(
       upc: product.upc,
       title: product.title,
       packageLabel: product.size?.label ?? "Package not specified",
+      ...(result.fulfillment?.label
+        ? { fulfillmentLabel: cleanString(result.fulfillment.label, 200) }
+        : {}),
       packageKey: packageIdentity(product),
       unitPriceCents,
       lineTotalCents: unitPriceCents * quantity,
@@ -512,7 +531,7 @@ export function buildCartivaComparisonRecord(
     .join("\n");
   const fingerprint = `basket_${hash(fingerprintSource)}`;
   const evidenceFingerprint = products
-    .map((product) => `${product.upc}|${product.packageKey}|${product.unitPriceCents}|${product.observedAt}`)
+    .map((product) => `${product.upc}|${product.packageKey}|${product.quantity}|${product.unitPriceCents}|${product.observedAt}`)
     .sort()
     .join("\n");
   const id = `comparison_${hash(`${input.location.locationId}|${fingerprint}|${evidenceFingerprint}`)}`;

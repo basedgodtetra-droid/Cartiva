@@ -8,8 +8,10 @@ import { CartivaLibraryShell } from "@/components/cartiva-library-shell";
 import { useCartivaLibrary } from "@/components/cartiva-library-provider";
 import {
   money,
+  savedProductPackageLabel,
   type CartivaBasketObservation,
   type CartivaProductObservation,
+  type CartivaSavedProduct,
 } from "@/lib/cartiva-library";
 import styles from "@/components/cartiva-workspace.module.css";
 
@@ -27,6 +29,18 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
       <h2>{title}</h2>
       <p>{body}</p>
       {action}
+    </div>
+  );
+}
+
+export function SavedBasketProductRow({ product }: { product: CartivaSavedProduct }) {
+  return (
+    <div>
+      <span>
+        <strong>{product.title}</strong>
+        <small>{savedProductPackageLabel(product)} · UPC {product.upc} · {product.confidence} confidence</small>
+      </span>
+      <em>{money(product.lineTotalCents)}</em>
     </div>
   );
 }
@@ -159,7 +173,7 @@ export function BasketsPage() {
               </dl>
               <div className={styles.savedProductList}>
                 {basket.products.map((product) => (
-                  <div key={`${basket.id}-${product.upc}`}><span><strong>{product.title}</strong><small>{product.packageLabel} · UPC {product.upc} · {product.confidence} confidence</small></span><em>{money(product.lineTotalCents)}</em></div>
+                  <SavedBasketProductRow key={`${basket.id}-${product.upc}`} product={product} />
                 ))}
               </div>
             </article>

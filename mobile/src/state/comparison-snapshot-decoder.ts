@@ -4,12 +4,16 @@ import {
   assertComparisonStoreInvariant,
   availabilityForComparison,
   interpretGroceryInput,
+  isRetailerHandoffAcceptedMatch,
   krogerRetailerBanner,
   parseRetailerPackageQuantity,
   type ComparisonSessionReceipt,
 } from "@cartiva/shared";
 import { isTrustedKrogerRetailerUrl } from "../services/cart-submission-marker";
-import { decodeCartivaCapabilities } from "../services/cartiva-api";
+import {
+  decodeCartivaCapabilities,
+  decodeRetailPackageFulfillment,
+} from "../services/cartiva-api";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -162,13 +166,26 @@ function validMatchResult(value: unknown, requestedItem: string, locationId: str
   const required = [
     "retailer", "requestedItem", "recommended", "alternatives", "confidence", "status", "explanation",
   ];
-  const optional = ["assumptions", "clarification", "verifiedAt", "error"];
+  const optional = [
+    "assumptions", "resolution", "fulfillment", "clarification", "verifiedAt", "error",
+  ];
   if (!result || !exactKeys(result, required, optional)) return false;
   if (
     result.retailer !== "kroger"
     || result.requestedItem !== requestedItem
     || !["high", "medium", "low"].includes(String(result.confidence))
     || !["matched", "review", "no_match"].includes(String(result.status))
+    || (
+      result.resolution !== undefined
+      && ![
+        "matched", "matched_check_availability", "multi_package_fulfillment",
+        "substitute_available", "needs_choice", "truly_unavailable",
+      ].includes(String(result.resolution))
+    )
+    || (
+      result.fulfillment !== undefined
+      && !decodeRetailPackageFulfillment(result.fulfillment)
+    )
     || !text(result.explanation, 1_000)
     || (result.assumptions !== undefined && !stringArray(result.assumptions, 20, 300))
     || (result.clarification !== undefined && !text(result.clarification, 500))
@@ -181,6 +198,13 @@ function validMatchResult(value: unknown, requestedItem: string, locationId: str
   if (result.recommended !== null && !validProduct(result.recommended, locationId)) return false;
   if (result.status === "matched" && result.recommended === null) return false;
   if (result.status === "no_match" && result.recommended !== null) return false;
+  if (result.status === "no_match" && result.fulfillment !== undefined) return false;
+  if (result.resolution === "truly_unavailable" && result.status !== "no_match") return false;
+  if (result.resolution === "needs_choice" && result.status !== "review") return false;
+  if (
+    result.resolution === "multi_package_fulfillment"
+    && decodeRetailPackageFulfillment(result.fulfillment)?.kind !== "multi_package"
+  ) return false;
   const recommended = record(result.recommended);
   const seen = new Set<string>();
   if (recommended) seen.add(String(recommended.id));
@@ -283,30 +307,73 @@ function validBasketLine(
   ];
   if (!line || !exactKeys(line, required, optional)) return false;
   const quantity = parseRetailerPackageQuantity(String(requestedItem.raw));
+  const fulfillment = result.fulfillment === undefined
+    ? undefined
+    : decodeRetailPackageFulfillment(result.fulfillment);
+  if (result.fulfillment !== undefined && !fulfillment) return false;
+  const expectedQuantity = fulfillment?.cartQuantity ?? quantity.quantity;
   const accepted = line.status === "ACCEPTED";
-  const product = accepted ? record(result.recommended) : null;
+  const recommended = record(result.recommended);
+  const recommendedProvenance = record(recommended?.priceProvenance);
+  const shouldAccept = Boolean(
+    recommended
+    && isRetailerHandoffAcceptedMatch({
+      status: result.status as "matched" | "review" | "no_match",
+      ...(typeof result.resolution === "string" ? { resolution: result.resolution } : {}),
+      recommended: {
+        availabilityStatus: recommended.availabilityStatus as
+          | "in_stock"
+          | "likely_available"
+          | "out_of_stock"
+          | "unknown",
+        cartEligible: recommended.cartEligible === true,
+      },
+      ...(fulfillment ? {
+        fulfillment: {
+          approvalRequired: fulfillment.approvalRequired,
+          kind: fulfillment.kind,
+        },
+      } : {}),
+    })
+    && recommendedProvenance?.locationId === locationId
+    && recommendedProvenance.exactStoreVerified === true
+    && Array.isArray(recommendedProvenance.fulfillment)
+    && recommendedProvenance.fulfillment.includes("pickup")
+    && recommended.productId
+    && recommended.upc,
+  );
+  const product = accepted ? recommended : null;
+  const expectedStatus = shouldAccept
+    ? "ACCEPTED"
+    : result.status === "matched" && recommended ? "REJECTED" : "UNMATCHED";
   if (
     line.lineId !== `${comparisonId}:${String(requestedItem.id)}`
     || line.requestedItemId !== requestedItem.id
     || line.requestedItem !== requestedItem.raw
     || line.normalizedIntent !== quantity.searchText
-    || line.quantity !== quantity.quantity
+    || line.quantity !== expectedQuantity
     || line.packageSizeText !== quantity.packageSizeText
     || !["ACCEPTED", "UNMATCHED", "REJECTED"].includes(String(line.status))
+    || line.status !== expectedStatus
     || line.locationId !== locationId
     || !["VERIFIED_IN_STOCK", "LIKELY_AVAILABLE", "UNKNOWN", "OUT_OF_STOCK"].includes(String(line.availabilityStatus))
     || !["high", "medium", "low"].includes(String(line.matchConfidence))
   ) return false;
   if (!accepted) {
-    return result.status !== "matched"
+    const expectedAvailability = result.status === "matched" && recommended
+      ? availabilityForComparison(recommended.availabilityStatus as never)
+      : "UNKNOWN";
+    return !shouldAccept
       && line.retailerProductId === undefined
       && line.upc === undefined
       && line.matchedProduct === undefined
       && line.matchedPackage === undefined
       && line.priceCents === undefined
-      && line.provenance === undefined;
+      && line.provenance === undefined
+      && line.availabilityStatus === expectedAvailability
+      && line.matchConfidence === (recommended ? recommended.confidence : "low");
   }
-  if (!product || result.status !== "matched") return false;
+  if (!product || !shouldAccept) return false;
   const size = record(product.size);
   return line.retailerProductId === product.productId
     && line.upc === product.upc

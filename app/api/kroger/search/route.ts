@@ -36,7 +36,9 @@ import {
   COMPARISON_SESSION_SCHEMA_VERSION,
   availabilityForComparison,
   assertComparisonStoreInvariant,
+  isRetailerHandoffAcceptedMatch,
   krogerRetailerBanner,
+  parseRetailerPackageQuantity,
   type ComparisonBasketLine,
   type ComparisonSessionReceipt,
 } from "@/packages/shared/src";
@@ -156,17 +158,24 @@ function normalizeItems(value: unknown): NormalizedItem[] | null {
     const facets = analyzeProductFacets(verificationText, optionIds);
     const matchingRequest = buildFacetSearchQuery(verificationText, facets.constraints);
     const structuredRequest = analyzeProductFacets(matchingRequest, optionIds);
+    const intent = parseProductIntent(matchingRequest, structuredRequest);
+    const submittedQuantity = record && typeof record.quantity === "number"
+      ? record.quantity
+      : undefined;
+    const quantity = intent.requestedCartQuantity > 1 && submittedQuantity === 1
+      ? intent.requestedCartQuantity
+      : submittedQuantity ?? intent.requestedCartQuantity;
     normalized.push({
       index,
       item,
       matchingRequest,
-      intent: parseProductIntent(matchingRequest, structuredRequest),
+      intent,
       constraints: structuredRequest.constraints,
       preferredProductId: trustedField(entry, "preferredProductId", /^\d{8,14}$/, 14),
       preferredTitle: trustedField(entry, "preferredTitle", /^.{1,300}$/, 300),
       requestedItemId: trustedField(entry, "requestedItemId", /^[A-Za-z0-9_-]{3,96}$/, 96)
         ?? `requested-${index}`,
-      quantity: record && typeof record.quantity === "number" ? record.quantity : 1,
+      quantity,
     });
   }
   return normalized;
@@ -208,6 +217,7 @@ function receiptLine(
   item: NormalizedItem,
   result: KrogerMatchResult,
 ): ComparisonBasketLine {
+  const quantityIntent = parseRetailerPackageQuantity(item.item);
   const product = result.status === "matched" ? result.recommended : null;
   const sameStore = Boolean(
     product
@@ -219,6 +229,7 @@ function receiptLine(
   const priceCents = product ? usablePriceCents(product) : undefined;
   const accepted = Boolean(
     product
+    && isRetailerHandoffAcceptedMatch(result)
     && sameStore
     && product.productId
     && product.upc
@@ -228,9 +239,10 @@ function receiptLine(
     lineId: `${comparison}:${item.requestedItemId}`,
     requestedItemId: item.requestedItemId,
     requestedItem: item.item,
-    normalizedIntent: item.matchingRequest,
-    quantity: item.quantity,
-    status: accepted ? "ACCEPTED" : "UNMATCHED",
+    normalizedIntent: quantityIntent.searchText,
+    quantity: result.fulfillment?.cartQuantity ?? item.quantity,
+    packageSizeText: quantityIntent.packageSizeText,
+    status: accepted ? "ACCEPTED" : product ? "REJECTED" : "UNMATCHED",
     ...(accepted && product ? {
       retailerProductId: product.productId,
       upc: product.upc,
@@ -253,7 +265,7 @@ function receiptLine(
     availabilityStatus: product
       ? availabilityForComparison(product.availabilityStatus)
       : AvailabilityStatus.UNKNOWN,
-    matchConfidence: accepted && product ? product.confidence : "low",
+    matchConfidence: product ? product.confidence : "low",
   };
 }
 
@@ -329,16 +341,14 @@ function exactRequestedPackage(request: string, product: KrogerProduct) {
   return Math.abs(product.size.baseAmount - requested.baseAmount) / requested.baseAmount <= 0.02;
 }
 
-function strictPackageCandidates(item: NormalizedItem, products: KrogerProduct[]) {
-  return products.filter((product) => exactRequestedPackage(item.matchingRequest, product));
-}
-
 function verifiedResult(item: NormalizedItem, products: KrogerProduct[]) {
   return krogerAdapter.verifyCandidates(
     item.matchingRequest,
-    strictPackageCandidates(item, products),
+    products,
     {
       constraints: item.constraints,
+      cartQuantity: item.quantity,
+      intent: item.intent,
       preferredIdentity: {
         productId: item.preferredProductId,
         title: item.preferredTitle,
@@ -352,12 +362,11 @@ function specificNoMatchExplanation(item: NormalizedItem, products: KrogerProduc
     retailerLabel: "Kroger",
     intent: item.intent,
     candidates: products,
-    exactPackage: (product) => exactRequestedPackage(item.matchingRequest, product),
+    exactPackage: (product) => !item.intent.strictPackageRequest
+      || exactRequestedPackage(item.intent.verificationText, product),
     commerceEligible: (product) => (
-      (product.availabilityStatus === "in_stock"
-        || product.availabilityStatus === "likely_available")
+      product.availabilityStatus !== "out_of_stock"
       && product.priceProvenance.exactStoreVerified
-      && product.priceProvenance.fulfillment.length > 0
       && Number.isFinite(product.price)
       && product.price > 0
     ),
@@ -641,6 +650,22 @@ export async function handleKrogerSearchRead(
           productApiCalls: 0,
           deduplicatedRequests,
           upstreamCacheUsed: searchApiCalls === 0 && cacheHits > 0 ? "local cache only" : "unknown",
+          outcomeCounts: {
+            requestedItems: items.length,
+            matchedAutomatically: verifiedResults.filter((result) => (
+              result.status === "matched" && Boolean(result.recommended)
+            )).length,
+            multiPackageFulfilled: verifiedResults.filter((result) => (
+              result.fulfillment?.kind === "multi_package"
+            )).length,
+            shopperChoiceRequired: verifiedResults.filter((result) => (
+              result.resolution === "needs_choice"
+              || result.resolution === "substitute_available"
+            )).length,
+            trulyUnavailable: verifiedResults.filter((result) => (
+              result.resolution === "truly_unavailable" || result.status === "no_match"
+            )).length,
+          },
           items: timings,
         },
       };

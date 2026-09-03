@@ -34,6 +34,70 @@ describe("Smart Grocery Notepad interpretation", () => {
     ]);
   });
 
+  it("normalizes all seven false-no-match regression items without losing requested totals", () => {
+    const result = interpretGroceryInput([
+      "Chickpeas 3 cans",
+      "Diced Tomatoes 8 cans",
+      "Kidney Beans 4 cans",
+      "Light Coconut Milk 2 cans",
+      "Ground Turkey 93/7 3 lb",
+      "Red Lentil Pasta 1.8 lb",
+      "White Rice",
+    ].join("\n"));
+
+    expect(result).toMatchObject({ readyCount: 7, unresolvedCount: 0 });
+    expect(result.items).toMatchObject([
+      {
+        raw: "Chickpeas 3 cans",
+        name: "Chickpeas",
+        detail: "3 cans",
+        canonicalText: "Chickpeas, 3 cans",
+        status: "ready",
+      },
+      {
+        raw: "Diced Tomatoes 8 cans",
+        name: "Diced Tomatoes",
+        detail: "8 cans",
+        canonicalText: "Diced Tomatoes, 8 cans",
+        status: "ready",
+      },
+      {
+        raw: "Kidney Beans 4 cans",
+        name: "Kidney Beans",
+        detail: "4 cans",
+        canonicalText: "Kidney Beans, 4 cans",
+        status: "ready",
+      },
+      {
+        raw: "Light Coconut Milk 2 cans",
+        name: "Light Coconut Milk",
+        detail: "2 cans",
+        canonicalText: "Light Coconut Milk, 2 cans",
+        status: "ready",
+      },
+      {
+        raw: "Ground Turkey 93/7 3 lb",
+        name: "Ground Turkey",
+        detail: "93/7 · 3 lb",
+        canonicalText: "Ground Turkey, 93/7, 3 lb",
+        status: "ready",
+      },
+      {
+        raw: "Red Lentil Pasta 1.8 lb",
+        name: "Red Lentil Pasta",
+        detail: "1.8 lb",
+        canonicalText: "Red Lentil Pasta, 1.8 lb",
+        status: "ready",
+      },
+      {
+        raw: "White Rice",
+        name: "White Rice",
+        canonicalText: "White Rice",
+        status: "ready",
+      },
+    ]);
+  });
+
   it("parses the requested full example into five clean rows", () => {
     const result = interpretGroceryInput(
       "eggs 18 count white bread milk gallon chicken breast 2lb bananas",

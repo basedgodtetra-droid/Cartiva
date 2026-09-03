@@ -278,6 +278,67 @@ describe("anonymous mobile v1 read boundary", () => {
       .toBe(comparisonBasketDigest(persistedReceipt!));
   });
 
+  it("persists a likely-available catalog match as rejected and incomplete for handoff", async () => {
+    vi.stubEnv("CARTIVA_SESSION_SECRET", "test-only-mobile-session-secret-at-least-32-bytes");
+    const session = issueMobileSession();
+    const comparisonId = randomUUID();
+    vi.mocked(searchKrogerProducts).mockResolvedValue({
+      products: [{
+        ...eggProduct(),
+        inStock: false,
+        availabilityStatus: "likely_available",
+        // Catalog visibility and retailer-cart safety are independent. The
+        // shared handoff predicate must still reject this inventory state.
+        cartEligible: true,
+      }],
+      diagnostics: { apiCall: true, cacheHit: false, deduplicated: false, durationMs: 1 },
+    });
+    const mobileRequest: KrogerSearchRequest = {
+      comparisonId,
+      items: [{
+        text: "large eggs 12 count",
+        requestedItemId: "eggs-line",
+        quantity: 1,
+      }],
+      locationId: "AB12CD34",
+      zipCode: "80202",
+      fulfillmentMode: "pickup",
+    };
+
+    const response = await searchPost(jsonRequest(
+      "/api/mobile/v1/kroger/search",
+      { retailer: "kroger", ...mobileRequest },
+      undefined,
+      `Bearer ${session.sessionToken}`,
+    ));
+
+    expect(response.status).toBe(200);
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    expect(events.find((event) => event.phase === "verification")).toMatchObject({
+      result: {
+        status: "matched",
+        resolution: "matched_check_availability",
+        recommended: { availabilityStatus: "likely_available", cartEligible: true },
+      },
+    });
+    expect(events.at(-1)).toMatchObject({
+      comparisonReceipt: { comparisonId, completeness: "INCOMPLETE", persisted: true },
+    });
+
+    resetComparisonReceiptsForTests();
+    const persistedReceipt = await loadComparisonReceipt(session.ownerId, comparisonId);
+    expect(persistedReceipt).toMatchObject({
+      completeness: "INCOMPLETE",
+      basketLines: [{
+        requestedItemId: "eggs-line",
+        status: "REJECTED",
+        availabilityStatus: "LIKELY_AVAILABLE",
+      }],
+    });
+    expect(persistedReceipt!.basketLines[0]).not.toHaveProperty("retailerProductId");
+    expect(persistedReceipt!.basketLines[0]).not.toHaveProperty("upc");
+  });
+
   it("rejects duplicate requested line IDs before a signed comparison searches Kroger", async () => {
     vi.stubEnv("CARTIVA_SESSION_SECRET", "test-only-mobile-session-secret-at-least-32-bytes");
     const session = issueMobileSession();

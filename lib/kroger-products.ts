@@ -1,4 +1,15 @@
 import { rankProducts } from "./matching";
+import {
+  packageFulfillmentForProduct,
+  rankFulfillmentCandidates,
+  retailerContainerCompatible,
+} from "./package-fulfillment";
+import {
+  isPackageConstraint,
+  parseProductIntent,
+  type ProductIntent,
+} from "./product-search-intent";
+import { inferProductCategory } from "./product-knowledge";
 import type { ProductConstraint } from "./product-facets";
 import type {
   KrogerMatchResult,
@@ -43,6 +54,7 @@ function restoreRankedProduct(
   if (!product) return null;
   return {
     ...product,
+    cartEligible: product.cartEligible && product.availabilityStatus !== "unknown",
     score: ranked.score,
     confidence: ranked.confidence,
     unitPrice: ranked.unitPrice,
@@ -66,13 +78,11 @@ function isAcceptedConfidence(product: RankedProduct | RankedKrogerProduct) {
 }
 
 function hasMatchEligibleStoreEvidence(product: KrogerProduct) {
-  return (product.availabilityStatus === "in_stock"
-      || product.availabilityStatus === "likely_available")
+  return product.availabilityStatus !== "out_of_stock"
     && Number.isFinite(product.price)
     && product.price > 0
     && product.priceProvenance.exactStoreVerified
-    && product.priceProvenance.priceReliability === "verified"
-    && product.priceProvenance.fulfillment.length > 0;
+    && product.priceProvenance.priceReliability === "verified";
 }
 
 function normalizedIdentity(value: string) {
@@ -102,17 +112,12 @@ function safePreferredIdentity(
   return productId || title ? { productId, title } : undefined;
 }
 
-export function rankKrogerProducts(
+function rankEligibleKrogerProducts(
   request: string,
-  products: KrogerProduct[],
-  constraints: ProductConstraint[] = [],
+  eligible: KrogerProduct[],
+  constraints: ProductConstraint[],
   preferredIdentity?: { productId?: string; title?: string },
 ): KrogerMatchResult {
-  // Product matching and cart mutation remain separate decisions. Kroger may
-  // provide an exact-store price and selected-fulfillment listing while
-  // omitting an inventory level. That is truthfully labeled likely available;
-  // the Cart API still accepts its verified UPC, quantity, and modality.
-  const eligible = products.filter(hasMatchEligibleStoreEvidence);
   const originals = new Map(eligible.map((product) => [product.id, product]));
   const projections = eligible.map(rankingProjection);
   const baseline = rankProducts(
@@ -163,13 +168,175 @@ export function rankKrogerProducts(
     status: recommended
       ? "matched"
       : ranked.clarification ? ranked.status : "no_match",
+    resolution: recommended
+      ? "matched"
+      : ranked.clarification ? "needs_choice" : "truly_unavailable",
     clarification: ranked.clarification,
     explanation: recommended
       ? "Verified against the official Kroger catalog at the selected location."
       : ranked.clarification
         ?? (rejectedForLowConfidence
           ? "Kroger found a possible product, but Cartiva could not verify it strongly enough against your request."
-          : "No in-stock Kroger match met the product and package requirements."),
+          : "No Kroger match met the product and package requirements."),
     verifiedAt: recommended?.checkedAt,
+  };
+}
+
+function validCartQuantity(value: number | undefined) {
+  return Number.isInteger(value) && (value ?? 0) >= 1 && (value ?? 0) <= 99
+    ? value as number
+    : undefined;
+}
+
+function resolutionFor(
+  product: RankedKrogerProduct,
+  fulfillment: NonNullable<KrogerMatchResult["fulfillment"]>,
+): NonNullable<KrogerMatchResult["resolution"]> {
+  if (product.availabilityStatus !== "in_stock") return "matched_check_availability";
+  if (fulfillment.kind === "multi_package") return "multi_package_fulfillment";
+  return "matched";
+}
+
+function explanationFor(
+  product: RankedKrogerProduct,
+  fulfillment: NonNullable<KrogerMatchResult["fulfillment"]>,
+) {
+  if (product.availabilityStatus === "unknown") {
+    return "Product identity and exact-store price are verified. Kroger did not confirm current availability, so check availability before checkout.";
+  }
+  if (product.availabilityStatus === "likely_available") {
+    return "Product identity and exact-store price are verified. Kroger lists it for this fulfillment method; confirm final availability at checkout.";
+  }
+  if (fulfillment.kind === "multi_package") {
+    return `${fulfillment.label} fulfills the requested total without undersupplying it.`;
+  }
+  if (fulfillment.kind === "variable_weight") {
+    return `${fulfillment.label} is a reasonable variable-weight fulfillment for the requested amount.`;
+  }
+  return "Verified against the official Kroger catalog at the selected location.";
+}
+
+function identityVerificationText(intent: ProductIntent) {
+  const container = intent.requestedContainer;
+  const containerCarriesProduceForm = container === "can"
+    && inferProductCategory(intent.verificationText) === "produce";
+  if (
+    !container
+    || container === "each"
+    || (container === "can" && !containerCarriesProduceForm)
+    || !/^(?:can|bottle|jar|bag|box|carton|roll|bunch|loaf)$/.test(container)
+    || new RegExp(`\\b${container}\\b`, "i").test(intent.verificationText)
+  ) return intent.verificationText;
+  return `${intent.verificationText} ${container}`;
+}
+
+export interface KrogerRankingOptions {
+  cartQuantity?: number;
+  intent?: ProductIntent;
+}
+
+export function rankKrogerProducts(
+  request: string,
+  products: KrogerProduct[],
+  constraints: ProductConstraint[] = [],
+  preferredIdentity?: { productId?: string; title?: string },
+  options: KrogerRankingOptions = {},
+): KrogerMatchResult {
+  const intent = options.intent ?? parseProductIntent(request);
+  const cartQuantity = validCartQuantity(options.cartQuantity)
+    ?? intent.requestedCartQuantity;
+  // Product matching and cart mutation remain separate decisions. A verified
+  // identity and price may remain useful when Kroger omits inventory details;
+  // cartEligible continues to enforce the stricter handoff boundary.
+  const eligible = products.filter((product) => (
+    hasMatchEligibleStoreEvidence(product)
+    && retailerContainerCompatible(intent, product)
+  ));
+  const sourceConstraints = constraints.length ? constraints : intent.constraints;
+  const effectiveConstraints = intent.strictPackageRequest
+    ? sourceConstraints
+    : sourceConstraints.filter((constraint) => !isPackageConstraint(constraint));
+  const exact = rankEligibleKrogerProducts(
+    identityVerificationText(intent),
+    eligible,
+    effectiveConstraints,
+    preferredIdentity,
+  );
+
+  if (exact.recommended) {
+    const fulfillment = packageFulfillmentForProduct(
+      intent,
+      exact.recommended,
+      cartQuantity,
+    );
+    if (fulfillment) {
+      const recommended = {
+        ...exact.recommended,
+        comparablePrice: Number((exact.recommended.price * fulfillment.cartQuantity).toFixed(2)),
+      };
+      return {
+        ...exact,
+        requestedItem: request,
+        recommended,
+        fulfillment,
+        resolution: resolutionFor(recommended, fulfillment),
+        explanation: explanationFor(recommended, fulfillment),
+      };
+    }
+  }
+
+  if (intent.requestedTotal) {
+    const identityConstraints = effectiveConstraints.filter((constraint) => (
+      !isPackageConstraint(constraint)
+    ));
+    const fulfillmentCandidates = eligible.flatMap((product) => {
+      const identity = rankEligibleKrogerProducts(
+        identityVerificationText({ ...intent, verificationText: intent.fulfillmentText }),
+        [product],
+        identityConstraints,
+        preferredIdentity,
+      );
+      if (!identity.recommended) return [];
+      const fulfillment = packageFulfillmentForProduct(
+        intent,
+        identity.recommended,
+        cartQuantity,
+        true,
+      );
+      return fulfillment ? [{
+        product: {
+          ...identity.recommended,
+          comparablePrice: Number((identity.recommended.price * fulfillment.cartQuantity).toFixed(2)),
+        },
+        confidence: identity.recommended.confidence,
+        score: identity.recommended.score,
+        fulfillment,
+      }] : [];
+    });
+    const rankedFulfillments = rankFulfillmentCandidates(fulfillmentCandidates);
+    const selected = rankedFulfillments[0];
+    if (selected) {
+      return {
+        retailer: "kroger",
+        requestedItem: request,
+        recommended: selected.product,
+        alternatives: rankedFulfillments
+          .slice(1, 4)
+          .map((candidate) => candidate.product),
+        assumptions: [],
+        confidence: selected.confidence,
+        status: "matched",
+        resolution: resolutionFor(selected.product, selected.fulfillment),
+        fulfillment: selected.fulfillment,
+        explanation: explanationFor(selected.product, selected.fulfillment),
+        verifiedAt: selected.product.checkedAt,
+      };
+    }
+  }
+
+  return {
+    ...exact,
+    requestedItem: request,
+    resolution: exact.status === "review" ? "needs_choice" : "truly_unavailable",
   };
 }

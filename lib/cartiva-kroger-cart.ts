@@ -1,5 +1,6 @@
 import type { GroceryNotepadItem } from "./grocery-notepad";
 import type { KrogerMatchResult } from "./types";
+import { isRetailerHandoffAcceptedMatch } from "../packages/shared/src";
 
 export const KROGER_PENDING_CART_STORAGE_KEY = "cartiva-kroger-pending-cart-v1";
 export const KROGER_PENDING_CART_TTL_MS = 15 * 60_000;
@@ -59,8 +60,25 @@ function validQuantity(value: unknown): value is number {
     && value <= 99;
 }
 
+/**
+ * The matcher may resolve one shopper request into multiple retailer packages.
+ * Once present, that verified fulfillment quantity is authoritative; the list
+ * control remains only a backwards-compatible fallback for older results.
+ */
+export function resolvedKrogerCartQuantity(
+  result: Pick<KrogerMatchResult, "fulfillment"> | null | undefined,
+  requestedQuantity: unknown,
+) {
+  if (result?.fulfillment) {
+    return validQuantity(result.fulfillment.cartQuantity)
+      ? result.fulfillment.cartQuantity
+      : undefined;
+  }
+  return validQuantity(requestedQuantity) ? requestedQuantity : undefined;
+}
+
 function acceptedProduct(result: KrogerMatchResult | null | undefined) {
-  return result?.status === "matched" && result.recommended
+  return isRetailerHandoffAcceptedMatch(result) && result?.recommended
     ? result.recommended
     : undefined;
 }
@@ -73,8 +91,11 @@ export function buildKrogerCartLines(
   const aggregated = new Map<string, number>();
   results.forEach((result, index) => {
     const product = acceptedProduct(result);
-    const quantity = quantities[items[index]?.id] ?? 1;
-    if (!product?.cartEligible || !validUpc(product.upc) || !validQuantity(quantity)) return;
+    const quantity = resolvedKrogerCartQuantity(
+      result,
+      quantities[items[index]?.id] ?? 1,
+    );
+    if (!product?.cartEligible || !validUpc(product.upc) || quantity === undefined) return;
     aggregated.set(product.upc, (aggregated.get(product.upc) ?? 0) + quantity);
   });
   const lines = [...aggregated].map(([upc, quantity]) => ({ upc, quantity }));
@@ -100,12 +121,17 @@ export function getKrogerCartReadiness({
   const acceptedLineCount = results.filter((result) => Boolean(acceptedProduct(result))).length;
   const cartEligibleLineCount = results.filter((result) => Boolean(acceptedProduct(result)?.cartEligible)).length;
   const upcLineCount = results.filter((result) => validUpc(acceptedProduct(result)?.upc)).length;
-  const individualQuantitiesValid = items.every((item) => validQuantity(quantities[item.id] ?? 1));
+  const individualQuantitiesValid = items.every((item, index) => (
+    resolvedKrogerCartQuantity(results[index], quantities[item.id] ?? 1) !== undefined
+  ));
   const aggregatedQuantities = new Map<string, number>();
   results.forEach((result, index) => {
     const product = acceptedProduct(result);
-    const quantity = quantities[items[index]?.id] ?? 1;
-    if (!product?.cartEligible || !validUpc(product.upc) || !validQuantity(quantity)) return;
+    const quantity = resolvedKrogerCartQuantity(
+      result,
+      quantities[items[index]?.id] ?? 1,
+    );
+    if (!product?.cartEligible || !validUpc(product.upc) || quantity === undefined) return;
     aggregatedQuantities.set(
       product.upc,
       (aggregatedQuantities.get(product.upc) ?? 0) + quantity,

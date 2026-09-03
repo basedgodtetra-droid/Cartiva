@@ -51,6 +51,28 @@ describe("parseShoppingList", () => {
     ]);
   });
 
+  it("keeps requested totals attached to all seven false-no-match regression items", () => {
+    const input = [
+      "Chickpeas 3 cans",
+      "Diced Tomatoes 8 cans",
+      "Kidney Beans 4 cans",
+      "Light Coconut Milk 2 cans",
+      "Ground Turkey 93/7 3 lb",
+      "Red Lentil Pasta 1.8 lb",
+      "White Rice",
+    ].join("\n");
+
+    expect(parseShoppingList(input)).toEqual([
+      "Chickpeas 3 cans",
+      "Diced Tomatoes 8 cans",
+      "Kidney Beans 4 cans",
+      "Light Coconut Milk 2 cans",
+      "Ground Turkey 93/7 3 lb",
+      "Red Lentil Pasta 1.8 lb",
+      "White Rice",
+    ]);
+  });
+
   it("keeps restrictions attached to their item", () => {
     expect(parseShoppingList("plain Greek yogurt no vanilla")).toEqual([
       "plain Greek yogurt no vanilla",

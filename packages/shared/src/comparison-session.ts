@@ -141,8 +141,10 @@ export function comparisonBasketCanonicalPayload(
 const QUANTITY_SUFFIX = /\s+(?:x|×)\s*(\d{1,2})\s*$/i;
 const QUANTITY_PREFIX_X = /^(\d{1,2})\s*(?:x|×)\s+(?=\S)/i;
 const LEADING_CONTAINER_QUANTITY = /^(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)\s+(?:of\s+)?(.+)$/i;
+const TRAILING_CONTAINER_QUANTITY = /^(.+?)[,\s]+(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)$/i;
 const LEADING_VOLUME_QUANTITY = /^(\d{1,2})\s+(gallons?|quarts?|pints?)\s+(?:of\s+)?(.+)$/i;
 const LEADING_EACH_QUANTITY = /^(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)$/i;
+const TRAILING_EACH_QUANTITY = /^(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)[,\s]+(\d{1,2})(?:\s+each)?$/i;
 
 function cleanLine(value: string) {
   return value.normalize("NFKC").replace(/\s+/g, " ").trim();
@@ -213,7 +215,19 @@ export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQ
     const unit = singularContainer(container[2]);
     return {
       quantity: containerQuantity,
-      searchText: cleanLine(`${unit} ${container[3]}`),
+      searchText: cleanLine(container[3]),
+      packageSizeText: `1 ${unit}`,
+      origin: AttributeOrigin.USER_EXPLICIT,
+    };
+  }
+
+  const trailingContainer = input.match(TRAILING_CONTAINER_QUANTITY);
+  const trailingContainerQuantity = safeQuantity(trailingContainer?.[2]);
+  if (trailingContainer && trailingContainerQuantity) {
+    const unit = singularContainer(trailingContainer[3]);
+    return {
+      quantity: trailingContainerQuantity,
+      searchText: cleanLine(trailingContainer[1].replace(/[,\s]+$/, "")),
       packageSizeText: `1 ${unit}`,
       origin: AttributeOrigin.USER_EXPLICIT,
     };
@@ -225,6 +239,17 @@ export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQ
     return {
       quantity: eachQuantity,
       searchText: cleanLine(each[2]),
+      packageSizeText: "1 each",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    };
+  }
+
+  const trailingEach = input.match(TRAILING_EACH_QUANTITY);
+  const trailingEachQuantity = safeQuantity(trailingEach?.[2]);
+  if (trailingEach && trailingEachQuantity) {
+    return {
+      quantity: trailingEachQuantity,
+      searchText: cleanLine(trailingEach[1]),
       packageSizeText: "1 each",
       origin: AttributeOrigin.USER_EXPLICIT,
     };
@@ -274,6 +299,50 @@ export function availabilityForComparison(
   return AvailabilityStatus.UNKNOWN;
 }
 
+/**
+ * The minimum matcher shape needed to decide whether a verified product may be
+ * handed to a retailer cart. Keeping this decision in shared code prevents the
+ * server, web client, and mobile client from silently applying different
+ * inventory or package-approval rules.
+ */
+export interface RetailerHandoffMatchCandidate {
+  status: "matched" | "review" | "no_match";
+  resolution?: string;
+  recommended: {
+    availabilityStatus: "in_stock" | "likely_available" | "out_of_stock" | "unknown";
+    cartEligible: boolean;
+  } | null;
+  fulfillment?: {
+    approvalRequired: boolean;
+    kind?: "single_package" | "multi_package" | "variable_weight";
+  };
+}
+
+/**
+ * A retained catalog match is not automatically a handoff-safe cart line.
+ * Only verified in-stock, cart-eligible matches with an accepted package plan
+ * may be transferred. Missing resolution/fulfillment data remains compatible
+ * with older, otherwise verified single-package results.
+ */
+export function isRetailerHandoffAcceptedMatch(
+  result: RetailerHandoffMatchCandidate | null | undefined,
+) {
+  const resolutionAccepted = result?.resolution === undefined
+    ? result?.fulfillment === undefined
+    : result.resolution === "matched"
+      || (
+        result.resolution === "multi_package_fulfillment"
+        && result.fulfillment?.kind === "multi_package"
+      );
+  return Boolean(
+    result?.status === "matched"
+    && resolutionAccepted
+    && result.recommended?.availabilityStatus === "in_stock"
+    && result.recommended.cartEligible
+    && result.fulfillment?.approvalRequired !== true,
+  );
+}
+
 export function assertComparisonStoreInvariant(receipt: ComparisonSessionReceipt) {
   if (!receipt.comparisonId || !receipt.locationId || !/^\d{5}$/.test(receipt.zipCode)) {
     throw new Error("Comparison receipt is missing its immutable store identity.");
@@ -320,10 +389,7 @@ export function assertComparisonStoreInvariant(receipt: ComparisonSessionReceipt
       ) {
         throw new Error("Accepted basket evidence must be verified for the comparison store.");
       }
-      if (
-        line.availabilityStatus !== AvailabilityStatus.VERIFIED_IN_STOCK
-        && line.availabilityStatus !== AvailabilityStatus.LIKELY_AVAILABLE
-      ) {
+      if (line.availabilityStatus !== AvailabilityStatus.VERIFIED_IN_STOCK) {
         throw new Error("Accepted basket lines require truthful retailer availability evidence.");
       }
     }
@@ -430,7 +496,10 @@ export function comparisonSearchItem(
 ) {
   const quantity = parseRetailerPackageQuantity(request.raw);
   return {
-    text: quantity.searchText,
+    // Preserve the shopper's complete wording at the API boundary. The server
+    // removes cart totals from retailer discovery while retaining them for the
+    // package-fulfillment decision.
+    text: cleanLine(request.raw),
     requestedItemId: request.id,
     quantity: quantity.quantity,
     ...(preferred?.productId ? { preferredProductId: preferred.productId } : {}),

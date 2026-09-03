@@ -260,6 +260,29 @@ export interface WalmartCandidateDiagnostic {
 
 export type Confidence = "high" | "medium" | "low";
 
+export type RetailMatchResolution =
+  | "matched"
+  | "matched_check_availability"
+  | "multi_package_fulfillment"
+  | "substitute_available"
+  | "needs_choice"
+  | "truly_unavailable";
+
+/** Fulfillment belongs to a request/candidate pair, never to the catalog product itself. */
+export interface RetailPackageFulfillment {
+  kind: "single_package" | "multi_package" | "variable_weight";
+  cartQuantity: number;
+  packageCount: number;
+  requestedBaseAmount?: number;
+  suppliedBaseAmount?: number;
+  baseUnit?: "oz" | "fl oz" | "each";
+  overageBaseAmount?: number;
+  overagePercent?: number;
+  label: string;
+  approvalRequired: boolean;
+  recoveredFromStrictNoMatch?: boolean;
+}
+
 export interface RankedProduct extends WalmartProduct {
   score: number;
   confidence: Confidence;
@@ -298,6 +321,8 @@ export interface RetailMatchResult<TProduct extends RetailProductCore> {
   assumptions?: string[];
   confidence: Confidence;
   status: "matched" | "review" | "no_match";
+  resolution?: RetailMatchResolution;
+  fulfillment?: RetailPackageFulfillment;
   explanation: string;
   clarification?: string;
   verifiedAt?: string;
@@ -385,6 +410,8 @@ export interface MatchResult {
   assumptions?: string[];
   confidence: Confidence;
   status: "matched" | "review" | "no_match";
+  resolution?: RetailMatchResolution;
+  fulfillment?: RetailPackageFulfillment;
   explanation: string;
   clarification?: string;
   verifiedAt?: string;
@@ -414,6 +441,13 @@ export interface SearchPerformanceDiagnostics {
   productApiCalls: number;
   deduplicatedRequests: number;
   upstreamCacheUsed: "yes" | "no" | "unknown" | "local cache only";
+  outcomeCounts?: {
+    requestedItems: number;
+    matchedAutomatically: number;
+    multiPackageFulfilled: number;
+    shopperChoiceRequired: number;
+    trulyUnavailable: number;
+  };
   items: Array<{
     index: number;
     item: string;

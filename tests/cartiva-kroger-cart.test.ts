@@ -8,6 +8,7 @@ import {
   markPendingKrogerCartSubmitting,
   parsePendingKrogerCart,
   pendingKrogerCartMatches,
+  resolvedKrogerCartQuantity,
 } from "@/lib/cartiva-kroger-cart";
 import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
 import type { KrogerMatchResult, KrogerProduct } from "@/lib/types";
@@ -124,6 +125,48 @@ describe("Cartiva Kroger cart readiness", () => {
     expect(readiness.reason).toMatch(/transfer is unavailable/i);
   });
 
+  it.each([
+    ["likely available", "likely_available" as const],
+    ["unknown availability", "unknown" as const],
+  ])("retains a %s match but excludes it from readiness and cart lines", (_label, availabilityStatus) => {
+    const retained = result("0001111011111");
+    retained.recommended!.availabilityStatus = availabilityStatus;
+    retained.recommended!.inStock = false;
+    retained.resolution = "matched_check_availability";
+
+    expect(buildKrogerCartLines([items[0]], [retained], { eggs: 1 })).toEqual([]);
+    expect(getKrogerCartReadiness({
+      items: [items[0]],
+      results: [retained],
+      quantities: { eggs: 1 },
+      comparisonComplete: true,
+    })).toMatchObject({
+      basketComplete: false,
+      acceptedLineCount: 0,
+      cartEligibleLineCount: 0,
+      canAddToKroger: false,
+    });
+  });
+
+  it("requires approval before a verified package plan can become a handoff line", () => {
+    const approvalRequired = result("0001111011111");
+    approvalRequired.fulfillment = {
+      kind: "variable_weight",
+      cartQuantity: 1,
+      packageCount: 1,
+      label: "1 variable-weight package",
+      approvalRequired: true,
+    };
+
+    expect(buildKrogerCartLines([items[0]], [approvalRequired], { eggs: 1 })).toEqual([]);
+    expect(getKrogerCartReadiness({
+      items: [items[0]],
+      results: [approvalRequired],
+      quantities: { eggs: 1 },
+      comparisonComplete: true,
+    })).toMatchObject({ basketComplete: false, acceptedLineCount: 0, canAddToKroger: false });
+  });
+
   it("explains a missing cart UPC without logging or inventing one", () => {
     const missingUpc = result("0001111055555");
     missingUpc.recommended!.upc = "";
@@ -149,6 +192,57 @@ describe("Cartiva Kroger cart readiness", () => {
       { upc: "0001111044444", quantity: 2 },
       { upc: "0001111055555", quantity: 1 },
     ]);
+  });
+
+  it("uses the matcher's resolved package quantity for totals and Kroger handoff", () => {
+    const pasta = item("pasta");
+    const multiPackage = result("0001111066666");
+    multiPackage.resolution = "multi_package_fulfillment";
+    multiPackage.fulfillment = {
+      kind: "multi_package",
+      cartQuantity: 3,
+      packageCount: 3,
+      requestedBaseAmount: 28.8,
+      suppliedBaseAmount: 36,
+      baseUnit: "oz",
+      overageBaseAmount: 7.2,
+      overagePercent: 25,
+      label: "3 × 12 oz boxes · 36 oz total",
+      approvalRequired: false,
+    };
+
+    expect(resolvedKrogerCartQuantity(multiPackage, 1)).toBe(3);
+    expect(buildKrogerCartLines(
+      [pasta],
+      [multiPackage],
+      { pasta: 1 },
+    )).toEqual([{ upc: "0001111066666", quantity: 3 }]);
+    expect(getKrogerCartReadiness({
+      items: [pasta],
+      results: [multiPackage],
+      quantities: { pasta: 1 },
+      comparisonComplete: true,
+    })).toMatchObject({ quantitiesValid: true, canAddToKroger: true });
+  });
+
+  it("fails quantity validation when a returned fulfillment plan is malformed", () => {
+    const pasta = item("pasta");
+    const malformed = result("0001111066666");
+    malformed.fulfillment = {
+      kind: "multi_package",
+      cartQuantity: 100,
+      packageCount: 100,
+      label: "100 packages",
+      approvalRequired: false,
+    };
+
+    expect(resolvedKrogerCartQuantity(malformed, 1)).toBeUndefined();
+    expect(getKrogerCartReadiness({
+      items: [pasta],
+      results: [malformed],
+      quantities: { pasta: 1 },
+      comparisonComplete: true,
+    })).toMatchObject({ quantitiesValid: false, canAddToKroger: false });
   });
 
   it("fails closed when duplicate UPC quantities aggregate past Kroger's limit", () => {

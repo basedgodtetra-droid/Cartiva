@@ -76,11 +76,78 @@ describe("retailer-neutral product discovery intent", () => {
   it("normalizes bare volume shorthand but omits it from discovery", () => {
     const intent = parseProductIntent("2% milk gallon");
 
-    expect(intent.requestedPackageLabel).toBe("1-gallon");
+    expect(intent.requestedPackageLabel).toBeUndefined();
+    expect(intent.requestedTotal).toMatchObject({
+      kind: "volume",
+      baseAmount: 128,
+      baseUnit: "fl oz",
+    });
+    expect(intent.strictPackageRequest).toBe(false);
     expect(intent.discoveryQueries[0].query).toBe("2% milk");
     expect(intent.constraints.some((item) => item.label === "2% milk")).toBe(true);
     expect(extractMeasurement("whole milk gallon")?.baseAmount).toBe(128);
     expect(extractMeasurement("milk half gallon")?.baseAmount).toBe(64);
+  });
+
+  it.each([
+    ["Chickpeas 3 cans", 3, "Chickpeas"],
+    ["Diced Tomatoes 8 cans", 8, "Diced Tomatoes"],
+    ["Kidney Beans 4 cans", 4, "Kidney Beans"],
+    ["Light Coconut Milk 2 cans", 2, "Light Coconut Milk"],
+  ])("separates a shopper's trailing can total from retailer package size: %s", (
+    request,
+    requestedCartQuantity,
+    verificationText,
+  ) => {
+    expect(parseProductIntent(request)).toMatchObject({
+      originalText: request,
+      verificationText,
+      fulfillmentText: verificationText,
+      requestedCartQuantity,
+      requestedContainer: "can",
+      strictPackageRequest: false,
+      requestedTotal: undefined,
+    });
+  });
+
+  it.each([
+    ["Ground Turkey 93/7 3 lb", "Ground Turkey 93 7", 48],
+    ["Red Lentil Pasta 1.8 lb", "Red Lentil Pasta", 28.8],
+  ])("treats a requested physical amount as a fulfillable total: %s", (
+    request,
+    fulfillmentText,
+    baseAmount,
+  ) => {
+    expect(parseProductIntent(request)).toMatchObject({
+      originalText: request,
+      verificationText: request,
+      fulfillmentText,
+      requestedCartQuantity: 1,
+      strictPackageRequest: false,
+      requestedPackageLabel: undefined,
+      requestedTotal: {
+        kind: "weight",
+        baseAmount,
+        baseUnit: "oz",
+      },
+    });
+  });
+
+  it("keeps explicit pack identity strict while allowing an explicit line multiplier", () => {
+    expect(parseProductIntent("Coke Zero 24 pack")).toMatchObject({
+      verificationText: "Coke Zero 24 pack",
+      requestedCartQuantity: 1,
+      requestedPackageLabel: "24-pack",
+      requestedTotal: undefined,
+      strictPackageRequest: true,
+    });
+    expect(parseProductIntent("Coke Zero 12 pack x2")).toMatchObject({
+      verificationText: "Coke Zero 12 pack",
+      requestedCartQuantity: 2,
+      requestedPackageLabel: "12-pack",
+      requestedTotal: undefined,
+      strictPackageRequest: true,
+    });
   });
 
   it.each([

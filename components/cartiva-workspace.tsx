@@ -58,6 +58,7 @@ import {
 import { krogerCartUrl } from "@/lib/kroger-family-links";
 import type { CartivaKrogerCartCode } from "@/lib/cartiva-kroger-handoff";
 import { MAX_CARTIVA_INGREDIENTS, type ConsolidatedIngredient } from "@/lib/cartiva-planning";
+import { parseRetailerPackageQuantity } from "@/packages/shared/src";
 import styles from "@/components/cartiva-workspace.module.css";
 
 const WORKSPACE_KEY = "cartiva-web-workspace-v1";
@@ -269,10 +270,16 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     () => interpretGroceryInput(rawInput, { proteinOrigins }),
     [proteinOrigins, rawInput],
   );
+  const effectiveQuantities = useMemo(() => Object.fromEntries(
+    interpretation.items.map((item) => [
+      item.id,
+      quantities[item.id] ?? parseRetailerPackageQuantity(item.canonicalText).quantity,
+    ]),
+  ), [interpretation.items, quantities]);
   const selectedLocation = locations.find((location) => location.locationId === selectedLocationId);
   const currentSnapshot: CartivaListSnapshot = {
     rawInput,
-    quantities,
+    quantities: effectiveQuantities,
     fulfillmentMode,
     zipCode: zipInput,
     proteinOrigins,
@@ -301,7 +308,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const cartReadiness = getKrogerCartReadiness({
     items: interpretation.items,
     results: comparison.results,
-    quantities,
+    quantities: effectiveQuantities,
     comparisonComplete: comparison.phase === "complete",
     customerConnected: krogerConnection.connected,
     cartCapability: krogerConnection.configured,
@@ -498,13 +505,13 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     window.localStorage.setItem(WORKSPACE_KEY, JSON.stringify({
       rawInput,
       zipCode: zipInput,
-      quantities,
+      quantities: effectiveQuantities,
       fulfillmentMode,
       listName,
       activeListId,
       proteinOrigins,
     } satisfies StoredWorkspace));
-  }, [activeListId, fulfillmentMode, hydrated, listName, proteinOrigins, quantities, rawInput, zipInput]);
+  }, [activeListId, effectiveQuantities, fulfillmentMode, hydrated, listName, proteinOrigins, rawInput, zipInput]);
 
   useEffect(() => {
     if (!hydrated || !libraryHydrated) return;
@@ -851,7 +858,10 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     comparisonRunRef.current = runId;
     const currentInterpretation = interpretGroceryInput(rawInput, { proteinOrigins });
     const runQuantities = Object.fromEntries(
-      currentInterpretation.items.map((item) => [item.id, quantities[item.id] ?? 1]),
+      currentInterpretation.items.map((item) => [
+        item.id,
+        quantities[item.id] ?? parseRetailerPackageQuantity(item.canonicalText).quantity,
+      ]),
     );
     const runListSnapshot: CartivaListSnapshot = {
       rawInput,
@@ -971,6 +981,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         alternatives: [],
         confidence: "low" as const,
         status: "no_match" as const,
+        resolution: "truly_unavailable" as const,
         explanation: "Kroger did not return a verified result for this item.",
       });
       const matched = finalResults.filter((result) => result.status === "matched" && result.recommended).length;
@@ -989,6 +1000,23 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         fulfillmentMode,
         itemCount: finalResults.length,
         matchedCount: matched,
+        directMatchedCount: finalResults.filter((result) => (
+          result.status === "matched"
+          && Boolean(result.recommended)
+          && result.fulfillment?.kind !== "multi_package"
+        )).length,
+        multiPackageFulfilledCount: finalResults.filter((result) => (
+          result.fulfillment?.kind === "multi_package"
+        )).length,
+        availabilityCheckCount: finalResults.filter((result) => (
+          result.resolution === "matched_check_availability"
+        )).length,
+        shopperChoiceRequiredCount: finalResults.filter((result) => (
+          result.resolution === "needs_choice" || result.resolution === "substitute_available"
+        )).length,
+        trulyUnavailableCount: finalResults.filter((result) => (
+          result.resolution === "truly_unavailable" || result.status === "no_match"
+        )).length,
         complete: matched === finalResults.length,
       });
       setCart(initialCart);
@@ -1057,7 +1085,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       const currentBasket = {
         locationId: selectedLocation.locationId,
         fulfillmentMode,
-        items: buildKrogerCartLines(interpretation.items, comparison.results, quantities),
+        items: buildKrogerCartLines(interpretation.items, comparison.results, effectiveQuantities),
         itemCount: interpretation.items.length,
       };
       pending = pending && pendingKrogerCartMatches(pending, currentBasket)
@@ -1378,7 +1406,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
               <div className={styles.workspaceGrid}>
                 <CartivaGroceryList
                   items={interpretation.items}
-                  quantities={quantities}
+                  quantities={effectiveQuantities}
                   locations={locations}
                   selectedLocationId={selectedLocationId}
                   fulfillmentMode={fulfillmentMode}
@@ -1397,7 +1425,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                 />
                 <CartivaComparison
                   items={interpretation.items}
-                  quantities={quantities}
+                  quantities={effectiveQuantities}
                   comparison={comparison}
                   selectedLocation={selectedLocation}
                   fulfillmentMode={fulfillmentMode}

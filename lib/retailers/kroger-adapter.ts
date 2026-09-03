@@ -18,11 +18,14 @@ import type {
   KrogerSearchResponse,
 } from "@/lib/kroger-provider";
 import type { ProductConstraint } from "@/lib/product-facets";
+import type { ProductIntent } from "@/lib/product-search-intent";
 import type { KrogerMatchResult, KrogerProduct } from "@/lib/types";
 import type { RetailerAdapter } from "./retailer-adapter";
 
 export interface KrogerVerificationOptions {
   constraints?: ProductConstraint[];
+  cartQuantity?: number;
+  intent?: ProductIntent;
   preferredIdentity?: {
     productId?: string;
     title?: string;
@@ -67,6 +70,10 @@ const krogerAdapterImplementation: KrogerRetailerAdapter = {
       candidates,
       options.constraints ?? [],
       options.preferredIdentity,
+      {
+        cartQuantity: options.cartQuantity,
+        intent: options.intent,
+      },
     );
   },
   normalizeAvailability(evidence) {

@@ -1,4 +1,5 @@
 import { extractMeasurement, extractPackOnlyCount } from "./measurements";
+import { parseRetailerPackageQuantity } from "@/packages/shared/src";
 import {
   assessProduceForm,
   assessProductFamily,
@@ -28,6 +29,7 @@ export interface DiscoveryQuery {
 export interface ProductIntent {
   originalText: string;
   verificationText: string;
+  fulfillmentText: string;
   displayName: string;
   category?: StructuredProductRequest["category"];
   categoryLabel?: string;
@@ -37,6 +39,10 @@ export interface ProductIntent {
   packageConstraints: ProductConstraint[];
   identityConstraints: ProductConstraint[];
   requestedPackageLabel?: string;
+  requestedTotal?: ReturnType<typeof extractMeasurement>;
+  requestedCartQuantity: number;
+  requestedContainer?: string;
+  strictPackageRequest: boolean;
   discoveryQueries: DiscoveryQuery[];
 }
 
@@ -72,6 +78,10 @@ const PACKAGE_ATTRIBUTES = new Set([
   "quantity",
   "weightRange",
 ]);
+
+export function isPackageConstraint(constraint: ProductConstraint) {
+  return PACKAGE_ATTRIBUTES.has(constraint.attribute);
+}
 
 const SEARCH_FILLER = new Set([
   "a", "an", "and", "available", "buy", "cheapest", "for", "get", "need",
@@ -110,17 +120,26 @@ function cleanQuery(value: string) {
  * keep their identity when no numeric package expression qualifies them.
  */
 export function stripDiscoveryPackageTerms(value: string) {
-  let text = value
+  let text = parseRetailerPackageQuantity(value).searchText
     .normalize("NFKC")
     .replace(/^\s*\d{1,2}\s*[x×]\s+(?=\S)/i, " ")
     .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?[\s-]*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
     .replace(/\b\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
     .replace(/\b(?:half(?:[ -]a)?|one|a)?\s*gallons?\b/gi, " ")
     .replace(/\b(?:one|a)\s+dozen\b/gi, " ")
     .replace(/\b(?:family|party|snack|regular)\s+size\b/gi, " ");
   text = cleanQuery(text);
   return text;
+}
+
+function strictPackageRequest(value: string, measurement: ReturnType<typeof extractMeasurement>) {
+  if (extractPackOnlyCount(value) !== undefined || measurement?.packCount) return true;
+  if (/\b\d+(?:\.\d+)?\s*[- ]?(?:count|ct)\b/i.test(value)) return true;
+  return Boolean(
+    measurement
+    && /\b(?:package|pkg|box|bag|tub|bottle|can|carton|container|jar|loaf)\b/i.test(value),
+  );
 }
 
 function addDistinctQuery(
@@ -217,7 +236,17 @@ export function parseProductIntent(
   value: string,
   structuredRequest = analyzeProductFacets(value),
 ): ProductIntent {
-  const verificationText = value.normalize("NFKC").replace(/\s+/g, " ").trim();
+  const quantityIntent = parseRetailerPackageQuantity(value);
+  const requestedContainer = quantityIntent.packageSizeText?.replace(/^1\s+/, "");
+  const verificationText = quantityIntent.searchText.normalize("NFKC").replace(/\s+/g, " ").trim();
+  const measurement = extractMeasurement(verificationText);
+  const packageIsStrict = strictPackageRequest(verificationText, measurement)
+    || /\b(?:gallon|quart|pint)\b/i.test(quantityIntent.packageSizeText ?? "")
+    || Boolean(measurement && structuredRequest.category === "bread");
+  const requestedTotal = measurement && !packageIsStrict ? measurement : undefined;
+  const fulfillmentText = requestedTotal
+    ? stripDiscoveryPackageTerms(verificationText)
+    : verificationText;
   const requestedBrand = extractRequestedBrand(verificationText);
   const brandConstraint = structuredRequest.constraints.find((item) => item.attribute === "brand");
   const brand = requestedBrand?.canonical ?? brandConstraint?.label;
@@ -250,6 +279,7 @@ export function parseProductIntent(
   return {
     originalText: value,
     verificationText,
+    fulfillmentText,
     displayName: normalizedQuery || structuredRequest.categoryLabel || inferredCategory || "requested product",
     category: structuredRequest.category,
     categoryLabel: structuredRequest.categoryLabel ?? inferredCategory,
@@ -258,7 +288,11 @@ export function parseProductIntent(
     constraints: structuredRequest.constraints,
     packageConstraints,
     identityConstraints,
-    requestedPackageLabel: packageLabel(verificationText),
+    requestedPackageLabel: packageIsStrict ? packageLabel(verificationText) : undefined,
+    requestedTotal,
+    requestedCartQuantity: quantityIntent.quantity,
+    requestedContainer,
+    strictPackageRequest: packageIsStrict,
     discoveryQueries: queries.slice(0, 3),
   };
 }

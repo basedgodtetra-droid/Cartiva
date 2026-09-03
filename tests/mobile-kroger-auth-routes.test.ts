@@ -246,7 +246,17 @@ describe("mobile Kroger authorization routes", () => {
     expect(await rejected.json()).toMatchObject({ code: "basket_incomplete" });
 
     const unverified = comparison("comparison_unverified_auth_1");
-    unverified.basketLines[0].availabilityStatus = AvailabilityStatus.LIKELY_AVAILABLE;
+    unverified.basketLines[0] = {
+      ...unverified.basketLines[0],
+      status: "REJECTED",
+      retailerProductId: undefined,
+      upc: undefined,
+      matchedProduct: undefined,
+      priceCents: undefined,
+      provenance: undefined,
+      availabilityStatus: AvailabilityStatus.LIKELY_AVAILABLE,
+    };
+    unverified.completeness = BasketCompleteness.INCOMPLETE;
     await saveComparisonReceipt(issued.ownerId, unverified);
     const unverifiedResponse = await authStartPost(authorizedJsonRequest(
       issued.sessionToken,
@@ -254,7 +264,7 @@ describe("mobile Kroger authorization routes", () => {
       { comparisonId: unverified.comparisonId },
     ));
     expect(unverifiedResponse.status).toBe(409);
-    expect(await unverifiedResponse.json()).toMatchObject({ code: "inventory_unverified" });
+    expect(await unverifiedResponse.json()).toMatchObject({ code: "basket_incomplete" });
 
     const stale = comparison("comparison_stale_auth_001");
     stale.checkedAt = new Date(Date.now() - 16 * 60_000).toISOString();

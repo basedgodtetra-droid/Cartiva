@@ -9,6 +9,7 @@ import {
   comparisonSearchItem,
   createComparisonHydrationGuard,
   interpretGroceryInput,
+  isRetailerHandoffAcceptedMatch,
   krogerRetailerBanner,
   localCorrectionMetadata,
   parseRetailerPackageQuantity,
@@ -49,6 +50,7 @@ import {
   type RankedKrogerProduct,
 } from "@/services/cartiva-api";
 import { decodePersistedComparisonSnapshot } from "@/state/comparison-snapshot-decoder";
+import { applyKrogerAlternativeSelection } from "@/state/kroger-alternative-selection";
 
 export interface BasketSummary {
   status: BasketCompleteness;
@@ -105,11 +107,35 @@ export function comparablePriceCents(product: RankedKrogerProduct) {
   return Math.round(product.price * 100);
 }
 
-function summarize(results: KrogerMatchResult[], requestedItems: GroceryNotepadItem[]): BasketSummary {
+function fulfillmentQuantity(result: KrogerMatchResult | undefined, fallback: number) {
+  return result?.fulfillment?.cartQuantity ?? fallback;
+}
+
+function resultCanBeAccepted(result: KrogerMatchResult | undefined, locationId: string) {
+  const product = result?.status === "matched" ? result.recommended : null;
+  return Boolean(
+    product
+    && isRetailerHandoffAcceptedMatch(result)
+    && product.priceProvenance.locationId === locationId
+    && product.priceProvenance.exactStoreVerified
+    && product.priceProvenance.fulfillment.includes("pickup")
+    && product.productId
+    && product.upc,
+  );
+}
+
+function summarize(
+  results: KrogerMatchResult[],
+  requestedItems: GroceryNotepadItem[],
+  locationId: string,
+): BasketSummary {
   const sharedSummary = summarizeBasket(requestedItems.map((item, index) => {
     const result = results[index];
-    const validMatch = result?.status === "matched" && Boolean(result.recommended);
-    const quantity = parseRetailerPackageQuantity(item.raw).quantity;
+    const validMatch = resultCanBeAccepted(result, locationId);
+    const quantity = fulfillmentQuantity(
+      result,
+      parseRetailerPackageQuantity(item.raw).quantity,
+    );
     return {
       validMatch,
       priceCents: validMatch && result.recommended
@@ -144,21 +170,15 @@ function basketLinesFor(
     const quantityIntent = parseRetailerPackageQuantity(request.raw);
     const result = results[index];
     const product = result?.status === "matched" ? result.recommended : null;
-    const sameStore = Boolean(
-      product
-      && product.priceProvenance.locationId === locationId
-      && product.priceProvenance.exactStoreVerified
-      && product.priceProvenance.fulfillment.includes("pickup"),
-    );
-    const accepted = Boolean(product && sameStore && product.productId && product.upc);
+    const accepted = resultCanBeAccepted(result, locationId);
     return {
       lineId: `${comparisonId}:${request.id}`,
       requestedItemId: request.id,
       requestedItem: request.raw,
       normalizedIntent: quantityIntent.searchText,
-      quantity: quantityIntent.quantity,
+      quantity: fulfillmentQuantity(result, quantityIntent.quantity),
       packageSizeText: quantityIntent.packageSizeText,
-      status: accepted ? "ACCEPTED" : "UNMATCHED",
+      status: accepted ? "ACCEPTED" : product ? "REJECTED" : "UNMATCHED",
       ...(accepted && product ? {
         retailerProductId: product.productId,
         upc: product.upc,
@@ -181,7 +201,7 @@ function basketLinesFor(
       availabilityStatus: product
         ? availabilityForComparison(product.availabilityStatus)
         : AvailabilityStatus.UNKNOWN,
-      matchConfidence: accepted && product ? product.confidence : "low",
+      matchConfidence: product ? product.confidence : "low",
     };
   });
 }
@@ -215,7 +235,7 @@ function createComparisonSnapshot({
   serverReceiptPersisted: boolean;
   locationSelectionBasis?: ComparisonSnapshot["locationSelectionBasis"];
 }) {
-  const summary = summarize(results, requestedItems);
+  const summary = summarize(results, requestedItems, location.locationId);
   const basketLines = basketLinesFor(comparisonId, requestedItems, results, location.locationId);
   const receipt: ComparisonSessionReceipt = {
     schemaVersion: COMPARISON_SESSION_SCHEMA_VERSION,
@@ -447,7 +467,7 @@ export function CartivaProvider({ children }: PropsWithChildren) {
       const results = interpretation.items.map((item, index) => (
         resultMap.get(index) ?? unresolvedResult(item)
       ));
-      const summary = summarize(results, interpretation.items);
+      const summary = summarize(results, interpretation.items, location.locationId);
       run.ifCurrent(() => onProgress({
         type: "basket-checked",
         matchedCount: summary.matchedCount,
@@ -552,32 +572,27 @@ export function CartivaProvider({ children }: PropsWithChildren) {
     ) return;
     updateResults((results) => results.map((result, index) => {
       if (index !== itemIndex) return result;
-      const previous = result.recommended;
-      return {
-        ...result,
-        recommended: candidate,
-        alternatives: [
-          ...(previous && previous.id !== candidate.id ? [previous] : []),
-          ...result.alternatives.filter((item) => item.id !== candidate.id && item.id !== previous?.id),
-        ],
-        confidence: candidate.confidence,
-        status: "matched",
-        explanation: "You selected this verified Kroger candidate.",
-      };
+      return applyKrogerAlternativeSelection(result, candidate);
     }));
   }, [comparison, updateResults]);
 
   const rejectMatch = useCallback((itemIndex: number) => {
     updateResults((results) => results.map((result, index) => {
       if (index !== itemIndex) return result;
+      const {
+        fulfillment: _previousFulfillment,
+        resolution: _previousResolution,
+        ...resultWithoutPackageDecision
+      } = result;
       return {
-        ...result,
+        ...resultWithoutPackageDecision,
         alternatives: result.recommended
           ? [result.recommended, ...result.alternatives]
           : result.alternatives,
         recommended: null,
         confidence: "low",
         status: "no_match",
+        resolution: "truly_unavailable",
         explanation: "You rejected Cartiva's selected match. Choose another candidate or edit the request.",
       };
     }));

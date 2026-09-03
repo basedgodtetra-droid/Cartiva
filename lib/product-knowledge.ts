@@ -223,6 +223,12 @@ function residualStem(value: string) {
 }
 
 const RESIDUAL_TERM_ALIASES: Record<string, string[]> = {
+  can: ["can", "canned"],
+  canned: ["canned", "can"],
+  chickpea: ["chickpea", "chickpeas", "garbanzo", "peas"],
+  garbanzo: ["garbanzo", "chickpea", "chickpeas", "peas"],
+  light: ["light", "lite"],
+  lite: ["lite", "light"],
   mac: ["mac", "macaroni"],
 };
 
@@ -230,7 +236,7 @@ function stripResidualPackageSyntax(value: string) {
   return value
     .replace(/^\s*\d{1,2}\s*[x×]\s+(?=\S)/i, " ")
     .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?[\s-]*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
     .replace(/\b\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
     .replace(/\b(?:half(?:[ -]a)?|one|a)?\s*gallons?\b/gi, " ")
     .replace(/\b(?:one|a)\s+dozen\b/gi, " ");
@@ -434,7 +440,7 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     id: "juice",
     detect: /\b(?:juice|orange juice|apple juice|cranberry juice)\b/i,
-    exclude: /\bjuice\s+(?:drink mix|powder|enhancer)\b/i,
+    exclude: /\bjuice\s+(?:drink mix|powder|enhancer)\b|\btomatoes?\s+in\s+tomato\s+juice\b/i,
   },
   {
     id: "water",
@@ -493,13 +499,18 @@ const CATEGORY_RULES: CategoryRule[] = [
     exclude: /\brice\s+(?:cakes?|cereal|pudding|crackers?)\b/i,
   },
   {
+    id: "canned tomatoes",
+    detect: /(?:\btomatoes?\b(?=[^.!?]{0,80}\b(?:can|canned)\b)|\bcanned(?:\s*&\s*packaged)?\b(?=[^.!?]{0,100}\btomatoes?\b))/i,
+    exclude: /\b(?:tomato\s+)?(?:sauce|paste|soup)\b/i,
+  },
+  {
     id: "produce",
     detect: PRODUCE_CATEGORY_PATTERN,
     exclude: PRODUCE_CATEGORY_EXCLUSIONS,
   },
   {
     id: "beans",
-    detect: /\bbeans?\b/i,
+    detect: /\b(?:beans?|chick\s*peas?|garbanzo(?:\s+beans?)?)\b/i,
     exclude: /\b(?:jelly|coffee|cocoa|vanilla)\s+beans?\b/i,
   },
   { id: "bacon", detect: /\bbacon\b/i, exclude: /\b(?:imitation\s+)?bacon\s+bits?\b/i },
@@ -718,6 +729,13 @@ export function productTypeMatchesRequest(request: string, product: WalmartProdu
     return false;
   }
   if (proteinIdentityConflicts(request, product.title)) return false;
+  // A concrete shopper-facing title is stronger identity evidence than a
+  // retailer's broad aisle taxonomy. Kroger, for example, labels dry rice as
+  // "Pasta, Sauces, Grain"; reading that metadata first misclassifies an
+  // explicit "White Rice" title as pasta. Keep the combined fallback because
+  // some identities, such as canned tomatoes, need both taxonomy and title.
+  const titleType = inferProductCategory(product.title);
+  if (titleType === requestedType) return true;
   const candidateType = inferProductCategory(candidateText);
   if (requestedType === "chicken" && candidateType === "chicken breast") return true;
   if (requestedType === "yogurt" && candidateType === "Greek yogurt") return true;

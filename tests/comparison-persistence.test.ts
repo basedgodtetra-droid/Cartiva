@@ -36,7 +36,7 @@ function savedComparison(): ComparisonSessionReceipt {
       matchedPackage: "12 x 12 fl oz",
       priceCents: 1199,
       locationId: "62000115",
-      availabilityStatus: AvailabilityStatus.LIKELY_AVAILABLE,
+      availabilityStatus: AvailabilityStatus.VERIFIED_IN_STOCK,
       matchConfidence: "high",
       provenance: {
         dataSource: "kroger_public_api",

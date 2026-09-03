@@ -16,7 +16,7 @@ const QUALIFIER_ONLY =
 // comma is split, these fragments are not independent groceries and should
 // stay with the product title immediately before them.
 const PACKAGE_ONLY =
-  /^(?:(?:\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|g|kg|ml|liters?|litres?|gal(?:lons?)?|count|ct|packs?|pk))|(?:\d+\s*(?:x|\u00d7)\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|g|kg|ml|liters?|litres?|gal(?:lons?)?|count|ct)))(?:\s+(?:each|cans?|bottles?|bags?|boxes?|cartons?|jars?|tubs?))?$/i;
+  /^(?:(?:\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|g|kg|ml|liters?|litres?|gal(?:lons?)?|count|ct|packs?|pk))|(?:\d+\s*(?:x|\u00d7)\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|g|kg|ml|liters?|litres?|gal(?:lons?)?|count|ct))|(?:\d+\s+(?:each|cans?|bottles?|bags?|boxes?|cartons?|jars?|tubs?|rolls?|bunches?|loaves?)))(?:\s+(?:each|cans?|bottles?|bags?|boxes?|cartons?|jars?|tubs?))?(?:\s*(?:x|\u00d7)\s*\d{1,2})?$/i;
 
 /**
  * Common grocery anchors used only to detect missing separators. Longer phrases

@@ -9,6 +9,7 @@ import {
   preserveReviewedPlanIngredients,
   removePlanMeal,
   replacePlanMeal,
+  roundGeneratedPurchaseWeightOunces,
   scaleRecipeImport,
   updatePlanMealServings,
   updateConsolidatedIngredient,
@@ -129,6 +130,20 @@ describe("Cartiva Build My Plan", () => {
     expect(result.ingredients).toHaveLength(1);
     expect(result.ingredients[0]).toMatchObject({ amount: 32, unit: "oz", shoppingText: "Chicken breast 2 lb" });
     expect(result.ingredients[0].sourceMealIds).toEqual(["one", "two", "three"]);
+  });
+
+  it("rounds generated weight totals upward to shopper-friendly purchase targets", () => {
+    expect(roundGeneratedPurchaseWeightOunces(1.8 * 16)).toBe(32);
+    const result = consolidatePlanIngredients([{
+      id: "pasta", templateId: "pasta", day: 1, slot: "dinner", name: "Pasta", servings: 1,
+      estimatedCaloriesPerServing: 500, estimatedProteinGramsPerServing: 25, estimatedCostPerServing: 4,
+      ingredients: [{ name: "Red lentil pasta", amount: 1.8, unit: "lb" }],
+    }]);
+    expect(result.ingredients[0]).toMatchObject({
+      amount: 1.8,
+      unit: "lb",
+      shoppingText: "Red lentil pasta 2 lb",
+    });
   });
 
   it("converts common volume units instead of silently dropping an amount", () => {

@@ -4,7 +4,10 @@ import { useEffect, useRef } from "react";
 import { AlertCircle, Bookmark, Check, CircleDashed, ExternalLink, LockKeyhole, PackageCheck, RefreshCw, Store } from "lucide-react";
 import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
 import type { CartState, CartivaLocation, ComparisonState } from "@/components/cartiva-workspace-types";
-import type { KrogerCartReadiness } from "@/lib/cartiva-kroger-cart";
+import {
+  resolvedKrogerCartQuantity,
+  type KrogerCartReadiness,
+} from "@/lib/cartiva-kroger-cart";
 import { getCartivaKrogerHandoffStage } from "@/lib/cartiva-kroger-handoff";
 import type { CartivaKrogerConnectionState } from "@/lib/cartiva-kroger-connection";
 import { krogerShoppingUrl } from "@/lib/kroger-family-links";
@@ -72,12 +75,20 @@ export function CartivaComparison({
   const cartNoticeRef = useRef<HTMLDivElement | null>(null);
   const cartActionRef = useRef<HTMLButtonElement | null>(null);
   const previousCartPhaseRef = useRef(cart.phase);
-  const matchedCount = comparison.results.filter((result) => result?.status === "matched" && result.recommended).length;
-  const complete = items.length > 0 && matchedCount === items.length && comparison.phase === "complete";
+  const matchedCount = comparison.results.filter((result) => (
+    result?.status === "matched" && result.recommended
+  )).length;
+  const complete = cartReadiness.basketComplete;
   const cartReady = cartReadiness.canAddToKroger;
   const subtotalCents = comparison.results.reduce((sum, result, index) => {
     const product = result?.status === "matched" ? result.recommended : null;
-    return sum + Math.round((product?.price ?? 0) * 100) * (quantities[items[index]?.id] ?? 1);
+    const quantity = resolvedKrogerCartQuantity(
+      result,
+      quantities[items[index]?.id] ?? 1,
+    );
+    return sum + (product && quantity !== undefined
+      ? Math.round(product.price * 100) * quantity
+      : 0);
   }, 0);
   const hasResults = comparison.results.some(Boolean);
   const busy = comparison.phase === "searching" || comparison.phase === "finding-store";
@@ -285,8 +296,16 @@ export function CartivaComparison({
           ) : items.map((item, index) => {
             const result = comparison.results[index];
             const product = result?.recommended;
-            const quantity = quantities[item.id] ?? 1;
+            const quantity = resolvedKrogerCartQuantity(
+              result,
+              quantities[item.id] ?? 1,
+            );
             const status = result?.status;
+            const needsAvailabilityCheck = result?.resolution === "matched_check_availability"
+              || product?.availabilityStatus === "unknown"
+              || product?.availabilityStatus === "likely_available";
+            const fulfillmentLabel = result?.fulfillment?.label
+              ?? `${product?.size?.label ?? item.detail ?? "Package verified"}${quantity !== undefined ? ` · Qty ${quantity}` : " · Quantity needs review"}`;
             const transferStatus = cart.phase === "success"
               ? "Accepted by Kroger"
               : handoffStage === "outcome_unknown"
@@ -300,7 +319,7 @@ export function CartivaComparison({
               <div
                 className={styles.basketItem}
                 key={item.id}
-                data-state={status === "no_match" ? "unmatched" : product ? "matched" : "pending"}
+                data-state={product ? "matched" : status === "no_match" ? "unmatched" : "pending"}
               >
                 <span
                   className={styles.productImage}
@@ -312,7 +331,7 @@ export function CartivaComparison({
                   <strong>{product?.title ?? item.name}</strong>
                   <span>
                     {product
-                      ? `${product.size?.label ?? item.detail ?? "Package verified"} · Qty ${quantity}`
+                      ? fulfillmentLabel
                       : busy ? "Searching Kroger for this request…" : status === "no_match" ? result?.explanation : item.detail ?? "Waiting to compare"}
                   </span>
                   {product ? (
@@ -324,11 +343,13 @@ export function CartivaComparison({
                   ) : null}
                 </div>
                 <div className={styles.basketItemPrice}>
-                  <strong>{product ? itemPrice(product.price, quantity) : "—"}</strong>
-                  <span data-tone={transferStatus === "Accepted by Kroger" ? "success" : transferStatus ? "error" : product?.cartEligible ? "success" : status === "no_match" ? "error" : "muted"}>
-                    {transferStatus ?? (product?.cartEligible
-                      ? product.availabilityStatus === "in_stock" ? "Available" : "Check at Kroger"
-                      : product ? "Review at Kroger" : status === "no_match" ? "No match" : "Pending")}
+                  <strong>{product && quantity !== undefined ? itemPrice(product.price, quantity) : "—"}</strong>
+                  <span data-tone={transferStatus === "Accepted by Kroger" ? "success" : transferStatus ? "error" : needsAvailabilityCheck ? "muted" : product?.cartEligible ? "success" : status === "no_match" && !product ? "error" : "muted"}>
+                    {transferStatus ?? (needsAvailabilityCheck
+                      ? "Check availability"
+                      : product?.cartEligible
+                        ? "Available"
+                        : product ? "Review at Kroger" : status === "no_match" ? "No suitable product found" : "Pending")}
                   </span>
                 </div>
               </div>

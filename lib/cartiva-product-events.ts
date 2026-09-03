@@ -29,6 +29,11 @@ export interface CartivaProductEventProperties {
   readyCount?: number;
   clarificationCount?: number;
   matchedCount?: number;
+  directMatchedCount?: number;
+  multiPackageFulfilledCount?: number;
+  availabilityCheckCount?: number;
+  shopperChoiceRequiredCount?: number;
+  trulyUnavailableCount?: number;
   storeCount?: number;
   complete?: boolean;
   retrySafe?: boolean;
@@ -63,6 +68,11 @@ export function buildCartivaProductEvent(
     readyCount: safeCount(properties.readyCount),
     clarificationCount: safeCount(properties.clarificationCount),
     matchedCount: safeCount(properties.matchedCount),
+    directMatchedCount: safeCount(properties.directMatchedCount),
+    multiPackageFulfilledCount: safeCount(properties.multiPackageFulfilledCount),
+    availabilityCheckCount: safeCount(properties.availabilityCheckCount),
+    shopperChoiceRequiredCount: safeCount(properties.shopperChoiceRequiredCount),
+    trulyUnavailableCount: safeCount(properties.trulyUnavailableCount),
     storeCount: safeCount(properties.storeCount),
   };
   return {
