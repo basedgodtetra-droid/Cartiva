@@ -1,0 +1,92 @@
+{
+  "historySchemaVersion": 2,
+  "recordType": "deterministic",
+  "runId": "run-0003-transcribed-98-percent",
+  "recordedAt": "2026-09-02T19:47:21.7081586-06:00",
+  "observedAt": null,
+  "previousRunId": "run-0002-transcribed-77-percent",
+  "capture": {
+    "kind": "transcribed-session-output",
+    "rawReportSha256": null,
+    "note": "Metrics were copied from the session output. The intermediate dirty-tree snapshot no longer exists, so hashes are intentionally not backfilled."
+  },
+  "comparability": {
+    "status": "trend-break",
+    "reason": "The request corpus stayed fixed, but oracle revision 2 corrected C100-L4-006. This run must not be presented as a strictly like-for-like jump from run 0002."
+  },
+  "source": {
+    "gitBaseCommit": "a2dd950de49a8b53a0cf970bde859d7b81a7098f",
+    "treeState": "unavailable-intermediate-dirty-tree",
+    "sourceManifestAlgorithm": "sha256-path-nul-bytes-nul-v1",
+    "sourceManifestSha256": null
+  },
+  "benchmark": {
+    "suiteId": "cartiva-100",
+    "fixtureSchemaVersion": 1,
+    "scoringPolicy": "shopper-outcome-v1",
+    "oracleRevision": 2,
+    "fingerprintAlgorithm": "recursive-key-sort-json-sha256-v1",
+    "caseCount": 100,
+    "levelCounts": { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20 },
+    "hashes": {
+      "requestCorpusSha256": "94b9d695bc9c38442d8a3a51104f5160d212fd0e985551ac905c76d99a2ecc86",
+      "oracleSha256": "7be0f6317fcb9dbe2b8ccf7486968da24b83670347e776eb60770d337ef1a730",
+      "hashProvenance": "derived-after-run",
+      "fixtureSha256": null,
+      "scorerSha256": null,
+      "testSha256": null
+    },
+    "changesSincePrevious": [
+      {
+        "type": "oracle-correction",
+        "caseId": "C100-L4-006",
+        "expectedItemIndex": 1,
+        "input": "eggs 18 count white bread milk gallon bananas",
+        "before": {
+          "policy": "clarification",
+          "clarificationPath": [{ "id": "bread-kind", "select": "white", "minOptions": 4 }]
+        },
+        "after": { "policy": "automatic" },
+        "rationale": "The shopper already specified white bread; asking for bread kind again is redundant.",
+        "productCodeCredit": false,
+        "comparisonTreatment": "trend-break; no same-source rerun exists to isolate its score effect"
+      }
+    ]
+  },
+  "execution": {
+    "command": "pnpm test:cartiva100",
+    "mode": "deterministic-local",
+    "retailerCalls": 0
+  },
+  "scores": {
+    "3": 63,
+    "2": 35,
+    "1": 0,
+    "0": 2,
+    "score2Or3Count": 98,
+    "score2Or3Percent": 98,
+    "atLeast1Count": 98,
+    "atLeast1Percent": 98,
+    "deadEndCount": 2,
+    "deadEndPercent": 2,
+    "unsafeSelectionCount": null,
+    "safetyGateEvaluated": false,
+    "targetPolicy": "historical-thresholds-v1-without-unsafe-selection-gate",
+    "targetMet": true
+  },
+  "levels": {
+    "1": { "useful": 19, "score2Or3": 19, "total": 20 },
+    "2": { "useful": 19, "score2Or3": 19, "total": 20 },
+    "3": { "useful": 20, "score2Or3": 20, "total": 20 },
+    "4": { "useful": 20, "score2Or3": 20, "total": 20 },
+    "5": { "useful": 20, "score2Or3": 20, "total": 20 }
+  },
+  "failureCategories": {
+    "VARIANT": 1,
+    "QUANTITY_SEMANTICS": 1
+  },
+  "score0CaseIds": ["C100-L1-013", "C100-L2-005"],
+  "score1CaseIds": [],
+  "deadEndCaseIds": ["C100-L1-013", "C100-L2-005"],
+  "performance": { "captureStatus": "not-recorded" }
+}

@@ -1,0 +1,91 @@
+{
+  "historySchemaVersion": 2,
+  "recordType": "deterministic",
+  "runId": "run-0002-transcribed-77-percent",
+  "recordedAt": "2026-09-02T19:47:21.7081586-06:00",
+  "observedAt": null,
+  "previousRunId": "run-0001-baseline",
+  "capture": {
+    "kind": "transcribed-session-output",
+    "rawReportSha256": null,
+    "note": "Metrics were copied from the session output. The intermediate dirty-tree snapshot no longer exists, so hashes are intentionally not backfilled."
+  },
+  "comparability": {
+    "status": "conditional",
+    "reason": "Uses the reconstructed original request corpus and oracle revision 1, but the legacy baseline has no retained corpus hash, scorer hash, or exact source snapshot."
+  },
+  "source": {
+    "gitBaseCommit": "a2dd950de49a8b53a0cf970bde859d7b81a7098f",
+    "treeState": "unavailable-intermediate-dirty-tree",
+    "sourceManifestAlgorithm": "sha256-path-nul-bytes-nul-v1",
+    "sourceManifestSha256": null
+  },
+  "benchmark": {
+    "suiteId": "cartiva-100",
+    "fixtureSchemaVersion": 1,
+    "scoringPolicy": "shopper-outcome-v1",
+    "oracleRevision": 1,
+    "fingerprintAlgorithm": "recursive-key-sort-json-sha256-v1",
+    "caseCount": 100,
+    "levelCounts": { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20 },
+    "hashes": {
+      "requestCorpusSha256": "94b9d695bc9c38442d8a3a51104f5160d212fd0e985551ac905c76d99a2ecc86",
+      "oracleSha256": "fa14ac42dd58c603833eebd1e6c599cd34e9a9f32de6fcc5b2d065c46142de5a",
+      "hashProvenance": "derived-after-run",
+      "fixtureSha256": null,
+      "scorerSha256": null,
+      "testSha256": null
+    }
+  },
+  "execution": {
+    "command": "pnpm test:cartiva100",
+    "mode": "deterministic-local",
+    "retailerCalls": 0
+  },
+  "scores": {
+    "3": 44,
+    "2": 33,
+    "1": 4,
+    "0": 19,
+    "score2Or3Count": 77,
+    "score2Or3Percent": 77,
+    "atLeast1Count": 81,
+    "atLeast1Percent": 81,
+    "deadEndCount": 16,
+    "deadEndPercent": 16,
+    "unsafeSelectionCount": null,
+    "safetyGateEvaluated": false,
+    "targetPolicy": "historical-thresholds-v1-without-unsafe-selection-gate",
+    "targetMet": false
+  },
+  "levels": {
+    "1": { "useful": 13, "score2Or3": 12, "total": 20 },
+    "2": { "useful": 14, "score2Or3": 12, "total": 20 },
+    "3": { "useful": 20, "score2Or3": 20, "total": 20 },
+    "4": { "useful": 15, "score2Or3": 14, "total": 20 },
+    "5": { "useful": 19, "score2Or3": 19, "total": 20 }
+  },
+  "failureCategories": {
+    "CLARIFICATION": 7,
+    "QUANTITY_SEMANTICS": 6,
+    "PACKAGE_SIZE": 5,
+    "TYPO_NORMALIZATION": 3,
+    "CATEGORY_CLASSIFICATION": 2
+  },
+  "score0CaseIds": [
+    "C100-L1-004", "C100-L1-005", "C100-L1-008", "C100-L1-009",
+    "C100-L1-018", "C100-L1-019", "C100-L1-020", "C100-L2-002",
+    "C100-L2-006", "C100-L2-011", "C100-L2-015", "C100-L2-018",
+    "C100-L2-019", "C100-L4-006", "C100-L4-007", "C100-L4-010",
+    "C100-L4-012", "C100-L4-020", "C100-L5-009"
+  ],
+  "score1CaseIds": null,
+  "deadEndCaseIds": null,
+  "performance": {
+    "captureStatus": "captured",
+    "averageParsingMs": 0.236,
+    "averageLocalMatchingMs": 1.337,
+    "averageSearchAttempts": 0.85,
+    "retailerCalls": 0
+  }
+}

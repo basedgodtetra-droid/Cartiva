@@ -1,4 +1,4 @@
-import { parseShoppingList } from "./list-parser";
+import { normalizeHumanGroceryText, parseShoppingList } from "./list-parser";
 import { AttributeOrigin, type AttributeOrigin as AttributeOriginValue } from "./types";
 
 export type GroceryProteinCategory = "meat" | "poultry" | "seafood";
@@ -88,11 +88,13 @@ const WEIGHT_PATTERN = /\b(\d+(?:\.\d+)?)\s*[- ]?\s*(lb|lbs|pounds?|oz|ounces?)\
 const VOLUME_PATTERN = /\b(\d+(?:\.\d+)?)\s*(gallons?|gal|liters?|litres?|l|ml|fl\s*oz|fluid\s*ounces?)\b/i;
 const HALF_GALLON_PATTERN = /\b(?:a\s+)?half[-\s]?gallon\b/i;
 const BARE_GALLON_PATTERN = /\bgallon\b/i;
-const DOZEN_PATTERN = /\b(?:(\d+|one|two|three|a)\s+)?dozen\b/i;
+const DOZEN_PATTERN = /\b(?:(\d+|one|two|three|four|a)\s+)?dozen\b/i;
 const BARE_EGG_COUNT_PREFIX = /\b(12|18|24)(?=\s+eggs?\b)/i;
 const BARE_EGG_COUNT_SUFFIX = /\beggs?\s+(12|18|24)\b/i;
 const CONTAINER_QUANTITY_PATTERN = /\b(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)\b/i;
 const CART_QUANTITY_SUFFIX_PATTERN = /\s+(?:x|×)\s*(\d{1,2})\s*$/i;
+const LEADING_MILK_VOLUME_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(.+?\bmilk)\s+(gallons?|gal)\s*$/i;
+const LEADING_VOLUME_OF_PRODUCT_PATTERN = /^\s*(\d{1,2})\s+(gallons?|gal|quarts?|qt|pints?)\s+(?:of\s+)?(.+)$/i;
 const LEADING_EACH_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\b/i;
 const TRAILING_EACH_QUANTITY_PATTERN = /\b(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\s+(\d{1,2})\s*$/i;
 
@@ -120,6 +122,102 @@ const YOGURT_SIZES: GroceryClarificationOption[] = [
   { id: "yogurt-16", label: "16 oz", value: "16 oz" },
   { id: "yogurt-32", label: "32 oz", value: "32 oz" },
 ];
+
+function simpleOptions(
+  prefix: string,
+  values: Array<[label: string, value: string]>,
+): GroceryClarificationOption[] {
+  return values.map(([label, value]) => ({
+    id: `${prefix}-${value.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    label,
+    value,
+  }));
+}
+
+const BEAN_KINDS = simpleOptions("beans", [
+  ["Black", "black"],
+  ["Pinto", "pinto"],
+  ["Kidney", "kidney"],
+  ["Chickpeas", "chickpeas"],
+]);
+
+const BREAD_KINDS = simpleOptions("bread", [
+  ["White", "white"],
+  ["Whole wheat", "whole wheat"],
+  ["Sourdough", "sourdough"],
+  ["Gluten free", "gluten free"],
+]);
+
+const YOGURT_KINDS = simpleOptions("yogurt", [
+  ["Greek", "Greek"],
+  ["Regular", "regular"],
+  ["Skyr", "skyr"],
+]);
+
+const PASTA_KINDS = simpleOptions("pasta", [
+  ["Spaghetti", "spaghetti"],
+  ["Penne", "penne"],
+  ["Rotini", "rotini"],
+  ["Macaroni", "macaroni"],
+]);
+
+const RICE_KINDS = simpleOptions("rice", [
+  ["White", "white"],
+  ["Brown", "brown"],
+  ["Jasmine", "jasmine"],
+  ["Basmati", "basmati"],
+]);
+
+const CHEESE_KINDS = simpleOptions("cheese", [
+  ["Cheddar", "cheddar"],
+  ["Mozzarella", "mozzarella"],
+  ["Swiss", "swiss"],
+  ["American", "american"],
+  ["Cream cheese", "cream"],
+]);
+
+const CEREAL_KINDS = simpleOptions("cereal", [
+  ["Cheerios", "Cheerios"],
+  ["Corn flakes", "corn flakes"],
+  ["Oat cereal", "oat cereal"],
+  ["Granola", "granola"],
+]);
+
+const JUICE_KINDS = simpleOptions("juice", [
+  ["Orange", "orange"],
+  ["Apple", "apple"],
+  ["Grape", "grape"],
+  ["Cranberry", "cranberry"],
+]);
+
+const SODA_KINDS = simpleOptions("soda", [
+  ["Coca-Cola", "Coca-Cola"],
+  ["Pepsi", "Pepsi"],
+  ["Sprite", "Sprite"],
+  ["Dr Pepper", "Dr Pepper"],
+]);
+
+const TACO_NEEDS = simpleOptions("taco", [
+  ["Taco shells", "taco shells"],
+  ["Tortillas", "tortillas"],
+  ["Ground beef", "ground beef"],
+  ["Taco seasoning", "taco seasoning"],
+]);
+
+const BREAKFAST_KINDS = simpleOptions("breakfast", [
+  ["Eggs", "eggs"],
+  ["Oatmeal", "oatmeal"],
+  ["Cereal", "cereal"],
+  ["Yogurt", "yogurt"],
+  ["Bacon", "bacon"],
+]);
+
+const GROUND_MEAT_KINDS = simpleOptions("ground-meat", [
+  ["Ground beef", "ground beef"],
+  ["Ground turkey", "ground turkey"],
+  ["Ground chicken", "ground chicken"],
+  ["Ground pork", "ground pork"],
+]);
 
 function clean(value: string) {
   return value
@@ -438,7 +536,7 @@ const PROTEIN_QUESTIONS: ProteinQuestionPolicy[] = [
     id: "shrimp-size", prompt: "What shrimp size?", shortLabel: "Needs a size",
     attribute: "size", categories: ["seafood"], animals: ["shrimp"], requireMissing: "size",
     requiredValues: { cookingState: ["raw", "cooked"] },
-    placement: "prepend", anyText: "any shrimp size",
+    placement: "prepend", anyText: "any size",
     choices: [
       choice("shrimp-small", "Small", "small"),
       choice("shrimp-medium", "Medium", "medium"),
@@ -479,7 +577,7 @@ function proteinStyleFrom(raw: string, form: string | undefined) {
   if (form === "bacon") {
     if (/\bturkey\s+bacon\b/i.test(raw)) return "turkey";
     if (/\bthick[ -]?cut\b/i.test(raw)) return "thick cut";
-    if (/\bregular(?:\s+cut)?\s+bacon\b/i.test(raw)) return "regular";
+    if (/\bregular(?:\s+cut)?\b/i.test(raw)) return "regular";
   }
   if (form === "sausage") {
     if (/\bbreakfast\s+sausage\b/i.test(raw)) return "breakfast";
@@ -638,6 +736,7 @@ function dozenCount(value: string | undefined) {
   if (!value || value === "one" || value === "a") return 12;
   if (value === "two") return 24;
   if (value === "three") return 36;
+  if (value === "four") return 48;
   return Number(value) * 12;
 }
 
@@ -704,30 +803,32 @@ function normalizeDetail(raw: string) {
 
 function categoryFor(raw: string) {
   const lower = raw.toLowerCase();
+  if (/\bsomething\s+for\s+tacos?\b/.test(lower)) return "taco-need";
+  if (/\bbreakfast\s+food\b/.test(lower)) return "breakfast-kind";
+  if (/\bground\s+meat\b/.test(lower)) return "ground-meat-kind";
   if (/\beggs?\b/.test(lower)) return "eggs";
-  if (/\bcoconut\s+milk\b/.test(lower) && /\b(?:cans?|canned)\b/.test(lower)) return "canned-goods";
+  if (/\bcoconut\s+milk\b/.test(lower) && /\b(?:cans?|canned|light|lite)\b/.test(lower)) return "canned-goods";
   if (/\b(?:almond|oat|coconut|soy)\s+milk\b/.test(lower)) return "alt-milk";
   if (/\bmilk\b/.test(lower)) return "milk";
   if (/\byogurt\b/.test(lower)) return "yogurt";
   if (/\bbread\b/.test(lower)) return "bread";
+  if (/\bbeans?\b/.test(lower)) return "beans";
+  if (/\bpasta\b/.test(lower)) return "pasta";
+  if (/\brice\b/.test(lower)) return "rice";
+  if (/\bcheese\b/.test(lower)) return "cheese";
+  if (/\bcereal\b/.test(lower)) return "cereal";
+  if (/\bjuice\b/.test(lower)) return "juice";
   if (/\b(?:coke|coca[-\s]?cola|pepsi|sprite|dr\.?\s*pepper|mountain\s+dew|7\s*up|soda)\b/.test(lower)) return "soda";
   return undefined;
 }
 
-function sodaVariantOptions(raw: string): GroceryClarificationOption[] {
-  if (/\bpepsi\b/i.test(raw)) {
-    return [
-      { id: "pepsi-original", label: "Pepsi", value: "original" },
-      { id: "pepsi-diet", label: "Diet Pepsi", value: "diet" },
-      { id: "pepsi-zero", label: "Pepsi Zero Sugar", value: "zero" },
-    ];
-  }
-
-  return [
-    { id: "coke-original", label: "Coca-Cola", value: "original" },
-    { id: "coke-diet", label: "Diet Coke", value: "diet" },
-    { id: "coke-zero", label: "Coke Zero", value: "zero" },
-  ];
+function bareCategoryText(raw: string) {
+  return raw
+    .toLowerCase()
+    .replace(/^\s*\d{1,2}\s+(?:cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?)\s+(?:of\s+)?/, "")
+    .replace(/\s+\d{1,3}\s*(?:cans?|bottles?|jars?|bags?|boxes?|cartons?|rolls?|bunches?|loaves?|count|ct|packs?|pk|lbs?|pounds?|oz|ounces?|gallons?|gal)\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function clarificationFor(
@@ -738,6 +839,42 @@ function clarificationFor(
   const lower = raw.toLowerCase();
   const proteinClarification = proteinClarificationFor(proteinIntent);
   if (proteinClarification) return proteinClarification;
+
+  const bare = bareCategoryText(raw);
+  if (category === "beans" && /^(?:bean|beans)$/.test(bare)) {
+    return { id: "beans-kind", prompt: "Which kind of beans?", shortLabel: "Needs a kind", options: BEAN_KINDS };
+  }
+  const exactCategory = clean(raw).toLowerCase();
+  if (category === "bread" && exactCategory === "bread") {
+    return { id: "bread-kind", prompt: "What kind of bread?", shortLabel: "Needs a kind", options: BREAD_KINDS };
+  }
+  if (category === "yogurt" && exactCategory === "yogurt") {
+    return { id: "yogurt-kind", prompt: "What kind of yogurt?", shortLabel: "Needs a kind", options: YOGURT_KINDS };
+  }
+  if (category === "pasta" && exactCategory === "pasta") {
+    return { id: "pasta-kind", prompt: "What kind of pasta?", shortLabel: "Needs a kind", options: PASTA_KINDS };
+  }
+  if (category === "rice" && exactCategory === "rice") {
+    return { id: "rice-kind", prompt: "What kind of rice?", shortLabel: "Needs a kind", options: RICE_KINDS };
+  }
+  if (category === "cheese" && exactCategory === "cheese") {
+    return { id: "cheese-kind", prompt: "What kind of cheese?", shortLabel: "Needs a kind", options: CHEESE_KINDS };
+  }
+  if (category === "cereal" && exactCategory === "cereal") {
+    return { id: "cereal-kind", prompt: "What kind of cereal?", shortLabel: "Needs a kind", options: CEREAL_KINDS };
+  }
+  if (category === "juice" && exactCategory === "juice") {
+    return { id: "juice-kind", prompt: "Which juice?", shortLabel: "Needs a kind", options: JUICE_KINDS };
+  }
+  if (category === "taco-need") {
+    return { id: "taco-need", prompt: "What do you need for tacos?", shortLabel: "Needs a choice", options: TACO_NEEDS };
+  }
+  if (category === "breakfast-kind") {
+    return { id: "breakfast-kind", prompt: "What sounds good for breakfast?", shortLabel: "Needs a choice", options: BREAKFAST_KINDS };
+  }
+  if (category === "ground-meat-kind") {
+    return { id: "ground-meat-kind", prompt: "Which ground meat?", shortLabel: "Needs a kind", options: GROUND_MEAT_KINDS };
+  }
 
   if (category === "eggs" && !COUNT_PATTERN.test(lower) && !DOZEN_PATTERN.test(lower) && !BARE_EGG_COUNT_PREFIX.test(lower) && !BARE_EGG_COUNT_SUFFIX.test(lower)) {
     return { id: "egg-count", prompt: "How many eggs?", shortLabel: "Needs a count", options: EGG_COUNTS };
@@ -764,7 +901,7 @@ function clarificationFor(
     // will preserve any supplied package constraint.
     const namedSoda = /\b(?:coke|coca[-\s]?cola|pepsi|sprite|dr\.?\s*pepper|mountain\s+dew|7\s*up)\b/.test(lower);
     if (/\bsoda\b/.test(lower) && !namedSoda) {
-      return { id: "soda-variant", prompt: "Which soda?", shortLabel: "Needs a variety", options: sodaVariantOptions(raw) };
+      return { id: "soda-kind", prompt: "Which soda?", shortLabel: "Needs a kind", options: SODA_KINDS };
     }
   }
 
@@ -788,7 +925,14 @@ function itemFromRaw(
   index: number,
   proteinOrigins: GroceryProteinOriginMap = {},
 ): GroceryNotepadItem {
-  const raw = clean(rawValue);
+  const sourceRaw = clean(rawValue);
+  const leadingVolumeProduct = sourceRaw.match(LEADING_VOLUME_OF_PRODUCT_PATTERN);
+  const leadingMilkQuantity = sourceRaw.match(LEADING_MILK_VOLUME_QUANTITY_PATTERN);
+  const raw = leadingVolumeProduct
+    ? clean(`${leadingVolumeProduct[3]} 1 ${leadingVolumeProduct[2].replace(/s$/i, "")} x${leadingVolumeProduct[1]}`)
+    : leadingMilkQuantity
+      ? clean(`${leadingMilkQuantity[2]} ${leadingMilkQuantity[3]} x${leadingMilkQuantity[1]}`)
+      : sourceRaw;
   const cartQuantitySuffix = raw.match(CART_QUANTITY_SUFFIX_PATTERN);
   const displayRaw = cartQuantitySuffix
     ? clean(raw.slice(0, cartQuantitySuffix.index))
@@ -816,9 +960,13 @@ function itemFromRaw(
   // strips these markers before searching, while verification retains them.
   const canonicalDetails = [ratio, preferenceDetail, detailResult?.detail].filter(Boolean);
   const canonicalBase = canonicalDetails.length ? `${name}, ${canonicalDetails.join(", ")}` : name;
-  const canonicalText = cartQuantitySuffix
-    ? `${canonicalBase} x${cartQuantitySuffix[1]}`
-    : canonicalBase;
+  const dozen = category === "eggs" ? displaySource.match(DOZEN_PATTERN) : undefined;
+  const dozenPackages = dozen ? dozenCount(dozen[1]) / 12 : 1;
+  const canonicalText = dozenPackages > 1
+    ? `${name}, 12 ct x${dozenPackages}`
+    : cartQuantitySuffix
+      ? `${canonicalBase} x${cartQuantitySuffix[1]}`
+      : canonicalBase;
 
   return {
     id: stableId(raw, index),
@@ -840,8 +988,9 @@ export function interpretGroceryInput(
   input: string,
   options: InterpretOptions = {},
 ): GroceryInterpretation {
-  const explicit = explicitSegments(input);
-  const detectedItems = options.undoImplicitSplits ? explicit : parseShoppingList(input, 25);
+  const normalizedInput = normalizeHumanGroceryText(input);
+  const explicit = explicitSegments(normalizedInput);
+  const detectedItems = options.undoImplicitSplits ? explicit : parseShoppingList(normalizedInput, 25);
   const rawItems = detectedItems.slice(0, 24);
   const items = rawItems.map((item, index) => itemFromRaw(item, index, options.proteinOrigins));
   const unresolvedCount = items.filter((item) => item.status === "needs-detail").length;
@@ -930,6 +1079,23 @@ export function resolveGroceryClarification(
   }
 
   if (clarificationId === "soda-variant") return { raw: sodaVariant(raw, value) };
+
+  const replacements: Record<string, [RegExp, string]> = {
+    "beans-kind": [/\bbeans?\b/i, `${value} beans`],
+    "bread-kind": [/\bbread\b/i, `${value} bread`],
+    "yogurt-kind": [/\byogurt\b/i, `${value} yogurt`],
+    "pasta-kind": [/\bpasta\b/i, `${value} pasta`],
+    "rice-kind": [/\brice\b/i, `${value} rice`],
+    "cheese-kind": [/\bcheese\b/i, value === "cream" ? "cream cheese" : `${value} cheese`],
+    "cereal-kind": [/\bcereal\b/i, `${value} cereal`],
+    "juice-kind": [/\bjuice\b/i, `${value} juice`],
+    "soda-kind": [/\bsoda\b/i, value],
+    "taco-need": [/.+/, value],
+    "breakfast-kind": [/.+/, value],
+    "ground-meat-kind": [/\bground\s+meat\b/i, value],
+  };
+  const replacement = replacements[clarificationId];
+  if (replacement) return { raw: clean(raw.replace(replacement[0], replacement[1])) };
 
   return { raw: clean(`${raw} ${value}`) };
 }

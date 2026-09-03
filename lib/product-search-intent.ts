@@ -125,6 +125,7 @@ export function stripDiscoveryPackageTerms(value: string) {
     .replace(/^\s*\d{1,2}\s*[x×]\s+(?=\S)/i, " ")
     .replace(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b/gi, " ")
     .replace(/\b\d+(?:\.\d+)?[\s-]*(?:pack|pk|count|ct)\b(?:\s+of)?(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:rolls?|sheets?)\b/gi, " ")
     .replace(/\b\d+(?:\.\d+)?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|gallons?|gal|quarts?|qt|liters?|litres?|milliliters?|millilitres?|ml|l)\b(?:\s+(?:bags?|bottles?|boxes?|cans?|cartons?|containers?|jars?|packages?))?/gi, " ")
     .replace(/\b(?:half(?:[ -]a)?|one|a)?\s*gallons?\b/gi, " ")
     .replace(/\b(?:one|a)\s+dozen\b/gi, " ")
@@ -133,13 +134,52 @@ export function stripDiscoveryPackageTerms(value: string) {
   return text;
 }
 
-function strictPackageRequest(value: string, measurement: ReturnType<typeof extractMeasurement>) {
+const FLEXIBLE_RAW_WEIGHT_CATEGORY = new Set([
+  "beef",
+  "chicken",
+  "chicken breast",
+  "ground beef",
+  "meat",
+  "pork",
+  "seafood",
+  "turkey",
+]);
+
+const EXPLICIT_TOTAL_SIGNAL = /\b(?:desired\s+total|total(?:ing)?|altogether|in\s+total)\b/i;
+const PREPACKAGED_WEIGHT_SIGNAL = /\b(?:bacon|sausage|deli|smoked|frozen|canned|dried|pickled|jarred|steam(?:able|[ -]?in[ -]?bag))\b/i;
+
+function isFlexibleMeasuredTotal(value: string, category: string | undefined) {
+  if (EXPLICIT_TOTAL_SIGNAL.test(value)) return true;
+  if (category && FLEXIBLE_RAW_WEIGHT_CATEGORY.has(category)) {
+    return !PREPACKAGED_WEIGHT_SIGNAL.test(value);
+  }
+  if (category === "produce") {
+    // Unpackaged produce weights normally describe the amount the shopper
+    // needs. Frozen, canned, dried, and other packaged forms remain exact
+    // shelf-size requests unless the shopper explicitly says "total".
+    return !PREPACKAGED_WEIGHT_SIGNAL.test(value);
+  }
+  // Retained compatibility for recipe-generated alternative-pasta totals.
+  // New generated requests should carry an explicit `total` marker so this
+  // narrow bridge can eventually be removed.
+  return /\bred\s+lentil\s+pasta\b/i.test(value);
+}
+
+function strictPackageRequest(
+  value: string,
+  measurement: ReturnType<typeof extractMeasurement>,
+  category: string | undefined,
+) {
   if (extractPackOnlyCount(value) !== undefined || measurement?.packCount) return true;
-  if (/\b\d+(?:\.\d+)?\s*[- ]?(?:count|ct)\b/i.test(value)) return true;
-  return Boolean(
-    measurement
-    && /\b(?:package|pkg|box|bag|tub|bottle|can|carton|container|jar|loaf)\b/i.test(value),
-  );
+  if (/\b\d+(?:\.\d+)?\s*[- ]?(?:count|ct|rolls?|sheets?)\b/i.test(value)) return true;
+  if (!measurement) return false;
+  if (/\b(?:package|pkg|box|bag|tub|bottle|can|carton|container|jar|loaf)\b/i.test(value)) {
+    return true;
+  }
+  // Explicit measurements are shelf-package requirements by default. Relax
+  // only when wording identifies a desired total or a normal variable-weight
+  // food, never merely because a pantry noun appears.
+  return !isFlexibleMeasuredTotal(value, category);
 }
 
 function addDistinctQuery(
@@ -240,12 +280,17 @@ export function parseProductIntent(
   const requestedContainer = quantityIntent.packageSizeText?.replace(/^1\s+/, "");
   const verificationText = quantityIntent.searchText.normalize("NFKC").replace(/\s+/g, " ").trim();
   const measurement = extractMeasurement(verificationText);
-  const packageIsStrict = strictPackageRequest(verificationText, measurement)
+  const inferredCategory = inferProductCategory(verificationText);
+  const packageIsStrict = strictPackageRequest(
+    verificationText,
+    measurement,
+    structuredRequest.category ?? inferredCategory,
+  )
     || /\b(?:gallon|quart|pint)\b/i.test(quantityIntent.packageSizeText ?? "")
     || Boolean(measurement && structuredRequest.category === "bread");
   const requestedTotal = measurement && !packageIsStrict ? measurement : undefined;
   const fulfillmentText = requestedTotal
-    ? stripDiscoveryPackageTerms(verificationText)
+    ? stripDiscoveryPackageTerms(verificationText).replace(EXPLICIT_TOTAL_SIGNAL, " ").replace(/\s+/g, " ").trim()
     : verificationText;
   const requestedBrand = extractRequestedBrand(verificationText);
   const brandConstraint = structuredRequest.constraints.find((item) => item.attribute === "brand");
@@ -256,10 +301,9 @@ export function parseProductIntent(
   const identityConstraints = structuredRequest.constraints.filter((item) => (
     !PACKAGE_ATTRIBUTES.has(item.attribute)
   ));
-  const inferredCategory = inferProductCategory(verificationText);
   const normalizedQuery = stripDiscoveryPackageTerms(
     stripFlexibleProteinPreferences(verificationText),
-  );
+  ).replace(requestedTotal ? EXPLICIT_TOTAL_SIGNAL : /$^/, " ").replace(/\s+/g, " ").trim();
   const queries: DiscoveryQuery[] = [];
   addDistinctQuery(queries, "normalized", normalizedQuery);
   addDistinctQuery(

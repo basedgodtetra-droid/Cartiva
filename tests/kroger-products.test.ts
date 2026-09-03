@@ -6,6 +6,7 @@ import {
 } from "@/lib/grocery-notepad";
 import { rankKrogerProducts } from "@/lib/kroger-products";
 import { analyzeProductFacets } from "@/lib/product-facets";
+import { parseProductIntent } from "@/lib/product-search-intent";
 import type { KrogerProduct, Measurement } from "@/lib/types";
 
 function weightSize(amount: number, unit: "oz" | "lb" = "oz"): Measurement {
@@ -456,6 +457,121 @@ describe("Kroger product ranking", () => {
     });
   });
 
+  it("treats paper-product roll counts as package identity instead of cart quantity", () => {
+    const singleRoll = krogerProduct({
+      id: "paper-towel-1",
+      productId: "paper-towel-1",
+      upc: "0001111000301",
+      title: "Kroger Everyday Paper Towels 1 Roll",
+      productType: "Paper Towels",
+      size: countSize(1),
+      price: 1.99,
+      priceCents: 199,
+    });
+    const sixRoll = krogerProduct({
+      id: "paper-towel-6",
+      productId: "paper-towel-6",
+      upc: "0001111000306",
+      title: "Kroger Ultra Strong Paper Towels 6 Double Rolls",
+      productType: "Paper Towels",
+      size: countSize(6),
+      price: 9.99,
+      priceCents: 999,
+    });
+
+    expect(rankKrogerProducts("Paper Towels, 6 rolls", [singleRoll, sixRoll])).toMatchObject({
+      status: "matched",
+      recommended: { id: sixRoll.id },
+      fulfillment: { cartQuantity: 1, packageCount: 1 },
+    });
+  });
+
+  it("rejects unrequested specialty pasta and enforces a requested pasta shape", () => {
+    const chickpeaRotini = krogerProduct({
+      id: "chickpea-rotini",
+      productId: "chickpea-rotini",
+      upc: "0001111000401",
+      title: "Chickpea Rotini Pasta 8 oz",
+      productType: "Pasta",
+      size: weightSize(8),
+      price: 0.01,
+      priceCents: 1,
+    });
+    const semolinaSpaghetti = krogerProduct({
+      id: "semolina-spaghetti",
+      productId: "semolina-spaghetti",
+      upc: "0001111000402",
+      title: "Traditional Semolina Spaghetti Pasta 16 oz",
+      productType: "Pasta",
+      size: weightSize(16),
+      price: 3.99,
+      priceCents: 399,
+    });
+
+    expect(rankKrogerProducts("pasta", [chickpeaRotini, semolinaSpaghetti])).toMatchObject({
+      recommended: { id: semolinaSpaghetti.id },
+    });
+    expect(rankKrogerProducts("spaghetti", [chickpeaRotini, semolinaSpaghetti])).toMatchObject({
+      recommended: { id: semolinaSpaghetti.id },
+    });
+    expect(rankKrogerProducts("chickpea rotini", [chickpeaRotini, semolinaSpaghetti])).toMatchObject({
+      recommended: { id: chickpeaRotini.id },
+    });
+  });
+
+  it("never lets a pasta shape clarification select pasta sauce", () => {
+    const sauce = krogerProduct({
+      id: "spaghetti-sauce",
+      productId: "spaghetti-sauce",
+      upc: "0001111000410",
+      title: "Traditional Spaghetti Sauce 24 oz",
+      productType: "Pasta Sauce",
+      size: weightSize(24),
+    });
+    const pasta = krogerProduct({
+      id: "dry-spaghetti",
+      productId: "dry-spaghetti",
+      upc: "0001111000411",
+      title: "Traditional Semolina Spaghetti Pasta 16 oz",
+      productType: "Pasta",
+      size: weightSize(16),
+    });
+
+    expect(rankKrogerProducts("spaghetti pasta", [sauce])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+    expect(rankKrogerProducts("spaghetti pasta", [sauce, pasta])).toMatchObject({
+      status: "matched",
+      recommended: { id: pasta.id },
+    });
+  });
+
+  it.each([
+    ["chickpeas 15 oz", "Chickpeas 8 oz", "Canned & Packaged", weightSize(8)],
+    ["coconut milk 13.5 fl oz", "Light Coconut Milk 7 fl oz Can", "Canned & Packaged", volumeSize(7)],
+    ["frozen broccoli 10 oz", "Frozen Broccoli Florets 6 oz Bag", "Frozen Vegetables", weightSize(6)],
+  ])("does not replace an exact shelf size with multiple smaller packages: %s", (
+    request,
+    title,
+    productType,
+    size,
+  ) => {
+    const undersized = krogerProduct({
+      id: `undersized-${request}`,
+      productId: `undersized-${request}`,
+      upc: "0001111000412",
+      title,
+      productType,
+      size,
+    });
+
+    expect(rankKrogerProducts(request, [undersized])).toMatchObject({
+      status: "no_match",
+      recommended: null,
+    });
+  });
+
   it("chooses two 16-ounce red-lentil boxes over three 12-ounce boxes while never undersupplying", () => {
     const twelveOunce = krogerProduct({
       id: "red-lentil-12",
@@ -503,6 +619,36 @@ describe("Kroger product ranking", () => {
     );
   });
 
+  it("never returns an automatic recommendation after package fulfillment fails", () => {
+    const oversized = krogerProduct({
+      id: "ground-turkey-oversized",
+      productId: "ground-turkey-oversized",
+      upc: "0001111000501",
+      title: "Kroger Ground Turkey 4 lb",
+      productType: "Ground Turkey",
+      size: weightSize(4, "lb"),
+    });
+    const baseIntent = parseProductIntent("ground turkey any lean ratio");
+    const intent = {
+      ...baseIntent,
+      requestedTotal: weightSize(1, "lb"),
+      strictPackageRequest: false,
+    };
+
+    expect(rankKrogerProducts(
+      intent.originalText,
+      [oversized],
+      [],
+      undefined,
+      { intent },
+    )).toMatchObject({
+      status: "no_match",
+      resolution: "truly_unavailable",
+      confidence: "low",
+      recommended: null,
+    });
+  });
+
   it("never accepts a low-confidence packaged strawberry-banana item for bananas", () => {
     const packagedSnack = krogerProduct({
       id: "0008500006421",
@@ -530,7 +676,7 @@ describe("Kroger product ranking", () => {
       recommended: null,
       alternatives: [],
     });
-    expect(automatic.explanation).toMatch(/could not verify it strongly enough/i);
+    expect(automatic.explanation).toMatch(/no Kroger match met/i);
 
     const preferred = rankKrogerProducts(
       "bananas",

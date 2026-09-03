@@ -107,7 +107,7 @@ describe("Smart Grocery Notepad interpretation", () => {
       "eggs 18 count",
       "white bread",
       "milk gallon",
-      "chicken breast 2lb",
+      "chicken breast 2 lb",
       "bananas",
     ]);
     expect(result.serialized).toBe(
@@ -131,9 +131,21 @@ describe("Smart Grocery Notepad interpretation", () => {
     expect(interpretGroceryInput("coke").items[0].clarification).toBeUndefined();
     expect(interpretGroceryInput("coke zero").items[0].clarification).toBeUndefined();
     expect(interpretGroceryInput("coke zero 12 pack").items[0].clarification).toBeUndefined();
-    expect(interpretGroceryInput("yogurt").items[0].clarification?.id).toBe("yogurt-size");
+    const yogurt = interpretGroceryInput("yogurt").items[0];
+    expect(yogurt.clarification?.id).toBe("yogurt-kind");
+    const greekYogurt = applyGroceryClarification(yogurt.raw, "yogurt-kind", "Greek");
+    expect(interpretGroceryInput(greekYogurt).items[0].clarification?.id).toBe("yogurt-size");
     expect(interpretGroceryInput("chicken breast").items[0].clarification?.id).toBe("chicken-preparation");
     expect(interpretGroceryInput("bananas").items[0].clarification).toBeUndefined();
+
+    const pasta = interpretGroceryInput("pasta").items[0];
+    expect(pasta.clarification?.id).toBe("pasta-kind");
+    const spaghetti = applyGroceryClarification(pasta.raw, "pasta-kind", "spaghetti");
+    expect(interpretGroceryInput(spaghetti)).toMatchObject({
+      readyCount: 1,
+      unresolvedCount: 0,
+      items: [{ raw: "spaghetti pasta", canonicalText: "Spaghetti Pasta", status: "ready" }],
+    });
   });
 
   it("normalizes common count and hyphenated package forms", () => {
@@ -143,6 +155,12 @@ describe("Smart Grocery Notepad interpretation", () => {
       status: "ready",
     });
     expect(interpretGroceryInput("dozen eggs").items[0]).toMatchObject({ name: "Eggs", detail: "12 ct" });
+    expect(interpretGroceryInput("four dozen eggs").items[0]).toMatchObject({
+      name: "Eggs",
+      detail: "48 ct",
+      canonicalText: "Eggs, 12 ct x4",
+      status: "ready",
+    });
     expect(interpretGroceryInput("12 eggs").items[0]).toMatchObject({ name: "Eggs", detail: "12 ct" });
     expect(interpretGroceryInput("coke zero 12-pack").items[0].clarification).toBeUndefined();
     expect(interpretGroceryInput("chicken breast 2-lb").items[0].clarification?.id).toBe("chicken-preparation");
@@ -150,7 +168,7 @@ describe("Smart Grocery Notepad interpretation", () => {
 
   it("lets named soda proceed while retaining clarification for generic soda", () => {
     const named = interpretGroceryInput("coke\ncoke zero\nbread");
-    expect(named).toMatchObject({ readyCount: 3, unresolvedCount: 0 });
+    expect(named).toMatchObject({ readyCount: 2, unresolvedCount: 1 });
     expect(named.items[0]).toMatchObject({
       raw: "coke",
       name: "Coke",
@@ -167,12 +185,41 @@ describe("Smart Grocery Notepad interpretation", () => {
     const generic = interpretGroceryInput("soda").items[0];
     expect(generic.clarification?.options.map((option) => option.label)).toEqual([
       "Coca-Cola",
-      "Diet Coke",
-      "Coke Zero",
+      "Pepsi",
+      "Sprite",
+      "Dr Pepper",
     ]);
-    const original = applyGroceryClarification(generic.raw, "soda-variant", "original");
+    const original = applyGroceryClarification(generic.raw, "soda-kind", "Coca-Cola");
     expect(interpretGroceryInput(original).items[0].clarification).toBeUndefined();
     expect(interpretGroceryInput("Coke Zero 2 L").items[0].clarification).toBeUndefined();
+  });
+
+  it("preserves retailer quantity separately from package identity", () => {
+    expect(interpretGroceryInput("2 gallons of whole milk").items[0]).toMatchObject({
+      name: "Whole Milk",
+      detail: "1 gallon",
+      canonicalText: "Whole Milk, 1 gallon x2",
+      status: "ready",
+    });
+    expect(interpretGroceryInput("2 whole milk gallon").items[0].canonicalText).toBe(
+      "Whole Milk, 1 gallon x2",
+    );
+    expect(interpretGroceryInput("2 dozen eggs").items[0]).toMatchObject({
+      name: "Eggs",
+      detail: "24 ct",
+      canonicalText: "Eggs, 12 ct x2",
+      status: "ready",
+    });
+  });
+
+  it("repairs allow-listed grocery typos without mutating valid attributes", () => {
+    expect(interpretGroceryInput("banannas 6").items[0].canonicalText).toBe("Bananas, 6 each");
+    expect(interpretGroceryInput("creamy peanut butter 16oz").items[0].canonicalText).toBe(
+      "Creamy Peanut Butter, 16 oz",
+    );
+    expect(interpretGroceryInput("sharp cheddar cheese block 8oz").items[0].canonicalText).toBe(
+      "Sharp Cheddar Cheese Block, 8 oz",
+    );
   });
 
   it("keeps numeric product identities visible without treating them as cart quantities", () => {

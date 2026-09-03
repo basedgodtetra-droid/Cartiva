@@ -467,7 +467,7 @@ describe("anonymous mobile v1 read boundary", () => {
     expect(verified[2].result.requestedItem).toBe("bread");
   });
 
-  it("does not let a preferred low-confidence alternative become a verified mobile match", async () => {
+  it("does not let a preferred unsafe packaged alternative become a verified mobile match", async () => {
     const packagedSnack: KrogerProduct = {
       ...eggProduct(),
       id: "0008500006421",
@@ -513,7 +513,7 @@ describe("anonymous mobile v1 read boundary", () => {
         alternatives: [],
       },
     });
-    expect(verification.result.explanation).toMatch(/could not verify any strongly enough/i);
+    expect(verification.result.explanation).toMatch(/none matched bananas/i);
   });
 
   it("rejects fields that the existing Kroger read contract does not support", async () => {

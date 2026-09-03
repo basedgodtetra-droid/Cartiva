@@ -10,6 +10,7 @@ import {
   assessProductVariant,
   clarificationForRequest,
   extractProduceIdentity,
+  extractProductProduceIdentity,
   extractRequestedBrand,
   inferProductCategory,
   isGenericProduceRequest,
@@ -306,9 +307,7 @@ function scoreProduct(
   }
 
   const requestedProduceIdentity = extractProduceIdentity(request);
-  const candidateProduceIdentity = extractProduceIdentity(
-    `${product.productType ?? ""} ${product.title}`,
-  );
+  const candidateProduceIdentity = extractProductProduceIdentity(product);
   const concreteProduceIdentityMatched = Boolean(
     requestedProduceIdentity
     && requestedProduceIdentity === candidateProduceIdentity
@@ -316,7 +315,10 @@ function scoreProduct(
     && !produceFormAssessment.rejected,
   );
   if (concreteProduceIdentityMatched) {
-    score += 18;
+    // A title-confirmed fresh produce identity is stronger evidence than raw
+    // singular/plural token overlap. The form and processed-product gates run
+    // first, so snacks, pudding, juice, and baby food cannot earn this boost.
+    score += 35;
     reasons.push(`matches ${requestedProduceIdentity} produce identity`);
   }
 
@@ -376,7 +378,11 @@ function scoreProduct(
     } else {
       const sizeRatio = product.size.baseAmount / requestedSize.baseAmount;
       const difference = Math.abs(1 - sizeRatio);
-      if (difference <= 0.02) {
+      // Retailer package labels often differ by small rounding amounts (for
+      // example 15 oz versus 15.5 oz canned beans). Five percent preserves
+      // those equivalent shelf units without allowing a smaller package to be
+      // multiplied into a supposedly exact package request.
+      if (difference <= 0.05) {
         score += 18;
         reasons.push(`matches ${requestedSize.label}`);
       } else {

@@ -20,6 +20,28 @@ describe("parseShoppingList", () => {
     expect(parseShoppingList("eggs bacon")).toEqual(["eggs", "bacon"]);
   });
 
+  it.each([
+    "spaghetti pasta",
+    "banana bread",
+    "chicken sausage",
+    "turkey sausage",
+    "spinach pasta",
+    "cheese crackers",
+  ])("keeps the compound product %s on one row", (request) => {
+    expect(parseShoppingList(request)).toEqual([request]);
+  });
+
+  it("still honors explicit separators between compound-capable words", () => {
+    expect(parseShoppingList("banana, bread")).toEqual(["banana", "bread"]);
+    expect(parseShoppingList("chicken; sausage")).toEqual(["chicken", "sausage"]);
+  });
+
+  it("repairs compact container counts without changing 7up", () => {
+    expect(parseShoppingList("blackbeans4cans")).toEqual(["black beans 4 cans"]);
+    expect(parseShoppingList("orangejuice2bottles")).toEqual(["orange juice 2 bottles"]);
+    expect(parseShoppingList("7up")).toEqual(["7 up"]);
+  });
+
   it("parses a comma-separated grocery list", () => {
     expect(parseShoppingList("milk, eggs, chicken")).toEqual(["milk", "eggs", "chicken"]);
   });

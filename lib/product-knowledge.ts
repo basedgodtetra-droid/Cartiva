@@ -406,6 +406,7 @@ const CATEGORY_RULES: CategoryRule[] = [
   { id: "deodorant", detect: /\b(?:deodorant|antiperspirant)\b/i },
   { id: "shampoo", detect: /\bshampoo\b/i },
   { id: "conditioner", detect: /\bhair\s+conditioner\b|\bconditioner\b/i },
+  { id: "bacon", detect: /\bbacon\b/i, exclude: /\b(?:imitation\s+)?bacon\s+bits?\b/i },
   { id: "ground beef", detect: /\bground\s+beef\b/i },
   { id: "beef", detect: /\b(?:beef|steaks?|roasts?)\b/i, exclude: /\b(?:coffee|seasoning|sauce|marinade|flavor|jerky)\b/i },
   { id: "pork", detect: /\b(?:pork|pork\s+chops?|pork\s+ribs?)\b/i, exclude: /\b(?:seasoning|sauce|marinade|flavor|jerky)\b/i },
@@ -490,8 +491,8 @@ const CATEGORY_RULES: CategoryRule[] = [
   },
   {
     id: "pasta",
-    detect: /\b(?:pasta|spaghetti|penne|macaroni|fettuccine|linguine)\b/i,
-    exclude: /\bpasta\s+(?:sauce|salad|seasoning)\b|\bmac(?:aroni)?\s+and\s+cheese\b/i,
+    detect: /\b(?:pasta|spaghetti|penne|rotini|macaroni|fettuccine|linguine)\b/i,
+    exclude: /\b(?:pasta|spaghetti|penne|rotini|macaroni|fettuccine|linguine)\s+(?:sauce|salad|seasoning)\b|\bmac(?:aroni)?\s+and\s+cheese\b/i,
   },
   {
     id: "rice",
@@ -513,7 +514,6 @@ const CATEGORY_RULES: CategoryRule[] = [
     detect: /\b(?:beans?|chick\s*peas?|garbanzo(?:\s+beans?)?)\b/i,
     exclude: /\b(?:jelly|coffee|cocoa|vanilla)\s+beans?\b/i,
   },
-  { id: "bacon", detect: /\bbacon\b/i, exclude: /\b(?:imitation\s+)?bacon\s+bits?\b/i },
   {
     id: "meat",
     detect: /\b(?:beef|pork|steaks?|roasts?|ground beef|pork chops?|ribs?)\b/i,
@@ -523,9 +523,13 @@ const CATEGORY_RULES: CategoryRule[] = [
 ];
 
 function matchingCategoryRule(value: string) {
+  // "Chick peas" is a common catalog spelling of chickpeas. Normalize the
+  // compound before category precedence so the inner word "peas" cannot
+  // incorrectly classify a canned legume as fresh produce.
+  const categoryText = value.replace(/\bchick\s+peas?\b/gi, "chickpeas");
   for (const rule of CATEGORY_RULES) {
-    if (rule.exclude?.test(value)) continue;
-    const match = value.match(rule.detect)?.[0];
+    if (rule.exclude?.test(categoryText)) continue;
+    const match = categoryText.match(rule.detect)?.[0];
     if (match) return { rule, match };
   }
   return undefined;
@@ -729,6 +733,16 @@ export function productTypeMatchesRequest(request: string, product: WalmartProdu
     return false;
   }
   if (proteinIdentityConflicts(request, product.title)) return false;
+  if (
+    requestedType === "produce"
+    && extractProduceIdentity(request)
+    && extractProduceIdentity(request) === extractProductProduceIdentity(product)
+  ) {
+    // Cultivar names such as "Juice Oranges" can resemble prepared products
+    // to a text-only category rule. Exact identity may enter the dedicated
+    // form gate below; that gate still rejects snacks and other processing.
+    return true;
+  }
   // A concrete shopper-facing title is stronger identity evidence than a
   // retailer's broad aisle taxonomy. Kroger, for example, labels dry rice as
   // "Pasta, Sauces, Grain"; reading that metadata first misclassifies an
@@ -746,7 +760,7 @@ export function productTypeMatchesRequest(request: string, product: WalmartProdu
   return candidateType === requestedType;
 }
 
-export type ProduceForm = "fresh" | "frozen" | "canned" | "pickled" | "dried";
+export type ProduceForm = "fresh" | "frozen" | "canned" | "pickled" | "dried" | "prepared";
 
 const EXPLICIT_PRODUCE_FORM_RULES: Array<{ form: Exclude<ProduceForm, "fresh">; pattern: RegExp }> = [
   { form: "pickled", pattern: /\b(?:pickled|in brine)\b/i },
@@ -755,20 +769,61 @@ const EXPLICIT_PRODUCE_FORM_RULES: Array<{ form: Exclude<ProduceForm, "fresh">; 
   { form: "canned", pattern: /\b(?:canned|jarred|cans?|jars?)\b/i },
 ];
 
-const FRESH_PRODUCE_SIGNAL = /\b(?:fresh|fresh produce|fresh vegetables?|raw|whole|organic|bunch(?:es)?|each|heads?|stalks?|crowns?|loose|bundles?|clamshell|bagged?)\b/i;
+const FRESH_PRODUCE_SIGNAL = /\b(?:fresh|fresh produce|fresh vegetables?|raw|whole|bunch(?:es)?|each|heads?|stalks?|crowns?|loose|bundles?|clamshell|bagged?)\b/i;
+const FRESH_PRODUCE_TAXONOMY = /\b(?:fresh\s+)?(?:produce|fruits?|vegetables?)\b/i;
 const PREPARED_PRODUCE_SIGNAL = /\b(?:roasted|grilled|seasoned|breaded|fried|ready[ -]?to[ -]?eat|prepared meal|casserole)\b/i;
+const STRONG_PROCESSED_PRODUCE_SIGNAL = /\b(?:fruit\s+snacks?|baby\s+foods?|puree|pouches?|pudding|desserts?|chips?|bars?|sauces?|seasonings?|supplements?|powders?|drink\s+mix)\b/i;
+const AMBIGUOUS_PRODUCE_NAME_SIGNAL = /\b(?:juices?|smoothies?|cand(?:y|ies))\b/i;
+
+const PREPARED_PRODUCE_FAMILIES = [
+  { label: "fruit snack", pattern: /\bfruit\s+snacks?\b/i },
+  { label: "baby food", pattern: /\bbaby\s+foods?\b/i },
+  { label: "puree", pattern: /\bpuree\b/i },
+  { label: "pouch", pattern: /\bpouches?\b/i },
+  { label: "pudding", pattern: /\bpudding\b/i },
+  { label: "dessert", pattern: /\bdesserts?\b/i },
+  { label: "juice", pattern: /\bjuices?\b/i },
+  { label: "smoothie", pattern: /\bsmoothies?\b/i },
+  { label: "candy", pattern: /\bcand(?:y|ies)\b/i },
+  { label: "chips", pattern: /\bchips?\b/i },
+  { label: "bar", pattern: /\bbars?\b/i },
+  { label: "sauce", pattern: /\bsauces?\b/i },
+] as const;
 
 function explicitProduceForm(value: string) {
   return EXPLICIT_PRODUCE_FORM_RULES.find((rule) => rule.pattern.test(value))?.form;
 }
 
-function candidateProduceForm(product: WalmartProduct): ProduceForm | "prepared" | undefined {
-  const candidate = `${product.productType ?? ""} ${product.title}`;
+function preparedProduceFamily(value: string) {
+  return PREPARED_PRODUCE_FAMILIES.find((family) => family.pattern.test(value))?.label;
+}
+
+function candidateProduceForm(product: WalmartProduct): ProduceForm | undefined {
+  const title = product.title;
+  const taxonomy = product.productType ?? "";
+  const candidate = `${taxonomy} ${title}`;
   const explicit = explicitProduceForm(candidate);
   if (explicit) return explicit;
-  if (PREPARED_PRODUCE_SIGNAL.test(candidate)) return "prepared";
+  if (STRONG_PROCESSED_PRODUCE_SIGNAL.test(candidate) || PREPARED_PRODUCE_SIGNAL.test(candidate)) {
+    return "prepared";
+  }
+  // Juice, Candy, and Smoothie also appear in real cultivar names. Only a
+  // supporting fresh-department taxonomy can disambiguate those names.
+  if (AMBIGUOUS_PRODUCE_NAME_SIGNAL.test(candidate)) {
+    return FRESH_PRODUCE_TAXONOMY.test(taxonomy) ? "fresh" : "prepared";
+  }
   if (FRESH_PRODUCE_SIGNAL.test(candidate)) return "fresh";
+  if (FRESH_PRODUCE_TAXONOMY.test(taxonomy)) return "fresh";
+  // Concrete whole-produce titles remain usable when retailer form metadata
+  // is missing. All strong processed signals fail closed before this point.
+  if (extractProduceIdentity(title)) return "fresh";
   return undefined;
+}
+
+/** Prefer a concrete product title over broad retailer taxonomy. */
+export function extractProductProduceIdentity(product: WalmartProduct) {
+  return extractProduceIdentity(product.title)
+    ?? extractProduceIdentity(product.productType ?? "");
 }
 
 /**
@@ -793,8 +848,24 @@ export function assessProduceForm(
     return { rejected: false, scoreAdjustment: 0, reasons: [] };
   }
 
-  const requestedForm: ProduceForm = explicitProduceForm(request) ?? "fresh";
+  const requestedForm: ProduceForm = explicitProduceForm(request)
+    ?? (STRONG_PROCESSED_PRODUCE_SIGNAL.test(request)
+      || PREPARED_PRODUCE_SIGNAL.test(request)
+      || AMBIGUOUS_PRODUCE_NAME_SIGNAL.test(request)
+      ? "prepared"
+      : "fresh");
   const candidateForm = candidateProduceForm(product);
+  const requestedIdentity = extractProduceIdentity(request);
+  const candidateIdentity = extractProductProduceIdentity(product);
+  if (requestedIdentity && candidateIdentity !== requestedIdentity) {
+    return {
+      rejected: true,
+      scoreAdjustment: 0,
+      reasons: [candidateIdentity
+        ? `requested ${requestedIdentity}, but the product is ${candidateIdentity}`
+        : `does not confirm ${requestedIdentity} produce identity`],
+    };
+  }
   if (candidateForm !== requestedForm) {
     return {
       rejected: true,
@@ -803,6 +874,19 @@ export function assessProduceForm(
         ? `requested ${requestedForm} produce, but the product is ${candidateForm}`
         : `does not confirm ${requestedForm} produce`],
     };
+  }
+  if (requestedForm === "prepared") {
+    const requestedFamily = preparedProduceFamily(request);
+    const candidateFamily = preparedProduceFamily(`${product.productType ?? ""} ${product.title}`);
+    if (!requestedFamily || candidateFamily !== requestedFamily) {
+      return {
+        rejected: true,
+        scoreAdjustment: 0,
+        reasons: [candidateFamily
+          ? `requested ${requestedFamily ?? "prepared produce"}, but the product is ${candidateFamily}`
+          : "does not confirm the requested prepared-produce family"],
+      };
+    }
   }
 
   return {
@@ -929,6 +1013,7 @@ function assessMeatPreparation(
   const unrequestedCandidateFeatures = candidateFeatures.filter((feature) => {
     if (requestedFeatures.some((requested) => requested.id === feature.id)) return false;
     if (requestedCategory === "canned seafood" && feature.id === "canned") return false;
+    if (requestedCategory === "bacon" && feature.id === "smoked") return false;
     if (allowsAnyCookingState && feature.id === "cooked") return false;
     if (allowsAnyStyle && feature.id === "smoked") return false;
     return true;
@@ -1075,6 +1160,7 @@ const SODA_VARIANTS = [
 interface CategorySpecialtyVariantPolicy {
   category: string;
   variants: Array<{ label: string; pattern: RegExp }>;
+  rejectUnrequested?: boolean;
 }
 
 /**
@@ -1087,6 +1173,16 @@ const CATEGORY_SPECIALTY_VARIANTS: CategorySpecialtyVariantPolicy[] = [
   {
     category: "bread",
     variants: [{ label: "gluten-free", pattern: /\bgluten[ -]?free\b/i }],
+  },
+  {
+    category: "pasta",
+    rejectUnrequested: true,
+    variants: [
+      { label: "legume-based", pattern: /\b(?:chick\s*peas?|garbanzo|lentils?|black\s+beans?|edamame)\b/i },
+      { label: "vegetable-based", pattern: /\b(?:cauliflower|hearts?\s+of\s+palm|zucchini)\b/i },
+      { label: "konjac", pattern: /\b(?:konjac|shirataki)\b/i },
+      { label: "alternative-grain", pattern: /\b(?:gluten[ -]?free|rice\s+pasta|corn\s+pasta|quinoa\s+pasta)\b/i },
+    ],
   },
 ];
 
@@ -1115,6 +1211,13 @@ function assessCategorySpecialtyVariant(
 
   const unrequested = candidateVariants.filter((variant) => !requestedVariants.includes(variant));
   if (unrequested.length) {
+    if (policy.rejectUnrequested) {
+      return {
+        rejected: true,
+        scoreAdjustment: 0,
+        reasons: [`unrequested ${unrequested.map((item) => item.label).join(" and ")} variety`],
+      };
+    }
     return {
       rejected: false,
       scoreAdjustment: -20,
@@ -1134,6 +1237,42 @@ function assessCategorySpecialtyVariant(
 const CONFIRMED_SODA_IDENTITY_SCORE = 18;
 const CONFIRMED_SODA_VARIANT_SCORE = 14;
 
+const PASTA_SHAPES = [
+  { label: "spaghetti", pattern: /\bspaghetti\b/i },
+  { label: "penne", pattern: /\bpenne\b/i },
+  { label: "rotini", pattern: /\brotini\b/i },
+  { label: "macaroni", pattern: /\bmacaroni\b/i },
+  { label: "fettuccine", pattern: /\bfettuccine\b/i },
+  { label: "linguine", pattern: /\blinguine\b/i },
+];
+
+function assessPastaShape(
+  request: string,
+  product: WalmartProduct,
+  requestedType: string | undefined,
+  candidateType: string | undefined,
+): ProductVariantAssessment | undefined {
+  if (requestedType !== "pasta" || candidateType !== "pasta") return undefined;
+  const requested = PASTA_SHAPES.find((shape) => shape.pattern.test(request));
+  if (!requested) return undefined;
+  const candidate = `${product.productType ?? ""} ${product.title}`;
+  const offered = PASTA_SHAPES.find((shape) => shape.pattern.test(candidate));
+  if (!offered || offered.label !== requested.label) {
+    return {
+      rejected: true,
+      scoreAdjustment: 0,
+      reasons: [offered
+        ? `requested ${requested.label}, but the product is ${offered.label}`
+        : `does not confirm ${requested.label} pasta`],
+    };
+  }
+  return {
+    rejected: false,
+    scoreAdjustment: 14,
+    reasons: [`matches ${requested.label} pasta shape`],
+  };
+}
+
 /** Keep named soda requests on their standard/original variety by default. */
 export function assessProductVariant(
   request: string,
@@ -1141,15 +1280,25 @@ export function assessProductVariant(
 ): ProductVariantAssessment {
   const requestedType = inferProductCategory(request);
   const candidateType = inferProductCategory(`${product.productType ?? ""} ${product.title}`);
+  const pastaShape = assessPastaShape(request, product, requestedType, candidateType);
+  if (pastaShape?.rejected) return pastaShape;
   const categorySpecialty = assessCategorySpecialtyVariant(
     request,
     product,
     requestedType,
     candidateType,
   );
-  if (categorySpecialty) return categorySpecialty;
+  if (categorySpecialty?.rejected) return categorySpecialty;
+  const combinedCategoryAssessment = {
+    rejected: false,
+    scoreAdjustment: (categorySpecialty?.scoreAdjustment ?? 0) + (pastaShape?.scoreAdjustment ?? 0),
+    reasons: [
+      ...(categorySpecialty?.reasons ?? []),
+      ...(pastaShape?.reasons ?? []),
+    ],
+  };
   if (requestedType !== "soda" || candidateType !== "soda") {
-    return { rejected: false, scoreAdjustment: 0, reasons: [] };
+    return combinedCategoryAssessment;
   }
 
   const requestedBrand = extractRequestedBrand(request);

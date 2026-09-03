@@ -1,0 +1,59 @@
+{
+  "runId": "run-0001-baseline",
+  "recordedAt": "2026-09-02T19:10:03.2342185-06:00",
+  "source": {
+    "gitCommit": "a2dd950de49a8b53a0cf970bde859d7b81a7098f",
+    "description": "Current Cartiva source immediately after the generalized false-no-match package-fulfillment commit, before Cartiva 100 fixes"
+  },
+  "fixture": {
+    "schemaVersion": 1,
+    "caseCount": 100,
+    "casesPerLevel": 20,
+    "scoringPolicy": "shopper-outcome-v1"
+  },
+  "scores": {
+    "3": 38,
+    "2": 18,
+    "1": 2,
+    "0": 42,
+    "score2Or3Percent": 56,
+    "atLeast1Percent": 58,
+    "deadEndPercent": 39,
+    "targetMet": false
+  },
+  "levels": {
+    "1": { "useful": 14, "score2Or3": 14, "total": 20 },
+    "2": { "useful": 13, "score2Or3": 13, "total": 20 },
+    "3": { "useful": 19, "score2Or3": 18, "total": 20 },
+    "4": { "useful": 4, "score2Or3": 3, "total": 20 },
+    "5": { "useful": 8, "score2Or3": 8, "total": 20 }
+  },
+  "failureCategories": {
+    "CLARIFICATION": 19,
+    "SEARCH_QUERY": 9,
+    "QUANTITY_SEMANTICS": 7,
+    "ITEM_BOUNDARY": 3,
+    "PACKAGE_SIZE": 3,
+    "CATEGORY_CLASSIFICATION": 2,
+    "TYPO_NORMALIZATION": 1
+  },
+  "performance": {
+    "averageParsingMs": 0.166,
+    "averageLocalMatchingMs": 1.173,
+    "averageSearchAttempts": 0.73,
+    "retailerCalls": 0
+  },
+  "score0CaseIds": [
+    "C100-L1-004", "C100-L1-005", "C100-L1-008", "C100-L1-013",
+    "C100-L1-019", "C100-L1-020", "C100-L2-002", "C100-L2-006",
+    "C100-L2-011", "C100-L2-015", "C100-L2-018", "C100-L2-019",
+    "C100-L2-020", "C100-L3-018", "C100-L4-001", "C100-L4-002",
+    "C100-L4-003", "C100-L4-004", "C100-L4-006", "C100-L4-007",
+    "C100-L4-008", "C100-L4-010", "C100-L4-012", "C100-L4-013",
+    "C100-L4-014", "C100-L4-015", "C100-L4-016", "C100-L4-017",
+    "C100-L4-019", "C100-L4-020", "C100-L5-005", "C100-L5-006",
+    "C100-L5-008", "C100-L5-009", "C100-L5-010", "C100-L5-011",
+    "C100-L5-014", "C100-L5-015", "C100-L5-016", "C100-L5-018",
+    "C100-L5-019", "C100-L5-020"
+  ]
+}

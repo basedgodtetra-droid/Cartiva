@@ -25,6 +25,17 @@ const PACKAGE_ONLY =
  * by an AI parser without changing the UI.
  */
 const GROCERY_ANCHORS = [
+  "spaghetti pasta",
+  "penne pasta",
+  "rotini pasta",
+  "macaroni pasta",
+  "fettuccine pasta",
+  "linguine pasta",
+  "banana bread",
+  "chicken sausage",
+  "turkey sausage",
+  "spinach pasta",
+  "cheese crackers",
   "boneless skinless chicken breast",
   "new york strip steak",
   "filet mignon steak",
@@ -47,7 +58,9 @@ const GROCERY_ANCHORS = [
   "ground chicken",
   "ground beef",
   "ground turkey",
+  "ground meat",
   "turkey breast",
+  "turkey bacon",
   "whole turkey",
   "deli turkey",
   "ribeye steak",
@@ -68,6 +81,10 @@ const GROCERY_ANCHORS = [
   "apple juice",
   "paper towels",
   "toilet paper",
+  "trash bags",
+  "pork bacon",
+  "breakfast food",
+  "taco shells",
   "ice cream",
   "cream cheese",
   "cottage cheese",
@@ -180,6 +197,62 @@ const GROCERY_ANCHOR_PATTERNS = GROCERY_ANCHORS.map((anchor) => ({
   expression: new RegExp(`\\b${escapeRegExp(anchor).replaceAll(" ", "\\s+")}\\b`, "gi"),
 }));
 
+const COMPACTED_GROCERY_PHRASES = GROCERY_ANCHORS
+  .filter((anchor) => anchor.includes(" "))
+  .map((anchor) => ({ compact: anchor.replaceAll(" ", ""), expanded: anchor }))
+  .sort((left, right) => right.compact.length - left.compact.length);
+
+// Keep typo repair deliberately allow-listed. A broad edit-distance pass can
+// silently mutate valid grocery attributes (for example, creamy -> cream or
+// block -> black), which is more dangerous than leaving an unknown word for
+// safe review.
+const COMMON_GROCERY_TYPOS: Record<string, string> = {
+  avacado: "avocado",
+  banannas: "bananas",
+  brocolli: "broccoli",
+  chiken: "chicken",
+  chickn: "chicken",
+  cok: "coke",
+  potatos: "potatoes",
+  tomatos: "tomatoes",
+  yogrt: "yogurt",
+};
+
+function conservativeGroceryTypo(token: string) {
+  return COMMON_GROCERY_TYPOS[token.toLowerCase()] ?? token;
+}
+
+/**
+ * Repairs only high-confidence human grocery shorthand before list splitting.
+ * The rules are category-neutral: compacted known phrases, unit spacing, a
+ * single unambiguous edit, and a lean/fat ratio in an explicit ground-meat
+ * context. Original intent is never expanded with a new product attribute.
+ */
+export function normalizeHumanGroceryText(input: string) {
+  const compactUnit = "(?:lbs?|pounds?|fl\\s*oz|ounces?|oz|count|ct|packs?|pk|rolls?|cans?|bottles?|bags?|boxes?|cartons?|jars?|tubs?|bunches?|loaves?|gallons?|gal)";
+  let value = input
+    .normalize("NFKC")
+    .replace(new RegExp(`([a-z])(?=\\d+(?:\\.\\d+)?(?:\\s*)?${compactUnit}\\b)`, "gi"), "$1 ")
+    .replace(new RegExp(`(\\d)(?=${compactUnit}\\b)`, "gi"), "$1 ")
+    .replace(/%(?=[a-z])/gi, "% ");
+
+  for (const phrase of COMPACTED_GROCERY_PHRASES) {
+    value = value.replace(
+      new RegExp(`\\b${escapeRegExp(phrase.compact)}\\b`, "gi"),
+      phrase.expanded,
+    );
+  }
+
+  value = value.replace(/\b[a-z]{3,}\b/gi, (token) => conservativeGroceryTypo(token));
+  value = value.replace(
+    /\b(\d{2})\s+(\d{1,2})(?=\s+(?:ground\s+)?(?:beef|turkey|meat)\b)/gi,
+    (match, leanText: string, fatText: string) => (
+      Number(leanText) + Number(fatText) === 100 ? `${leanText}/${fatText}` : match
+    ),
+  );
+  return value.replace(/[ \t]+/g, " ").trim();
+}
+
 function protectCompounds(value: string) {
   let protectedValue = value;
   const replacements = new Map<string, string>();
@@ -230,7 +303,7 @@ function implicitItemBoundary(value: string, previous: GroceryAnchor, next: Groc
   const nextIsSoda = /^(?:coke(?: zero)?|coca[-\s]?cola(?: soda)?|pepsi|sprite|dr pepper|mountain dew|7\s?up|soda)$/.test(nextProduct);
   const previousIsSoda = /^(?:coke(?: zero)?|coca[-\s]?cola(?: soda)?|pepsi|sprite|dr pepper|mountain dew|7\s?up|soda)$/.test(previousProduct);
   const milkPrefix = nextIsMilk
-    ? between.match(/(?:^|\s)((?:[012]\s*%|whole|skim|fat[-\s]?free|(?:a\s+)?half[-\s]?gallon|\d+(?:\.\d+)?\s*(?:gal(?:lons?)?|gallons?|liters?|litres?|l|ml|fl\s*oz)))\s*$/i)?.[1]
+    ? between.match(/(?:^|\s)((?:[012]\s*%|whole|skim|fat[-\s]?free|(?:a\s+)?half[-\s]?gallon|\d+(?:\.\d+)?\s*(?:gal(?:lons?)?|gallons?|liters?|litres?|l|ml|fl\s*oz)|\d{1,2}))\s*$/i)?.[1]
     : undefined;
   const sodaPrefix = nextIsSoda && !previousIsSoda
     ? between.match(/(?:^|\s)((?:diet|zero\s+sugar|original|regular|\d{1,3}\s*[- ]?\s*(?:pack|pk)))\s*$/i)?.[1]
@@ -275,7 +348,7 @@ export function parseShoppingList(input: string, limit = 24): string[] {
   if (safeLimit === 0) return [];
   const chunkScanLimit = safeLimit * 4;
 
-  const withoutPrefix = input.trim().replace(LEADING_REQUEST, "");
+  const withoutPrefix = normalizeHumanGroceryText(input).replace(LEADING_REQUEST, "");
   const { protectedValue, replacements } = protectCompounds(withoutPrefix);
   const chunks = protectedValue
     .replace(/\r/g, "")

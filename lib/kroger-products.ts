@@ -220,14 +220,14 @@ function identityVerificationText(intent: ProductIntent) {
   const container = intent.requestedContainer;
   const containerCarriesProduceForm = container === "can"
     && inferProductCategory(intent.verificationText) === "produce";
-  if (
-    !container
-    || container === "each"
-    || (container === "can" && !containerCarriesProduceForm)
-    || !/^(?:can|bottle|jar|bag|box|carton|roll|bunch|loaf)$/.test(container)
-    || new RegExp(`\\b${container}\\b`, "i").test(intent.verificationText)
-  ) return intent.verificationText;
-  return `${intent.verificationText} ${container}`;
+  // A can changes food form (dry beans versus canned beans, culinary can
+  // versus beverage carton), so it belongs in identity verification. Other
+  // container words are often omitted from otherwise valid retailer titles;
+  // their explicit conflicts are handled by retailerContainerCompatible.
+  if (!containerCarriesProduceForm || /\b(?:can|canned)\b/i.test(intent.verificationText)) {
+    return intent.verificationText;
+  }
+  return `${intent.verificationText} can`;
 }
 
 export interface KrogerRankingOptions {
@@ -253,9 +253,10 @@ export function rankKrogerProducts(
     && retailerContainerCompatible(intent, product)
   ));
   const sourceConstraints = constraints.length ? constraints : intent.constraints;
-  const effectiveConstraints = intent.strictPackageRequest
-    ? sourceConstraints
-    : sourceConstraints.filter((constraint) => !isPackageConstraint(constraint));
+  // Package constraints are verified from normalized numeric/container data
+  // below. Re-checking them as literal title phrases rejects harmless catalog
+  // wording such as a standard 15.5 oz can for a 15 oz request.
+  const effectiveConstraints = sourceConstraints.filter((constraint) => !isPackageConstraint(constraint));
   const exact = rankEligibleKrogerProducts(
     identityVerificationText(intent),
     eligible,
@@ -332,6 +333,23 @@ export function rankKrogerProducts(
         verifiedAt: selected.product.checkedAt,
       };
     }
+  }
+
+  if (exact.recommended) {
+    return {
+      ...exact,
+      requestedItem: request,
+      recommended: null,
+      alternatives: exact.alternatives.filter((candidate) => Boolean(
+        packageFulfillmentForProduct(intent, candidate, cartQuantity),
+      )),
+      confidence: "low",
+      status: exact.clarification ? "review" : "no_match",
+      resolution: exact.clarification ? "needs_choice" : "truly_unavailable",
+      explanation: exact.clarification
+        ?? "Kroger found the product identity, but no package can safely fulfill the requested amount.",
+      verifiedAt: undefined,
+    };
   }
 
   return {

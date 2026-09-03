@@ -88,6 +88,28 @@ describe("retailer package quantity semantics", () => {
     });
   });
 
+  it("treats household roll counts as one exact retailer package", () => {
+    expect(parseRetailerPackageQuantity("Paper Towels, 6 rolls")).toEqual({
+      quantity: 1,
+      searchText: "Paper Towels, 6 rolls",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+    expect(parseRetailerPackageQuantity("12 rolls toilet paper")).toEqual({
+      quantity: 1,
+      searchText: "12 rolls toilet paper",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+  });
+
+  it("preserves dozen package identity and a separate cart multiplier", () => {
+    expect(parseRetailerPackageQuantity("2 dozen eggs")).toEqual({
+      quantity: 2,
+      searchText: "eggs 12 count",
+      packageSizeText: "12 count",
+      origin: AttributeOrigin.USER_EXPLICIT,
+    });
+  });
+
   it.each([
     ["Chickpeas 3 cans", 3, "Chickpeas"],
     ["Diced Tomatoes 8 cans", 8, "Diced Tomatoes"],

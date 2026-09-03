@@ -76,17 +76,45 @@ describe("retailer-neutral product discovery intent", () => {
   it("normalizes bare volume shorthand but omits it from discovery", () => {
     const intent = parseProductIntent("2% milk gallon");
 
-    expect(intent.requestedPackageLabel).toBeUndefined();
-    expect(intent.requestedTotal).toMatchObject({
-      kind: "volume",
-      baseAmount: 128,
-      baseUnit: "fl oz",
-    });
-    expect(intent.strictPackageRequest).toBe(false);
+    expect(intent.requestedPackageLabel).toBe("1-gallon");
+    expect(intent.requestedTotal).toBeUndefined();
+    expect(intent.strictPackageRequest).toBe(true);
     expect(intent.discoveryQueries[0].query).toBe("2% milk");
     expect(intent.constraints.some((item) => item.label === "2% milk")).toBe(true);
     expect(extractMeasurement("whole milk gallon")?.baseAmount).toBe(128);
     expect(extractMeasurement("milk half gallon")?.baseAmount).toBe(64);
+  });
+
+  it("keeps package contents out of discovery without turning them into cart quantity", () => {
+    const towels = parseProductIntent("paper towels 6 rolls");
+    expect(towels).toMatchObject({
+      requestedCartQuantity: 1,
+      requestedPackageLabel: "6 count",
+      strictPackageRequest: true,
+    });
+    expect(towels.discoveryQueries[0].query).toBe("paper towels");
+
+    const eggs = parseProductIntent("2 dozen eggs");
+    expect(eggs).toMatchObject({
+      requestedCartQuantity: 2,
+      requestedPackageLabel: "12 count",
+      strictPackageRequest: true,
+    });
+    expect(eggs.discoveryQueries[0].query).toBe("eggs");
+  });
+
+  it.each([
+    ["plain Greek yogurt 32 oz", "32 oz"],
+    ["orange juice 52 fl oz", "52 fl oz"],
+    ["white rice 5 lb", "5 lb"],
+    ["chickpeas 15 oz", "15 oz"],
+    ["coconut milk 13.5 fl oz", "13.5 fl oz"],
+    ["frozen broccoli 10 oz", "10 oz"],
+  ])("treats measured shelf packages as strict for %s", (request, packageLabel) => {
+    const intent = parseProductIntent(request);
+    expect(intent.strictPackageRequest).toBe(true);
+    expect(intent.requestedPackageLabel).toBe(packageLabel);
+    expect(intent.requestedTotal).toBeUndefined();
   });
 
   it.each([
@@ -113,6 +141,8 @@ describe("retailer-neutral product discovery intent", () => {
   it.each([
     ["Ground Turkey 93/7 3 lb", "Ground Turkey 93 7", 48],
     ["Red Lentil Pasta 1.8 lb", "Red Lentil Pasta", 28.8],
+    ["bananas 3 lb", "bananas", 48],
+    ["pasta 2 lb total", "pasta", 32],
   ])("treats a requested physical amount as a fulfillable total: %s", (
     request,
     fulfillmentText,

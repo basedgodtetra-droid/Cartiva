@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 1,
+  "suite": {
+    "id": "cartiva-100",
+    "title": "CARTIVA 100",
+    "scoringPolicy": "shopper-outcome-v1",
+    "requiredPerLevel": { "1": 20, "2": 20, "3": 20, "4": 20, "5": 20 },
+    "targets": { "score2Or3Percent": 90, "atLeast1Percent": 95, "deadEndPercentExclusive": 5 }
+  },
+  "cases": [
+    {
+      "id": "C100-L1-001", "level": 1, "input": "whole milk 1 gallon", "tags": ["PRODUCT_IDENTITY", "VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["milk-whole-gallon"], "candidateIds": ["milk-2pct-gallon", "milk-whole-gallon", "milk-almond-half"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["whole", "milk"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L1-002", "level": 1, "input": "white bread", "tags": ["PRODUCT_IDENTITY", "VARIANT"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bread-white-20"], "candidateIds": ["bread-wheat-20", "bread-sourdough-24", "bread-white-20"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["white", "bread"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L1-003", "level": 1, "input": "large white eggs 18 count", "tags": ["PRODUCT_IDENTITY", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["eggs-white-18"], "candidateIds": ["eggs-white-12", "eggs-brown-12", "eggs-white-18"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["eggs"], "excludes": ["18", "count"] } }]
+    },
+    {
+      "id": "C100-L1-004", "level": 1, "input": "bananas", "tags": ["PRODUCT_IDENTITY", "CATEGORY_CLASSIFICATION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bananas-each"], "candidateIds": ["banana-pudding", "bananas-each"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["bananas"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L1-005", "level": 1, "input": "apples", "tags": ["PRODUCT_IDENTITY", "CATEGORY_CLASSIFICATION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["apples-each"], "candidateIds": ["apple-juice-64", "apples-each"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["apples"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L1-006", "level": 1, "input": "white rice 5 lb", "tags": ["PRODUCT_IDENTITY", "PACKAGE_SIZE"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["rice-white-5lb"], "candidateIds": ["rice-ready-cooked", "rice-brown-5lb", "rice-white-5lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["white", "rice"], "excludes": ["5", "lb"] } }]
+    },
+    {
+      "id": "C100-L1-007", "level": 1, "input": "black beans 15 oz", "tags": ["PRODUCT_IDENTITY", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["beans-black-can", "beans-black-low-sodium-can"], "candidateIds": ["beans-kidney-can", "beans-black-can", "beans-black-low-sodium-can"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["black", "beans"], "excludes": ["15", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-008", "level": 1, "input": "chickpeas 15 oz", "tags": ["PRODUCT_IDENTITY", "ALIAS", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["chickpeas-can"], "candidateIds": ["chickpea-pasta", "beans-kidney-can", "chickpeas-can"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["chickpeas"], "excludes": ["15", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-009", "level": 1, "input": "creamy peanut butter 16 oz", "tags": ["PRODUCT_IDENTITY", "VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["peanut-butter-creamy-16"], "candidateIds": ["olive-oil-evoo-17", "peanut-butter-creamy-16"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["peanut", "butter"], "excludes": ["16", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-010", "level": 1, "input": "extra virgin olive oil 16.9 fl oz", "tags": ["PRODUCT_IDENTITY", "VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["olive-oil-evoo-17"], "candidateIds": ["apple-juice-64", "olive-oil-evoo-17"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["olive", "oil"], "excludes": ["16.9", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-011", "level": 1, "input": "boneless skinless chicken breast 1 lb", "tags": ["PRODUCT_IDENTITY", "ATTRIBUTE_EXTRACTION"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["chicken-breast-boneless-1lb"], "candidateIds": ["chicken-thighs-bonein-1lb", "chicken-wings-2lb", "chicken-breast-boneless-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["chicken", "breast"], "excludes": ["1", "lb"] } }]
+    },
+    {
+      "id": "C100-L1-012", "level": 1, "input": "93/7 ground beef 1 lb", "tags": ["PRODUCT_IDENTITY", "VARIANT", "ATTRIBUTE_EXTRACTION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["ground-beef-93-1lb"], "candidateIds": ["ground-beef-80-1lb", "ground-turkey-93-1lb", "ground-beef-93-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["ground", "beef"], "excludes": ["1", "lb"] } }]
+    },
+    {
+      "id": "C100-L1-013", "level": 1, "input": "regular cut pork bacon 12 oz", "tags": ["PRODUCT_IDENTITY", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bacon-pork-regular-12"], "candidateIds": ["bacon-turkey-12", "bacon-pork-regular-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["bacon"], "excludes": ["12", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-014", "level": 1, "input": "plain Greek yogurt 32 oz", "tags": ["PRODUCT_IDENTITY", "VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["yogurt-greek-plain-32"], "candidateIds": ["yogurt-regular-vanilla-32", "yogurt-greek-vanilla-32", "yogurt-greek-plain-32"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["plain", "greek", "yogurt"], "excludes": ["32", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-015", "level": 1, "input": "orange juice 52 fl oz", "tags": ["PRODUCT_IDENTITY", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["juice-orange-52"], "candidateIds": ["apple-juice-64", "juice-orange-52"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["orange", "juice"], "excludes": ["52", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-016", "level": 1, "input": "Coca-Cola original 12 pack", "tags": ["BRAND", "VARIANT", "PACKAGE_SIZE"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coke-original-12"], "candidateIds": ["diet-coke-12", "coke-zero-12", "coke-original-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["coca", "cola"], "excludes": ["12", "pack"] } }]
+    },
+    {
+      "id": "C100-L1-017", "level": 1, "input": "Coke Zero 12 pack", "tags": ["ALIAS", "VARIANT", "PACKAGE_SIZE"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coke-zero-12"], "candidateIds": ["diet-coke-12", "coke-original-12", "coke-zero-2liter", "coke-zero-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["coke", "zero"], "excludes": ["12", "pack"] } }]
+    },
+    {
+      "id": "C100-L1-018", "level": 1, "input": "sharp cheddar cheese block 8 oz", "tags": ["PRODUCT_IDENTITY", "VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["cheddar-sharp-block-8"], "candidateIds": ["mozzarella-shredded-8", "cheddar-sharp-block-8"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["cheddar", "cheese"], "excludes": ["8", "oz"] } }]
+    },
+    {
+      "id": "C100-L1-019", "level": 1, "input": "paper towels 6 rolls", "tags": ["PRODUCT_IDENTITY", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["paper-towels-6roll"], "candidateIds": ["paper-towels-single", "toilet-paper-12roll", "paper-towels-6roll"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["paper", "towels"], "excludes": ["6", "rolls"] } }]
+    },
+    {
+      "id": "C100-L1-020", "level": 1, "input": "toilet paper 12 rolls", "tags": ["PRODUCT_IDENTITY", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["toilet-paper-12roll"], "candidateIds": ["paper-towels-6roll", "toilet-paper-12roll"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["toilet", "paper"], "excludes": ["12", "rolls"] } }]
+    },
+
+    {
+      "id": "C100-L2-001", "level": 2, "input": "kidney beans 4 cans", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["beans-kidney-can"], "candidateIds": ["beans-black-can", "beans-kidney-can"], "cartQuantity": 4, "packageCount": 4, "query": { "includes": ["kidney", "beans"], "excludes": ["4", "cans"] } }]
+    },
+    {
+      "id": "C100-L2-002", "level": 2, "input": "chickpeas 3 cans", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE", "ALIAS"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["chickpeas-can"], "candidateIds": ["chickpea-pasta", "beans-kidney-can", "chickpeas-can"], "cartQuantity": 3, "packageCount": 3, "query": { "includes": ["chickpeas"], "excludes": ["3", "cans"] } }]
+    },
+    {
+      "id": "C100-L2-003", "level": 2, "input": "diced tomatoes 8 cans", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["tomatoes-diced-can"], "candidateIds": ["tomatoes-fresh-each", "tomatoes-diced-can"], "cartQuantity": 8, "packageCount": 8, "query": { "includes": ["diced", "tomatoes"], "excludes": ["8", "cans"] } }]
+    },
+    {
+      "id": "C100-L2-004", "level": 2, "input": "light coconut milk 2 cans", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coconut-light-can"], "candidateIds": ["coconut-regular-can", "milk-almond-half", "coconut-light-can"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["light", "coconut", "milk"], "excludes": ["2", "cans"] } }]
+    },
+    {
+      "id": "C100-L2-005", "level": 2, "input": "2 gallons of milk", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "milk-type", "select": "whole", "minOptions": 4 }], "allowedProductIds": ["milk-whole-gallon"], "candidateIds": ["milk-2pct-gallon", "milk-whole-gallon"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["whole", "milk"], "excludes": ["2", "gallons"] } }]
+    },
+    {
+      "id": "C100-L2-006", "level": 2, "input": "6 bananas", "tags": ["QUANTITY_SEMANTICS", "PRODUCE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bananas-each"], "candidateIds": ["banana-pudding", "bananas-each"], "cartQuantity": 6, "packageCount": 6, "query": { "includes": ["bananas"], "excludes": ["6"] } }]
+    },
+    {
+      "id": "C100-L2-007", "level": 2, "input": "eggs 18 count", "tags": ["PACKAGE_SIZE", "QUANTITY_SEMANTICS"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["eggs-white-18"], "candidateIds": ["eggs-white-12", "eggs-white-18"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["eggs"], "excludes": ["18", "count"] } }]
+    },
+    {
+      "id": "C100-L2-008", "level": 2, "input": "ground turkey 3 lb", "tags": ["QUANTITY_SEMANTICS", "MULTI_PACKAGE_FULFILLMENT", "CLARIFICATION"], "liveKroger": true,
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "ground-turkey-ratio", "select": "any", "minOptions": 4 }], "allowedProductIds": ["ground-turkey-93-1lb"], "candidateIds": ["ground-beef-93-1lb", "ground-turkey-93-1lb"], "cartQuantity": 3, "packageCount": 3, "query": { "includes": ["ground", "turkey"], "excludes": ["3", "lb"] } }]
+    },
+    {
+      "id": "C100-L2-009", "level": 2, "input": "chicken breast 2 lb", "tags": ["QUANTITY_SEMANTICS", "MULTI_PACKAGE_FULFILLMENT", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "chicken-preparation", "select": "any", "minOptions": 3 }], "allowedProductIds": ["chicken-breast-boneless-1lb"], "candidateIds": ["chicken-thighs-bonein-1lb", "chicken-breast-boneless-1lb"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["chicken", "breast"], "excludes": ["2", "lb"] } }]
+    },
+    {
+      "id": "C100-L2-010", "level": 2, "input": "Coke Zero 12 pack x2", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coke-zero-12"], "candidateIds": ["diet-coke-12", "coke-zero-2liter", "coke-zero-12"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["coke", "zero"], "excludes": ["12", "pack", "x2"] } }]
+    },
+    {
+      "id": "C100-L2-011", "level": 2, "input": "paper towels 6 rolls", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["paper-towels-6roll"], "candidateIds": ["paper-towels-single", "paper-towels-6roll"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["paper", "towels"], "excludes": ["6", "rolls"] } }]
+    },
+    {
+      "id": "C100-L2-012", "level": 2, "input": "trash bags 40 count", "tags": ["PACKAGE_SIZE", "PRODUCT_IDENTITY"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["trash-bags-40count"], "candidateIds": ["laundry-unscented-92", "trash-bags-40count"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["trash", "bags"], "excludes": ["40", "count"] } }]
+    },
+    {
+      "id": "C100-L2-013", "level": 2, "input": "rice 5 lb", "tags": ["PACKAGE_SIZE", "QUANTITY_SEMANTICS"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["rice-white-5lb", "rice-brown-5lb"], "candidateIds": ["rice-ready-cooked", "rice-white-5lb", "rice-brown-5lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["rice"], "excludes": ["5", "lb"] } }]
+    },
+    {
+      "id": "C100-L2-014", "level": 2, "input": "Greek yogurt 32 oz", "tags": ["PACKAGE_SIZE", "QUANTITY_SEMANTICS"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["yogurt-greek-plain-32", "yogurt-greek-vanilla-32"], "candidateIds": ["yogurt-regular-vanilla-32", "yogurt-greek-plain-32", "yogurt-greek-vanilla-32"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["greek", "yogurt"], "excludes": ["32", "oz"] } }]
+    },
+    {
+      "id": "C100-L2-015", "level": 2, "input": "2 loaves white bread", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bread-white-20"], "candidateIds": ["bread-wheat-20", "bread-white-20"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["white", "bread"], "excludes": ["2", "loaves"] } }]
+    },
+    {
+      "id": "C100-L2-016", "level": 2, "input": "3 cans black beans", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["beans-black-can", "beans-black-low-sodium-can"], "candidateIds": ["beans-kidney-can", "beans-black-can", "beans-black-low-sodium-can"], "cartQuantity": 3, "packageCount": 3, "query": { "includes": ["black", "beans"], "excludes": ["3", "cans"] } }]
+    },
+    {
+      "id": "C100-L2-017", "level": 2, "input": "orange juice 2 bottles", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["juice-orange-52"], "candidateIds": ["apple-juice-64", "juice-orange-52"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["orange", "juice"], "excludes": ["2", "bottles"] } }]
+    },
+    {
+      "id": "C100-L2-018", "level": 2, "input": "4 avocados", "tags": ["QUANTITY_SEMANTICS", "PRODUCE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["avocado-each"], "candidateIds": ["apples-each", "avocado-each"], "cartQuantity": 4, "packageCount": 4, "query": { "includes": ["avocados"], "excludes": ["4"] } }]
+    },
+    {
+      "id": "C100-L2-019", "level": 2, "input": "2 dozen eggs", "tags": ["QUANTITY_SEMANTICS", "MULTI_PACKAGE_FULFILLMENT", "UNIT_CONVERSION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["eggs-white-12"], "candidateIds": ["eggs-white-18", "eggs-white-12"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["eggs"], "excludes": ["2", "dozen"] } }]
+    },
+    {
+      "id": "C100-L2-020", "level": 2, "input": "3 boxes pasta", "tags": ["QUANTITY_SEMANTICS", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["pasta-spaghetti-16", "pasta-penne-16"], "candidateIds": ["chickpea-pasta", "pasta-spaghetti-16", "pasta-penne-16"], "cartQuantity": 3, "packageCount": 3, "query": { "includes": ["pasta"], "excludes": ["3", "boxes"] } }]
+    },
+
+    {
+      "id": "C100-L3-001", "level": 3, "input": "93/7 ground beef", "tags": ["VARIANT", "ATTRIBUTE_EXTRACTION"], "liveKroger": true,
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["ground-beef-93-1lb"], "candidateIds": ["ground-beef-80-1lb", "ground-turkey-93-1lb", "ground-beef-93-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["ground", "beef"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-002", "level": 3, "input": "80/20 ground beef", "tags": ["VARIANT", "ATTRIBUTE_EXTRACTION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["ground-beef-80-1lb"], "candidateIds": ["ground-beef-93-1lb", "ground-turkey-93-1lb", "ground-beef-80-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["ground", "beef"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-003", "level": 3, "input": "boneless skinless chicken breast", "tags": ["ATTRIBUTE_EXTRACTION", "PRODUCT_IDENTITY"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["chicken-breast-boneless-1lb"], "candidateIds": ["chicken-thighs-bonein-1lb", "chicken-wings-2lb", "chicken-breast-boneless-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["chicken", "breast"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-004", "level": 3, "input": "chicken thighs", "tags": ["PRODUCT_IDENTITY", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "chicken-preparation", "select": "bone-in", "minOptions": 3 }], "allowedProductIds": ["chicken-thighs-bonein-1lb"], "candidateIds": ["chicken-breast-boneless-1lb", "chicken-thighs-bonein-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["chicken", "thighs"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-005", "level": 3, "input": "2% milk", "tags": ["VARIANT", "CLARIFICATION"], "liveKroger": true,
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "milk-size", "select": "1 gallon", "minOptions": 2 }], "allowedProductIds": ["milk-2pct-gallon"], "candidateIds": ["milk-whole-gallon", "milk-skim-gallon", "milk-2pct-gallon"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["milk"], "excludes": ["gallon"] } }]
+    },
+    {
+      "id": "C100-L3-006", "level": 3, "input": "whole milk", "tags": ["VARIANT", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "milk-size", "select": "1 gallon", "minOptions": 2 }], "allowedProductIds": ["milk-whole-gallon"], "candidateIds": ["milk-2pct-gallon", "milk-whole-gallon"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["whole", "milk"], "excludes": ["gallon"] } }]
+    },
+    {
+      "id": "C100-L3-007", "level": 3, "input": "gluten free bread", "tags": ["VARIANT", "ATTRIBUTE_EXTRACTION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bread-gluten-free-18"], "candidateIds": ["bread-white-20", "bread-wheat-20", "bread-gluten-free-18"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["gluten", "free", "bread"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-008", "level": 3, "input": "whole wheat bread", "tags": ["VARIANT", "ATTRIBUTE_EXTRACTION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bread-wheat-20"], "candidateIds": ["bread-white-20", "bread-gluten-free-18", "bread-wheat-20"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["wheat", "bread"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-009", "level": 3, "input": "Coke Zero", "tags": ["ALIAS", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coke-zero-12", "coke-zero-2liter"], "candidateIds": ["diet-coke-12", "coke-original-12", "coke-zero-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["coke", "zero"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-010", "level": 3, "input": "Diet Coke", "tags": ["BRAND", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["diet-coke-12"], "candidateIds": ["coke-zero-12", "coke-original-12", "diet-coke-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["diet", "coke"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-011", "level": 3, "input": "Coke original", "tags": ["ALIAS", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coke-original-12"], "candidateIds": ["diet-coke-12", "coke-zero-12", "coke-original-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["coke"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-012", "level": 3, "input": "large brown eggs", "tags": ["VARIANT", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "egg-count", "select": "12 count", "minOptions": 3 }], "allowedProductIds": ["eggs-brown-12"], "candidateIds": ["eggs-white-12", "eggs-cagefree-12", "eggs-brown-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["brown", "eggs"], "excludes": ["12", "count"] } }]
+    },
+    {
+      "id": "C100-L3-013", "level": 3, "input": "cage free eggs", "tags": ["VARIANT", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "egg-count", "select": "12 count", "minOptions": 3 }], "allowedProductIds": ["eggs-cagefree-12"], "candidateIds": ["eggs-white-12", "eggs-brown-12", "eggs-cagefree-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["cage", "free", "eggs"], "excludes": ["12", "count"] } }]
+    },
+    {
+      "id": "C100-L3-014", "level": 3, "input": "light coconut milk", "tags": ["VARIANT", "CATEGORY_CLASSIFICATION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coconut-light-can"], "candidateIds": ["coconut-regular-can", "milk-almond-half", "coconut-light-can"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["light", "coconut", "milk"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-015", "level": 3, "input": "low sodium black beans", "tags": ["VARIANT", "ATTRIBUTE_EXTRACTION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["beans-black-low-sodium-can"], "candidateIds": ["beans-black-can", "beans-kidney-can", "beans-black-low-sodium-can"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["low", "sodium", "black", "beans"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-016", "level": 3, "input": "plain Greek yogurt 32 oz", "tags": ["VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["yogurt-greek-plain-32"], "candidateIds": ["yogurt-greek-vanilla-32", "yogurt-regular-vanilla-32", "yogurt-greek-plain-32"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["plain", "greek", "yogurt"], "excludes": ["32", "oz"] } }]
+    },
+    {
+      "id": "C100-L3-017", "level": 3, "input": "vanilla Greek yogurt 32 oz", "tags": ["VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["yogurt-greek-vanilla-32"], "candidateIds": ["yogurt-greek-plain-32", "yogurt-regular-vanilla-32", "yogurt-greek-vanilla-32"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["vanilla", "greek", "yogurt"], "excludes": ["32", "oz"] } }]
+    },
+    {
+      "id": "C100-L3-018", "level": 3, "input": "turkey bacon", "tags": ["PRODUCT_IDENTITY", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bacon-turkey-12"], "candidateIds": ["bacon-pork-regular-12", "ground-turkey-93-1lb", "bacon-turkey-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["turkey", "bacon"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-019", "level": 3, "input": "large raw shrimp", "tags": ["ATTRIBUTE_EXTRACTION", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["shrimp-large-raw-1lb"], "candidateIds": ["shrimp-large-cooked-1lb", "salmon-fillet-1lb", "shrimp-large-raw-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["large", "raw", "shrimp"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L3-020", "level": 3, "input": "unscented laundry detergent", "tags": ["PRODUCT_IDENTITY", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["laundry-unscented-92"], "candidateIds": ["laundry-fresh-92", "trash-bags-40count", "laundry-unscented-92"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["unscented", "laundry", "detergent"], "excludes": [] } }]
+    },
+
+    {
+      "id": "C100-L4-001", "level": 4, "input": "cok zero 12 pk", "tags": ["TYPO_NORMALIZATION", "VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coke-zero-12"], "candidateIds": ["diet-coke-12", "coke-original-12", "coke-zero-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["coke", "zero"], "excludes": ["12", "pk"] } }]
+    },
+    {
+      "id": "C100-L4-002", "level": 4, "input": "chiken breast 2lbs", "tags": ["TYPO_NORMALIZATION", "PACKAGE_SIZE", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "chicken-preparation", "select": "any", "minOptions": 3 }], "allowedProductIds": ["chicken-breast-boneless-1lb"], "candidateIds": ["chicken-thighs-bonein-1lb", "chicken-breast-boneless-1lb"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["chicken", "breast"], "excludes": ["2", "lbs"] } }]
+    },
+    {
+      "id": "C100-L4-003", "level": 4, "input": "greek yogrt", "tags": ["TYPO_NORMALIZATION", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "yogurt-size", "select": "32 oz", "minOptions": 4 }], "allowedProductIds": ["yogurt-greek-plain-32", "yogurt-greek-vanilla-32"], "candidateIds": ["yogurt-regular-vanilla-32", "yogurt-greek-plain-32", "yogurt-greek-vanilla-32"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["greek", "yogurt"], "excludes": ["32", "oz"] } }]
+    },
+    {
+      "id": "C100-L4-004", "level": 4, "input": "eggs18ct", "tags": ["TYPO_NORMALIZATION", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["eggs-white-18"], "candidateIds": ["eggs-white-12", "eggs-white-18"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["eggs"], "excludes": ["18", "ct"] } }]
+    },
+    {
+      "id": "C100-L4-005", "level": 4, "input": "milk gallon bread eggs", "tags": ["ITEM_BOUNDARY", "CLARIFICATION"],
+      "expectedItems": [
+        { "policy": "clarification", "clarificationPath": [{ "id": "milk-type", "select": "whole", "minOptions": 4 }], "allowedProductIds": ["milk-whole-gallon"], "candidateIds": ["milk-2pct-gallon", "milk-whole-gallon"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["whole", "milk"], "excludes": ["gallon"] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "bread-kind", "select": "white", "minOptions": 4 }], "allowedProductIds": ["bread-white-20"], "candidateIds": ["bread-gluten-free-18", "bread-wheat-20", "bread-white-20"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["white", "bread"], "excludes": [] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "egg-count", "select": "12 count", "minOptions": 3 }], "allowedProductIds": ["eggs-white-12"], "candidateIds": ["eggs-white-18", "eggs-white-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["eggs"], "excludes": ["12", "count"] } }
+      ]
+    },
+    {
+      "id": "C100-L4-006", "level": 4, "input": "eggs 18 count white bread milk gallon bananas", "tags": ["ITEM_BOUNDARY", "CLARIFICATION"],
+      "expectedItems": [
+        { "policy": "automatic", "allowedProductIds": ["eggs-white-18"], "candidateIds": ["eggs-white-12", "eggs-white-18"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["eggs"], "excludes": ["18", "count"] } },
+        { "policy": "automatic", "allowedProductIds": ["bread-white-20"], "candidateIds": ["bread-wheat-20", "bread-white-20"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["white", "bread"], "excludes": [] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "milk-type", "select": "whole", "minOptions": 4 }], "allowedProductIds": ["milk-whole-gallon"], "candidateIds": ["milk-2pct-gallon", "milk-whole-gallon"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["whole", "milk"], "excludes": ["gallon"] } },
+        { "policy": "automatic", "allowedProductIds": ["bananas-each"], "candidateIds": ["banana-pudding", "bananas-each"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["bananas"], "excludes": [] } }
+      ]
+    },
+    {
+      "id": "C100-L4-007", "level": 4, "input": "3 cans beans 2 milk gallon bread", "tags": ["ITEM_BOUNDARY", "QUANTITY_SEMANTICS", "CLARIFICATION"],
+      "expectedItems": [
+        { "policy": "clarification", "clarificationPath": [{ "id": "beans-kind", "select": "black", "minOptions": 4 }], "allowedProductIds": ["beans-black-can", "beans-black-low-sodium-can"], "candidateIds": ["beans-kidney-can", "chickpeas-can", "beans-black-can"], "cartQuantity": 3, "packageCount": 3, "query": { "includes": ["black", "beans"], "excludes": ["3", "cans"] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "milk-type", "select": "whole", "minOptions": 4 }], "allowedProductIds": ["milk-whole-gallon"], "candidateIds": ["milk-2pct-gallon", "milk-whole-gallon"], "cartQuantity": 2, "packageCount": 2, "query": { "includes": ["whole", "milk"], "excludes": ["2", "gallon"] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "bread-kind", "select": "white", "minOptions": 4 }], "allowedProductIds": ["bread-white-20"], "candidateIds": ["bread-gluten-free-18", "bread-wheat-20", "bread-white-20"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["white", "bread"], "excludes": [] } }
+      ]
+    },
+    {
+      "id": "C100-L4-008", "level": 4, "input": "cokezero", "tags": ["TYPO_NORMALIZATION", "VARIANT"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["coke-zero-12", "coke-zero-2liter"], "candidateIds": ["diet-coke-12", "coke-original-12", "coke-zero-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["coke", "zero"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L4-009", "level": 4, "input": "93 7 ground beef", "tags": ["TYPO_NORMALIZATION", "VARIANT", "ATTRIBUTE_EXTRACTION"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["ground-beef-93-1lb"], "candidateIds": ["ground-beef-80-1lb", "ground-beef-93-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["ground", "beef"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L4-010", "level": 4, "input": "paper towels 6rolls", "tags": ["TYPO_NORMALIZATION", "PACKAGE_SIZE", "QUANTITY_SEMANTICS"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["paper-towels-6roll"], "candidateIds": ["paper-towels-single", "paper-towels-6roll"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["paper", "towels"], "excludes": ["6", "rolls"] } }]
+    },
+    {
+      "id": "C100-L4-011", "level": 4, "input": "2%milk gallon", "tags": ["TYPO_NORMALIZATION", "VARIANT", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["milk-2pct-gallon"], "candidateIds": ["milk-whole-gallon", "milk-skim-gallon", "milk-2pct-gallon"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["milk"], "excludes": ["gallon"] } }]
+    },
+    {
+      "id": "C100-L4-012", "level": 4, "input": "banannas 6", "tags": ["TYPO_NORMALIZATION", "QUANTITY_SEMANTICS"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bananas-each"], "candidateIds": ["banana-pudding", "bananas-each"], "cartQuantity": 6, "packageCount": 6, "query": { "includes": ["bananas"], "excludes": ["6"] } }]
+    },
+    {
+      "id": "C100-L4-013", "level": 4, "input": "blackbeans 4 cans", "tags": ["TYPO_NORMALIZATION", "QUANTITY_SEMANTICS"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["beans-black-can", "beans-black-low-sodium-can"], "candidateIds": ["beans-kidney-can", "beans-black-can", "beans-black-low-sodium-can"], "cartQuantity": 4, "packageCount": 4, "query": { "includes": ["black", "beans"], "excludes": ["4", "cans"] } }]
+    },
+    {
+      "id": "C100-L4-014", "level": 4, "input": "chickn thighs", "tags": ["TYPO_NORMALIZATION", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "chicken-preparation", "select": "bone-in", "minOptions": 3 }], "allowedProductIds": ["chicken-thighs-bonein-1lb"], "candidateIds": ["chicken-breast-boneless-1lb", "chicken-thighs-bonein-1lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["chicken", "thighs"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L4-015", "level": 4, "input": "whitebread", "tags": ["TYPO_NORMALIZATION", "PRODUCT_IDENTITY"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["bread-white-20"], "candidateIds": ["bread-wheat-20", "bread-white-20"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["white", "bread"], "excludes": [] } }]
+    },
+    {
+      "id": "C100-L4-016", "level": 4, "input": "orangejuice 52oz", "tags": ["TYPO_NORMALIZATION", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["juice-orange-52"], "candidateIds": ["apple-juice-64", "juice-orange-52"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["orange", "juice"], "excludes": ["52", "oz"] } }]
+    },
+    {
+      "id": "C100-L4-017", "level": 4, "input": "groundturkey 3lb", "tags": ["TYPO_NORMALIZATION", "QUANTITY_SEMANTICS", "CLARIFICATION"],
+      "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "ground-turkey-ratio", "select": "any", "minOptions": 4 }], "allowedProductIds": ["ground-turkey-93-1lb"], "candidateIds": ["ground-beef-93-1lb", "ground-turkey-93-1lb"], "cartQuantity": 3, "packageCount": 3, "query": { "includes": ["ground", "turkey"], "excludes": ["3", "lb"] } }]
+    },
+    {
+      "id": "C100-L4-018", "level": 4, "input": "coke zero eggs bread milk", "tags": ["ITEM_BOUNDARY", "CLARIFICATION"],
+      "expectedItems": [
+        { "policy": "automatic", "allowedProductIds": ["coke-zero-12", "coke-zero-2liter"], "candidateIds": ["diet-coke-12", "coke-zero-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["coke", "zero"], "excludes": [] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "egg-count", "select": "12 count", "minOptions": 3 }], "allowedProductIds": ["eggs-white-12"], "candidateIds": ["eggs-white-18", "eggs-white-12"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["eggs"], "excludes": ["12", "count"] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "bread-kind", "select": "white", "minOptions": 4 }], "allowedProductIds": ["bread-white-20"], "candidateIds": ["bread-gluten-free-18", "bread-wheat-20", "bread-white-20"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["white", "bread"], "excludes": [] } },
+        { "policy": "clarification", "clarificationPath": [{ "id": "milk-type", "select": "whole", "minOptions": 4 }, { "id": "milk-size", "select": "1 gallon", "minOptions": 2 }], "allowedProductIds": ["milk-whole-gallon"], "candidateIds": ["milk-2pct-gallon", "milk-whole-gallon"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["whole", "milk"], "excludes": ["gallon"] } }
+      ]
+    },
+    {
+      "id": "C100-L4-019", "level": 4, "input": "rice5lb", "tags": ["TYPO_NORMALIZATION", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["rice-white-5lb", "rice-brown-5lb"], "candidateIds": ["rice-ready-cooked", "rice-white-5lb", "rice-brown-5lb"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["rice"], "excludes": ["5", "lb"] } }]
+    },
+    {
+      "id": "C100-L4-020", "level": 4, "input": "toiletpaper 12 rolls", "tags": ["TYPO_NORMALIZATION", "PACKAGE_SIZE"],
+      "expectedItems": [{ "policy": "automatic", "allowedProductIds": ["toilet-paper-12roll"], "candidateIds": ["paper-towels-6roll", "toilet-paper-12roll"], "cartQuantity": 1, "packageCount": 1, "query": { "includes": ["toilet", "paper"], "excludes": ["12", "rolls"] } }]
+    },
+
+    { "id": "C100-L5-001", "level": 5, "input": "chicken", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "chicken-cut", "select": "breast", "minOptions": 5 }, { "id": "chicken-preparation", "select": "any", "minOptions": 3 }] }] },
+    { "id": "C100-L5-002", "level": 5, "input": "beef", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "beef-form", "select": "ground", "minOptions": 5 }, { "id": "ground-beef-ratio", "select": "any", "minOptions": 5 }] }] },
+    { "id": "C100-L5-003", "level": 5, "input": "steak", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "steak-cut", "select": "any", "minOptions": 5 }] }] },
+    { "id": "C100-L5-004", "level": 5, "input": "fish", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "fish-species", "select": "salmon", "minOptions": 5 }, { "id": "salmon-form", "select": "any", "minOptions": 4 }] }] },
+    { "id": "C100-L5-005", "level": 5, "input": "beans", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "beans-kind", "select": "black", "minOptions": 4 }] }] },
+    { "id": "C100-L5-006", "level": 5, "input": "bread", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "bread-kind", "select": "white", "minOptions": 4 }] }] },
+    { "id": "C100-L5-007", "level": 5, "input": "milk", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "milk-type", "select": "2%", "minOptions": 4 }, { "id": "milk-size", "select": "1 gallon", "minOptions": 2 }] }] },
+    { "id": "C100-L5-008", "level": 5, "input": "yogurt", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "yogurt-kind", "select": "Greek", "minOptions": 3 }, { "id": "yogurt-size", "select": "32 oz", "minOptions": 4 }] }] },
+    { "id": "C100-L5-009", "level": 5, "input": "pasta", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "pasta-kind", "select": "spaghetti", "minOptions": 4 }] }] },
+    { "id": "C100-L5-010", "level": 5, "input": "rice", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "rice-kind", "select": "white", "minOptions": 4 }] }] },
+    { "id": "C100-L5-011", "level": 5, "input": "shrimp", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "shrimp-cooking", "select": "raw", "minOptions": 3 }, { "id": "shrimp-size", "select": "any", "minOptions": 5 }] }] },
+    { "id": "C100-L5-012", "level": 5, "input": "sausage", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "sausage-style", "select": "breakfast", "minOptions": 5 }] }] },
+    { "id": "C100-L5-013", "level": 5, "input": "bacon", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "bacon-style", "select": "regular", "minOptions": 4 }] }] },
+    { "id": "C100-L5-014", "level": 5, "input": "cheese", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "cheese-kind", "select": "cheddar", "minOptions": 5 }] }] },
+    { "id": "C100-L5-015", "level": 5, "input": "cereal", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "cereal-kind", "select": "Cheerios", "minOptions": 4 }] }] },
+    { "id": "C100-L5-016", "level": 5, "input": "juice", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "juice-kind", "select": "orange", "minOptions": 4 }] }] },
+    { "id": "C100-L5-017", "level": 5, "input": "soda", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "soda-kind", "select": "Coca-Cola", "minOptions": 4 }] }] },
+    { "id": "C100-L5-018", "level": 5, "input": "something for tacos", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "taco-need", "select": "taco shells", "minOptions": 4 }] }] },
+    { "id": "C100-L5-019", "level": 5, "input": "breakfast food", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "breakfast-kind", "select": "oatmeal", "minOptions": 5 }] }] },
+    { "id": "C100-L5-020", "level": 5, "input": "ground meat", "tags": ["CLARIFICATION"], "expectedItems": [{ "policy": "clarification", "clarificationPath": [{ "id": "ground-meat-kind", "select": "ground beef", "minOptions": 4 }, { "id": "ground-beef-ratio", "select": "any", "minOptions": 5 }] }] }
+  ]
+}

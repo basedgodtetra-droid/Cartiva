@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cartiva.local/benchmarks/cartiva-100/history/schema-v2.json",
+  "title": "Cartiva 100 deterministic run record",
+  "type": "object",
+  "required": [
+    "historySchemaVersion",
+    "recordType",
+    "runId",
+    "recordedAt",
+    "previousRunId",
+    "capture",
+    "comparability",
+    "source",
+    "benchmark",
+    "execution",
+    "scores",
+    "levels",
+    "failureCategories",
+    "score0CaseIds",
+    "score1CaseIds",
+    "deadEndCaseIds",
+    "performance"
+  ],
+  "properties": {
+    "historySchemaVersion": { "const": 2 },
+    "recordType": { "const": "deterministic" },
+    "runId": { "pattern": "^run-[0-9]{4}-[a-z0-9-]+$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "observedAt": { "type": ["string", "null"], "format": "date-time" },
+    "previousRunId": { "type": "string" },
+    "capture": {
+      "type": "object",
+      "required": ["kind", "rawReportSha256"],
+      "properties": {
+        "kind": { "enum": ["transcribed-session-output", "verified-command"] },
+        "rawReportSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "comparability": {
+      "type": "object",
+      "required": ["status", "reason"],
+      "properties": {
+        "status": { "enum": ["comparable", "conditional", "trend-break"] },
+        "reason": { "type": "string" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["gitBaseCommit", "treeState", "sourceManifestAlgorithm", "sourceManifestSha256"],
+      "properties": {
+        "gitBaseCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "treeState": { "type": "string", "minLength": 1 },
+        "sourceManifestAlgorithm": { "const": "sha256-path-nul-bytes-nul-v1" },
+        "sourceManifestSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "required": ["suiteId", "fixtureSchemaVersion", "scoringPolicy", "oracleRevision", "fingerprintAlgorithm", "caseCount", "levelCounts", "hashes"],
+      "properties": {
+        "suiteId": { "const": "cartiva-100" },
+        "fixtureSchemaVersion": { "type": "integer", "minimum": 1 },
+        "scoringPolicy": { "type": "string", "minLength": 1 },
+        "oracleRevision": { "type": "integer", "minimum": 1 },
+        "fingerprintAlgorithm": { "const": "recursive-key-sort-json-sha256-v1" },
+        "caseCount": { "type": "integer", "minimum": 100 },
+        "levelCounts": {
+          "type": "object",
+          "required": ["1", "2", "3", "4", "5"],
+          "properties": {
+            "1": { "type": "integer", "minimum": 20 },
+            "2": { "type": "integer", "minimum": 20 },
+            "3": { "type": "integer", "minimum": 20 },
+            "4": { "type": "integer", "minimum": 20 },
+            "5": { "type": "integer", "minimum": 20 }
+          },
+          "additionalProperties": false
+        },
+        "hashes": { "type": "object", "minProperties": 2 }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["command", "mode", "retailerCalls"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "mode": { "const": "deterministic-local" },
+        "retailerCalls": { "const": 0 }
+      }
+    },
+    "scores": {
+      "type": "object",
+      "required": ["3", "2", "1", "0", "score2Or3Count", "score2Or3Percent", "atLeast1Count", "atLeast1Percent", "deadEndCount", "deadEndPercent", "unsafeSelectionCount", "safetyGateEvaluated", "targetPolicy", "targetMet"],
+      "properties": {
+        "3": { "type": "integer", "minimum": 0 },
+        "2": { "type": "integer", "minimum": 0 },
+        "1": { "type": "integer", "minimum": 0 },
+        "0": { "type": "integer", "minimum": 0 },
+        "score2Or3Count": { "type": "integer", "minimum": 0 },
+        "score2Or3Percent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "atLeast1Count": { "type": "integer", "minimum": 0 },
+        "atLeast1Percent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "deadEndCount": { "type": "integer", "minimum": 0 },
+        "deadEndPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "unsafeSelectionCount": { "type": ["integer", "null"], "minimum": 0 },
+        "safetyGateEvaluated": { "type": "boolean" },
+        "targetPolicy": { "type": "string" },
+        "targetMet": { "type": "boolean" }
+      }
+    },
+    "levels": {
+      "type": "object",
+      "required": ["1", "2", "3", "4", "5"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[1-5]$": {
+          "type": "object",
+          "required": ["useful", "score2Or3", "total"],
+          "properties": {
+            "useful": { "type": "integer", "minimum": 0 },
+            "score2Or3": { "type": "integer", "minimum": 0 },
+            "total": { "type": "integer", "minimum": 20 }
+          }
+        }
+      }
+    },
+    "failureCategories": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "score0CaseIds": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "pattern": "^C100-L[1-5]-[0-9]{3}$" },
+      "uniqueItems": true
+    },
+    "score1CaseIds": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "pattern": "^C100-L[1-5]-[0-9]{3}$" },
+      "uniqueItems": true
+    },
+    "deadEndCaseIds": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "pattern": "^C100-L[1-5]-[0-9]{3}$" },
+      "uniqueItems": true
+    },
+    "performance": { "type": ["object", "null"] }
+  },
+  "additionalProperties": true
+}

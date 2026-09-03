@@ -145,6 +145,8 @@ const TRAILING_CONTAINER_QUANTITY = /^(.+?)[,\s]+(\d{1,2})\s+(cans?|bottles?|jar
 const LEADING_VOLUME_QUANTITY = /^(\d{1,2})\s+(gallons?|quarts?|pints?)\s+(?:of\s+)?(.+)$/i;
 const LEADING_EACH_QUANTITY = /^(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)$/i;
 const TRAILING_EACH_QUANTITY = /^(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)[,\s]+(\d{1,2})(?:\s+each)?$/i;
+const HOUSEHOLD_ROLL_PACKAGE = /^(?:(?:paper\s+towels?|toilet\s+paper|bath\s+tissue)[,\s]+\d{1,3}\s+rolls?|\d{1,3}\s+rolls?\s+(?:of\s+)?(?:paper\s+towels?|toilet\s+paper|bath\s+tissue))$/i;
+const LEADING_DOZEN_QUANTITY = /^(?:(\d{1,2}|one|two|three|four|a)\s+)?dozen\s+(.+)$/i;
 
 function cleanLine(value: string) {
   return value.normalize("NFKC").replace(/\s+/g, " ").trim();
@@ -165,6 +167,12 @@ function singularContainer(value: string) {
 
 function singularVolume(value: string) {
   return value.toLowerCase().replace(/s$/, "");
+}
+
+function dozenMultiplier(value: string | undefined) {
+  if (!value || /^(?:a|one)$/i.test(value)) return 1;
+  const words: Record<string, number> = { two: 2, three: 3, four: 4 };
+  return words[value.toLowerCase()] ?? safeQuantity(value);
 }
 
 /**
@@ -193,6 +201,27 @@ export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQ
     return {
       quantity: prefixXQuantity,
       searchText: cleanLine(input.slice(prefixX[0].length)),
+      origin: AttributeOrigin.USER_EXPLICIT,
+    };
+  }
+
+  // For household paper, a roll count identifies the retailer's sellable
+  // package. It is not a request for that many separate cart lines.
+  if (HOUSEHOLD_ROLL_PACKAGE.test(input)) {
+    return {
+      quantity: 1,
+      searchText: input,
+      origin: AttributeOrigin.USER_EXPLICIT,
+    };
+  }
+
+  const dozen = input.match(LEADING_DOZEN_QUANTITY);
+  const dozenQuantity = dozenMultiplier(dozen?.[1]);
+  if (dozen && dozenQuantity) {
+    return {
+      quantity: dozenQuantity,
+      searchText: cleanLine(`${dozen[2]} 12 count`),
+      packageSizeText: "12 count",
       origin: AttributeOrigin.USER_EXPLICIT,
     };
   }

@@ -466,6 +466,33 @@ describe("generalized product identity precision", () => {
 });
 
 describe("fresh produce defaults", () => {
+  it.each([
+    ["bananas", "Organic Bananas", "Produce"],
+    ["bananas", "Organic Bananas", undefined],
+    ["oranges", "Juice Oranges", "Fresh Fruit"],
+    ["onions", "Candy Sweet Onions", "Fresh Vegetables"],
+    ["bananas", "Smoothie Bananas", "Fresh Fruit"],
+  ])("accepts whole produce without requiring the literal word fresh: %s → %s", (
+    request,
+    title,
+    productType,
+  ) => {
+    expect(rankProducts(request, [candidate("produce", title, 1.98, { productType })]).recommended?.id)
+      .toBe("produce");
+  });
+
+  it("rejects processed banana products for bananas but accepts the explicitly requested family", () => {
+    const pudding = candidate("pudding", "Banana Pudding Dessert Cups", 2.98, {
+      productType: "Pudding & Desserts",
+    });
+    const fruitSnacks = candidate("snacks", "Organic Strawberry Banana Fruit Snacks", 3.98, {
+      productType: "Fruit Snacks",
+    });
+
+    expect(rankProducts("bananas", [pudding, fruitSnacks]).recommended).toBeNull();
+    expect(rankProducts("banana pudding", [fruitSnacks, pudding]).recommended?.id).toBe("pudding");
+  });
+
   it("turns a broad vegetables request into a concrete fresh option", () => {
     const result = rankProducts("vegetables", [
       candidate("frozen", "Great Value Mixed Vegetables, 12 oz Steamable Bag (Frozen)", 0.98, {
