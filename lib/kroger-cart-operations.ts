@@ -299,7 +299,7 @@ function validRecord(value: unknown): value is KrogerCartOperationRecord {
     && (receipt.addedCount as number) <= 2_376
     && Number.isInteger(receipt.itemCount)
     && (receipt.itemCount as number) >= 1
-    && (receipt.itemCount as number) <= 24
+    && (receipt.itemCount as number) <= 50
     && (receipt.addedCount as number) >= (receipt.itemCount as number)
     && validPossiblyEmptyBoundedString(receipt.chain, MAX_RETAILER_LABEL_LENGTH)
     && selectedSearchLocation !== null

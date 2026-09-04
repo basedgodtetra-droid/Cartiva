@@ -323,6 +323,86 @@ describe("Cartiva comparison handoff UI", () => {
     expect(connectButton).not.toContain("disabled");
   });
 
+  it("keeps a complete twenty-item basket inside an accessible review region with the handoff present", () => {
+    const items: GroceryNotepadItem[] = Array.from({ length: 20 }, (_, index) => ({
+      id: `long-basket-${index}`,
+      raw: `Verified grocery ${index + 1}`,
+      name: `Verified grocery ${index + 1}`,
+      canonicalText: `Verified grocery ${index + 1}`,
+      status: "ready",
+    }));
+    const results: KrogerMatchResult[] = items.map((item, index) => {
+      const upc = String(2222000000 + index).padStart(13, "0");
+      return {
+        ...result,
+        requestedItem: item.canonicalText,
+        resolution: "matched",
+        fulfillment: {
+          kind: "single_package",
+          cartQuantity: 1,
+          packageCount: 1,
+          label: "1 retailer package",
+          approvalRequired: false,
+        },
+        recommended: {
+          ...product,
+          id: upc,
+          productId: upc,
+          upc,
+          title: item.name,
+        },
+      };
+    });
+    const quantities = Object.fromEntries(items.map((item) => [item.id, 1]));
+    const cartReadiness = getKrogerCartReadiness({
+      items,
+      results,
+      quantities,
+      comparisonComplete: true,
+      customerConnected: true,
+      cartCapability: true,
+    });
+    const html = renderToStaticMarkup(createElement(CartivaComparison, {
+      items,
+      quantities,
+      comparison: {
+        phase: "complete",
+        results,
+        completedItems: items.length,
+        checkedAt: "2026-09-03T20:00:00.000Z",
+      },
+      selectedLocation: {
+        locationId: "01400912",
+        name: "Mockingbird Kroger",
+        chain: "Kroger",
+        address: { addressLine1: "5665 E Mockingbird Ln", city: "Dallas", state: "TX", zipCode: "75206" },
+      },
+      fulfillmentMode: "pickup",
+      cart: { phase: "idle" },
+      cartReadiness,
+      basketSaved: false,
+      connectionChecking: false,
+      connectionState: "connected",
+      onChangeStore: vi.fn(),
+      onRetry: vi.fn(),
+      onReviewItem: vi.fn(),
+      onSaveBasket: vi.fn(),
+      onAddToKroger: vi.fn(),
+      onContinueWithoutTransfer: vi.fn(),
+      onResolveCartReview: vi.fn(),
+    }));
+
+    expect(cartReadiness).toMatchObject({
+      basketComplete: true,
+      acceptedLineCount: 20,
+      canAddToKroger: true,
+    });
+    expect(html).toContain('role="region" aria-label="Kroger matched basket" tabindex="0"');
+    expect(html.match(/data-state="matched"/g)).toHaveLength(20);
+    expect(html.indexOf("Kroger matched basket")).toBeLessThan(html.indexOf("Product subtotal"));
+    expect(html.indexOf("Product subtotal")).toBeLessThan(html.indexOf("Add basket to Kroger"));
+  });
+
   it("labels explicit unavailability and keeps handoff blocked", () => {
     const unavailable: KrogerMatchResult = {
       ...result,

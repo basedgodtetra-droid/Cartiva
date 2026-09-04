@@ -118,7 +118,7 @@ function trustedStringField(entry: unknown, field: string, pattern: RegExp, maxi
 }
 
 function normalizeRequestItems(value: unknown): NormalizedRequestItem[] | null {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 24) return null;
+  if (!Array.isArray(value) || value.length < 1 || value.length > 50) return null;
 
   const normalized: NormalizedRequestItem[] = [];
   for (const [index, entry] of value.entries()) {
@@ -321,7 +321,7 @@ export async function POST(request: Request) {
 
   if (!normalizedItems) {
     return Response.json(
-      { error: "Add 1 to 24 valid shopping-list items, each no longer than 300 characters." },
+      { error: "Add 1 to 50 valid shopping-list items, each no longer than 300 characters." },
       { status: 400 },
     );
   }

@@ -38,7 +38,7 @@ describe("API route tamper resistance", () => {
 
     const tooMany = await targetSearch(request("/api/target/search", {
       retailer: "target",
-      items: Array.from({ length: 25 }, () => "eggs"),
+      items: Array.from({ length: 51 }, () => "eggs"),
       storeId: "1234",
       zipCode: "79912",
       fulfillmentMode: "pickup",

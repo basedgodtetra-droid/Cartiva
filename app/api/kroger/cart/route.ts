@@ -36,7 +36,7 @@ interface CartRequest {
 }
 
 function normalizedItems(value: unknown, modality: "PICKUP" | "DELIVERY") {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 24) return null;
+  if (!Array.isArray(value) || value.length < 1 || value.length > 50) return null;
   const seen = new Set<string>();
   const normalized = [];
   for (const entry of value) {
@@ -196,7 +196,7 @@ export async function POST(request: Request) {
   const items = normalizedItems(body.items, modality);
   if (!items) {
     return Response.json(
-      { error: "Send 1 to 24 unique Kroger UPCs, each with a numeric quantity from 1 to 99.", retrySafe: true },
+      { error: "Send 1 to 50 unique Kroger UPCs, each with a numeric quantity from 1 to 99.", retrySafe: true },
       { status: 400 },
     );
   }

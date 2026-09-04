@@ -167,7 +167,7 @@ function cartItems(
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) return null;
     quantities.set(line.upc, quantity);
   }
-  if (!quantities.size || quantities.size > 24) return null;
+  if (!quantities.size || quantities.size > 50) return null;
   return [...quantities].map(([upc, quantity]) => ({ upc, quantity, modality }));
 }
 

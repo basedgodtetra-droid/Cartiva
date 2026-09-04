@@ -281,10 +281,10 @@ export function parsePendingKrogerCart(
       || (value.fulfillmentMode !== "pickup" && value.fulfillmentMode !== "delivery")
       || !Array.isArray(value.items)
       || value.items.length < 1
-      || value.items.length > 24
+      || value.items.length > 50
       || !Number.isInteger(value.itemCount)
       || (value.itemCount ?? 0) < 1
-      || (value.itemCount ?? 0) > 24
+      || (value.itemCount ?? 0) > 50
       || typeof value.createdAt !== "number"
       || !Number.isFinite(value.createdAt)
       || value.createdAt > now + 30_000

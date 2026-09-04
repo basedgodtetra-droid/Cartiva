@@ -137,7 +137,7 @@ function augmentVerificationText(item: string, record?: Record<string, unknown>)
 }
 
 function normalizeItems(value: unknown): NormalizedItem[] | null {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 24) return null;
+  if (!Array.isArray(value) || value.length < 1 || value.length > 50) return null;
   const normalized: NormalizedItem[] = [];
   for (const [index, entry] of value.entries()) {
     if (!hasValidSearchItemShape(
@@ -434,7 +434,7 @@ export async function handleKrogerSearchRead(
   const items = normalizeItems(body.items);
   if (!items) {
     return Response.json(
-      { error: "Add 1 to 24 valid shopping-list items, each no longer than 300 characters." },
+      { error: "Add 1 to 50 valid shopping-list items, each no longer than 300 characters." },
       { status: 400 },
     );
   }

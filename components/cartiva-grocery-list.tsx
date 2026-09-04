@@ -155,7 +155,12 @@ export function CartivaGroceryList({
         </div>
       ) : null}
 
-      <div className={styles.listContent}>
+      <div
+        className={styles.listContent}
+        role="region"
+        aria-label="Your grocery list"
+        tabIndex={items.length ? 0 : -1}
+      >
         {items.length === 0 ? (
           <div className={styles.emptyList}>
             <span><Package2 aria-hidden="true" /></span>

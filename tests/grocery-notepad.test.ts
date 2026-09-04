@@ -368,19 +368,19 @@ describe("Smart Grocery Notepad interpretation", () => {
     expect(interpretGroceryInput("oat milk half gallon").items[0].clarification).toBeUndefined();
   });
 
-  it("allows exactly 24 items and explicitly blocks overflow", () => {
-    const twentyFour = Array.from({ length: 24 }, (_, index) => `grocery ${index + 1}`).join("\n");
-    const twentyFive = `${twentyFour}\ngrocery 25`;
+  it("allows exactly 50 items and explicitly blocks overflow", () => {
+    const fifty = Array.from({ length: 50 }, (_, index) => `grocery ${index + 1}`).join("\n");
+    const fiftyOne = `${fifty}\ngrocery 51`;
 
-    expect(interpretGroceryInput(twentyFour)).toMatchObject({
+    expect(interpretGroceryInput(fifty)).toMatchObject({
       limitReached: false,
       omittedCount: 0,
     });
-    expect(interpretGroceryInput(twentyFive)).toMatchObject({
+    expect(interpretGroceryInput(fiftyOne)).toMatchObject({
       limitReached: true,
       omittedCount: 1,
     });
-    expect(interpretGroceryInput(twentyFive).items).toHaveLength(24);
+    expect(interpretGroceryInput(fiftyOne).items).toHaveLength(50);
   });
 
   it("can undo an implicit smart split without changing explicit list lines", () => {

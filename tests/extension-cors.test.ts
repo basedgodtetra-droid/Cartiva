@@ -164,7 +164,7 @@ describe("extension Walmart search route", () => {
     expect(response.status).toBe(400);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe(extensionOrigin);
     expect(await response.json()).toEqual({
-      error: "Add 1 to 24 valid shopping-list items, each no longer than 300 characters.",
+      error: "Add 1 to 50 valid shopping-list items, each no longer than 300 characters.",
     });
   });
 

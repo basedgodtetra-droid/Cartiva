@@ -1090,8 +1090,8 @@ export function interpretGroceryInput(
 ): GroceryInterpretation {
   const normalizedInput = normalizeHumanGroceryText(input);
   const explicit = explicitSegments(normalizedInput);
-  const detectedItems = options.undoImplicitSplits ? explicit : parseShoppingList(normalizedInput, 25);
-  const rawItems = detectedItems.slice(0, 24);
+  const detectedItems = options.undoImplicitSplits ? explicit : parseShoppingList(normalizedInput, 51);
+  const rawItems = detectedItems.slice(0, 50);
   const items = rawItems.map((item, index) => itemFromRaw(item, index, options.proteinOrigins));
   const unresolvedCount = items.filter((item) => item.status === "needs-detail").length;
 
@@ -1101,8 +1101,8 @@ export function interpretGroceryInput(
     readyCount: items.length - unresolvedCount,
     unresolvedCount,
     usedSmartSplit: !options.undoImplicitSplits && items.length > explicit.length && explicit.length > 0,
-    limitReached: detectedItems.length > 24,
-    omittedCount: Math.max(0, detectedItems.length - 24),
+    limitReached: detectedItems.length > 50,
+    omittedCount: Math.max(0, detectedItems.length - 50),
   };
 }
 

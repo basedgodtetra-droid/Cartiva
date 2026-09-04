@@ -264,7 +264,7 @@ export function CartivaComparison({
         <>
           <div className={styles.comparisonHeading}>
             <h2 id="comparison-heading">Kroger basket comparison</h2>
-            <p>{checkedTime(comparison.checkedAt)} · official retailer data where available</p>
+            <p>{checkedTime(comparison.checkedAt)} · official retailer data</p>
           </div>
 
           <div className={styles.retailerGrid} aria-label="Retailer totals">
@@ -358,7 +358,13 @@ export function CartivaComparison({
           </div>
         </div>
 
-        <div className={styles.basketItems} id="basket-products">
+        <div
+          className={styles.basketItems}
+          id="basket-products"
+          role="region"
+          aria-label="Kroger matched basket"
+          tabIndex={items.length ? 0 : -1}
+        >
           {items.length === 0 ? (
             <div className={styles.emptyBasket}>
               <span><PackageCheck aria-hidden="true" /></span>
@@ -451,7 +457,7 @@ export function CartivaComparison({
               </span>
             </div>
           ) : null}
-          <p>Taxes, fees, substitutions, and final availability are confirmed at Kroger.</p>
+          <p>Taxes, fees, substitutions, availability, and payment are finalized by Kroger.</p>
 
           {cart.phase === "error" ? (
             <div
@@ -548,7 +554,7 @@ export function CartivaComparison({
         </div>
       </article>
 
-      <p className={styles.checkoutNote}>Cartiva compares and hands off. Checkout and payment always stay with the retailer.</p>
+      <p className={styles.checkoutNote}>Cartiva never processes payment.</p>
     </section>
   );
 }
