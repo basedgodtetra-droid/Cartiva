@@ -280,8 +280,23 @@ export function CartivaComparison({
                   : items.length ? `${matchedCount} / ${items.length} matched` : "Add a list to begin"}
               </p>
             </article>
+            <article className={styles.retailerCard} data-unavailable="true">
+              <div className={styles.retailerTopline}>
+                <span className={`${styles.retailerInitial} ${styles.walmartInitial}`}>W</span>
+                <span><strong>Walmart</strong><small>Not connected</small></span>
+              </div>
+              <strong className={styles.retailerPrice}>—</strong>
+              <p className={styles.mutedStatus}>Coming later</p>
+            </article>
+            <article className={styles.retailerCard} data-unavailable="true">
+              <div className={styles.retailerTopline}>
+                <span className={`${styles.retailerInitial} ${styles.targetInitial}`}>T</span>
+                <span><strong>Target</strong><small>Not connected</small></span>
+              </div>
+              <strong className={styles.retailerPrice}>—</strong>
+              <p className={styles.mutedStatus}>Coming later</p>
+            </article>
           </div>
-          <p className={styles.moreRetailers}>More retailers coming · Walmart and Target are not connected yet.</p>
 
           <div className={styles.evidenceBar} role="status" aria-live="polite" aria-atomic="true">
             <span className={styles.evidenceIcon}>
@@ -324,7 +339,23 @@ export function CartivaComparison({
             <h2 id="basket-heading">{complete ? "Kroger basket receipt" : "Kroger basket"}</h2>
             <p>{selectedLocation ? `${selectedLocation.chain} · ${selectedLocation.address.addressLine1} · ${fulfillmentMode} selected` : "Choose a nearby Kroger-family store to build this basket."}</p>
           </div>
-          <button type="button" className={styles.changeStoreButton} onClick={onChangeStore} disabled={transferring || cart.retrySafe === false}><Store aria-hidden="true" /> Change store</button>
+          <div className={styles.basketHeaderActions}>
+            {complete && onSaveBasket ? (
+              <button
+                type="button"
+                className={styles.saveBasketButton}
+                data-saved={basketSaved}
+                onClick={onSaveBasket}
+                aria-label={basketSaved ? "Remove basket from saved baskets" : "Save this basket"}
+                aria-pressed={basketSaved}
+                title={basketSaved ? "Saved" : "Save basket"}
+              >
+                <Bookmark aria-hidden="true" fill={basketSaved ? "currentColor" : "none"} />
+                <span className={styles.srOnly}>{basketSaved ? "Saved" : "Save basket"}</span>
+              </button>
+            ) : null}
+            <button type="button" className={styles.changeStoreButton} onClick={onChangeStore} disabled={transferring || cart.retrySafe === false}><Store aria-hidden="true" /> Change store</button>
+          </div>
         </div>
 
         <div className={styles.basketItems} id="basket-products">
@@ -464,18 +495,6 @@ export function CartivaComparison({
                 ) : null}
               </div>
             </div>
-          ) : null}
-
-          {complete && onSaveBasket ? (
-            <button
-              type="button"
-              className={styles.saveBasketButton}
-              onClick={onSaveBasket}
-              disabled={basketSaved}
-            >
-              {basketSaved ? <Check aria-hidden="true" /> : <Bookmark aria-hidden="true" />}
-              {basketSaved ? "Basket saved" : "Save this basket"}
-            </button>
           ) : null}
 
           {cart.phase === "success" && cart.cartUrl ? (

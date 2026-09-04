@@ -5016,3 +5016,288 @@
     min-height: 44px;
   }
 }
+
+/* Precision alignment pass: one shared grid and one control rhythm. */
+@media (min-width: 1141px) {
+  .workspace {
+    max-width: 1296px;
+    padding: 24px 36px 40px;
+  }
+
+  .contextHeader,
+  .summaryBar,
+  .workspaceGrid {
+    width: 100%;
+    max-width: 1224px;
+  }
+
+  .workspaceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 24px;
+  }
+}
+
+.listCard,
+.comparisonColumn {
+  min-width: 0;
+  height: 100%;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 16px;
+  padding: 24px;
+  background: var(--cartiva-surface);
+  box-shadow: 0 4px 14px rgba(23, 34, 29, 0.035);
+}
+
+.listCard {
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.comparisonColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.cardHeading,
+.comparisonHeading {
+  min-height: 32px;
+  margin: 0 0 16px;
+  align-items: center;
+}
+
+.addForm {
+  margin-top: 0;
+}
+
+.listContent {
+  flex: 1 1 auto;
+}
+
+.compareAction {
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.primaryButton,
+.compareAction .primaryButton,
+.handoffActions .primaryButton {
+  min-height: 48px;
+  border-radius: 24px;
+  padding-inline: 24px;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.retailerGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-radius: 14px;
+}
+
+.retailerCard,
+.retailerCardSelected {
+  min-height: 120px;
+  margin: 0;
+  border: 0;
+  border-right: 1px solid var(--cartiva-border-soft);
+  border-radius: 0;
+  padding: 14px;
+}
+
+.retailerCard:last-child,
+.retailerCardSelected:last-child {
+  border-right: 0;
+}
+
+.retailerCardSelected {
+  background: var(--cartiva-mint);
+  box-shadow: inset 0 0 0 2px var(--cartiva-green);
+}
+
+.retailerTopline {
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.retailerTopline em {
+  display: none;
+}
+
+.basketReadyHero {
+  margin-top: 0;
+}
+
+.basketCard {
+  display: flex;
+  flex: 1 1 auto;
+  overflow: visible;
+  flex-direction: column;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.basketHeader {
+  min-height: 72px;
+  padding: 16px 0;
+}
+
+.basketHeaderActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.basketItems {
+  flex: 1 1 auto;
+  padding: 4px 0;
+}
+
+.basketItem {
+  grid-template-columns: 44px minmax(0, 1fr) 92px;
+  gap: 12px;
+  padding-block: 8px;
+}
+
+.basketItemPrice {
+  width: 92px;
+  min-width: 92px;
+}
+
+.subtotalPanel {
+  margin: 16px 0 0;
+  padding: 16px 0 0 16px;
+  border-top: 1px solid var(--cartiva-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.subtotalLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+}
+
+.subtotalLine strong {
+  justify-self: end;
+}
+
+.saveBasketButton {
+  display: inline-grid;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  place-items: center;
+  border: 1px solid var(--cartiva-border);
+  border-radius: 50%;
+  padding: 0;
+  background: var(--cartiva-surface);
+  color: var(--cartiva-muted);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.saveBasketButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.saveBasketButton[data-saved="true"] {
+  border-color: #b7decc;
+  background: var(--cartiva-mint);
+  color: var(--cartiva-green);
+  animation: cartiva-save-pop 180ms ease-out;
+}
+
+.saveBasketButton:hover {
+  border-color: #9bbcaf;
+  background: #f7faf8;
+  color: var(--cartiva-green);
+}
+
+.saveBasketButton:active {
+  transform: scale(0.96);
+}
+
+@keyframes cartiva-save-pop {
+  50% { transform: scale(1.08); }
+}
+
+@media (max-width: 1140px) {
+  .listCard,
+  .comparisonColumn {
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 1024px) {
+  .listCard,
+  .comparisonColumn {
+    border-radius: 16px;
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .retailerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .retailerCard,
+  .retailerCardSelected {
+    min-height: 104px;
+    border-right: 0;
+    border-bottom: 1px solid var(--cartiva-border-soft);
+  }
+
+  .retailerCard:last-child,
+  .retailerCardSelected:last-child {
+    border-bottom: 0;
+  }
+
+  .basketHeader {
+    align-items: center;
+    padding: 16px 0;
+  }
+
+  .basketHeaderActions {
+    gap: 6px;
+  }
+
+  .basketItem {
+    grid-template-columns: 40px minmax(0, 1fr) 72px;
+  }
+
+  .basketItemPrice {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  .subtotalLine {
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+
+  .subtotalPanel > .primaryButton,
+  .compareAction .primaryButton,
+  .handoffActions .primaryButton,
+  .secondaryHandoffLink {
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .basketItem {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .basketItemPrice {
+    width: auto;
+    min-width: 0;
+  }
+}

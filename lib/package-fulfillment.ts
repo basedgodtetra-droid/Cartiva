@@ -376,7 +376,23 @@ export function retailerContainerCompatible(
     source !== "retailer_category" && container !== "each"
   ));
   if (explicitPackages.some(({ container }) => container !== requested)) return false;
-  if (!evidence.some(({ container }) => container === requested)) return false;
+  const retailerNamesRequestedContainer = evidence.some(({ container }) => container === requested);
+  // Retailer catalogs commonly omit the words "each" and "loaf" from an
+  // otherwise unambiguous sell unit. A one-count SKU is direct evidence for
+  // an individual item when no conflicting package is named. Likewise, an
+  // ordinary bread SKU is safe evidence for one loaf unless the retailer
+  // explicitly describes another container. This changes sell-unit evidence,
+  // never product identity or the shopper's requested quantity.
+  const retailerProvesSingleEach = requested === "each"
+    && product.size?.kind === "count"
+    && product.size.baseAmount === 1
+    && explicitPackages.length === 0;
+  const retailerProvesBreadLoaf = requested === "loaf"
+    && /\bbread\b/i.test(`${product.productType ?? ""} ${product.title ?? ""}`)
+    && explicitPackages.length === 0;
+  if (!retailerNamesRequestedContainer && !retailerProvesSingleEach && !retailerProvesBreadLoaf) {
+    return false;
+  }
 
   // Without aggregate wording, "3 bottles" means three individual bottles,
   // not three 24-bottle cases. Aggregate totals are allowed to use verified

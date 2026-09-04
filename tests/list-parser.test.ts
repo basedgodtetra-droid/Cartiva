@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { parseShoppingList } from "@/lib/list-parser";
 
 describe("parseShoppingList", () => {
+  it("accepts recipe and meal-plan lead-ins without making them product identity", () => {
+    expect(parseShoppingList("recipe needs chicken breast 4 lb")).toEqual(["chicken breast 4 lb"]);
+    expect(parseShoppingList("meal plan needs kidney beans 6 cans")).toEqual(["kidney beans 6 cans"]);
+    expect(parseShoppingList("for meal prep: rice 3 lb")).toEqual(["rice 3 lb"]);
+    expect(parseShoppingList("shopping list: onions 5")).toEqual(["onions 5"]);
+  });
+
   it("parses the mobile MVP baseline lists without requiring separators", () => {
     expect(parseShoppingList("eggs milk bread bananas")).toEqual([
       "eggs",

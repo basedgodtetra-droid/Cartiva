@@ -17,6 +17,9 @@
     "test": "vitest run",
     "test:cartiva100": "vitest run tests/cartiva-100.test.ts --reporter=verbose",
     "test:cartiva100:live": "vitest run --config vitest.live.config.ts --reporter=verbose",
+    "test:cartiva500": "vitest run tests/cartiva-500.test.ts --reporter=verbose",
+    "test:cartiva500:live": "vitest run --config vitest.live.config.ts tests/live/cartiva-500-kroger.test.ts --reporter=verbose",
+    "test:visual": "node scripts/capture-responsive-qa.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

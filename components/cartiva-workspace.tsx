@@ -283,6 +283,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     savePlan,
     recordComparison: saveComparisonHistory,
     saveBasket,
+    deleteBasket,
     recordCartAdded,
   } = useCartivaLibrary();
   const [rawInput, setRawInput] = useState("");
@@ -1709,7 +1710,13 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                   onChangeStore={changeStore}
                   onRetry={runComparison}
                   onReviewItem={reviewItem}
-                  onSaveBasket={lastComparisonRecord?.complete ? () => saveBasket(lastComparisonRecord) : undefined}
+                  onSaveBasket={lastComparisonRecord?.complete ? () => {
+                    if (library.baskets.some((basket) => basket.id === lastComparisonRecord.id)) {
+                      deleteBasket(lastComparisonRecord.id);
+                    } else {
+                      saveBasket(lastComparisonRecord);
+                    }
+                  } : undefined}
                   onAddToKroger={addToKroger}
                   onContinueWithoutTransfer={continueWithoutTransfer}
                   onResolveCartReview={resolveCartReview}

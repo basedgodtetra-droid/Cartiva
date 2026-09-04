@@ -34,6 +34,45 @@ function volumeSize(amount: number): Measurement {
 }
 
 describe("retailer package fulfillment", () => {
+  it("accepts retailer-proven single produce units when the catalog omits 'each'", () => {
+    const intent = parseProductIntent("Bananas, 6 each");
+    const product = {
+      title: "Fresh Banana",
+      productType: "Produce",
+      price: 0.29,
+      size: {
+        amount: 1,
+        unit: "count" as const,
+        kind: "count" as const,
+        baseAmount: 1,
+        baseUnit: "each" as const,
+        label: "1 count",
+      },
+    };
+
+    expect(retailerContainerCompatible(intent, product)).toBe(true);
+    expect(packageFulfillmentForProduct(intent, product)).toMatchObject({
+      cartQuantity: 6,
+      packageCount: 6,
+    });
+  });
+
+  it("accepts an ordinary bread SKU as a loaf without literal loaf metadata", () => {
+    const intent = parseProductIntent("White Bread, 2 loaves");
+    const product = {
+      title: "Kroger Enriched White Sandwich Bread",
+      productType: "Bread",
+      price: 1.49,
+      size: weightSize(20),
+    };
+
+    expect(retailerContainerCompatible(intent, product)).toBe(true);
+    expect(packageFulfillmentForProduct(intent, product)).toMatchObject({
+      cartQuantity: 2,
+      packageCount: 2,
+    });
+  });
+
   it("treats the container adjacent to a measured count as the sell unit", () => {
     expect(retailerContainerEvidence({
       title: "Hefty Strong Large Trash Bags 30 Count Box",

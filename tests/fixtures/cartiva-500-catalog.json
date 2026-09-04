@@ -1,0 +1,1273 @@
+{
+  "schemaVersion": 1,
+  "location": {
+    "id": "C100STORE",
+    "name": "Cartiva 100 Fixture Market",
+    "postalCode": "75201"
+  },
+  "products": [
+    {
+      "id": "milk-whole-gallon",
+      "title": "Kroger Vitamin D Whole Milk Gallon",
+      "brand": "Kroger",
+      "productType": "Milk",
+      "priceCents": 379,
+      "size": {
+        "amount": 128,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 128,
+        "baseUnit": "fl oz",
+        "label": "1 gal"
+      },
+      "facts": {
+        "product": "milk",
+        "variant": "whole",
+        "container": "gallon"
+      }
+    },
+    {
+      "id": "milk-2pct-gallon",
+      "title": "Kroger 2% Reduced Fat Milk Gallon",
+      "brand": "Kroger",
+      "productType": "Milk",
+      "priceCents": 379,
+      "size": {
+        "amount": 128,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 128,
+        "baseUnit": "fl oz",
+        "label": "1 gal"
+      },
+      "facts": {
+        "product": "milk",
+        "variant": "2-percent",
+        "container": "gallon"
+      }
+    },
+    {
+      "id": "milk-skim-gallon",
+      "title": "Kroger Fat Free Skim Milk Gallon",
+      "brand": "Kroger",
+      "productType": "Milk",
+      "priceCents": 379,
+      "size": {
+        "amount": 128,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 128,
+        "baseUnit": "fl oz",
+        "label": "1 gal"
+      },
+      "facts": {
+        "product": "milk",
+        "variant": "skim",
+        "container": "gallon"
+      }
+    },
+    {
+      "id": "milk-almond-half",
+      "title": "Silk Unsweetened Almond Milk Half Gallon",
+      "brand": "Silk",
+      "productType": "Plant Based Milk",
+      "priceCents": 429,
+      "size": {
+        "amount": 64,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 64,
+        "baseUnit": "fl oz",
+        "label": "64 fl oz"
+      },
+      "facts": {
+        "product": "almond-milk",
+        "variant": "unsweetened",
+        "container": "half-gallon"
+      }
+    },
+    {
+      "id": "bread-white-20",
+      "title": "Kroger Enriched White Sandwich Bread",
+      "brand": "Kroger",
+      "productType": "White Bread",
+      "priceCents": 149,
+      "size": {
+        "amount": 20,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 20,
+        "baseUnit": "oz",
+        "label": "20 oz"
+      },
+      "facts": {
+        "product": "bread",
+        "variant": "white",
+        "container": "loaf"
+      }
+    },
+    {
+      "id": "bread-wheat-20",
+      "title": "Nature's Own 100% Whole Wheat Bread",
+      "brand": "Nature's Own",
+      "productType": "Whole Wheat Bread",
+      "priceCents": 399,
+      "size": {
+        "amount": 20,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 20,
+        "baseUnit": "oz",
+        "label": "20 oz"
+      },
+      "facts": {
+        "product": "bread",
+        "variant": "whole-wheat",
+        "container": "loaf"
+      }
+    },
+    {
+      "id": "bread-gluten-free-18",
+      "title": "Canyon Bakehouse Gluten Free Heritage Style White Bread",
+      "brand": "Canyon Bakehouse",
+      "productType": "Gluten Free Bread",
+      "priceCents": 699,
+      "size": {
+        "amount": 18,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 18,
+        "baseUnit": "oz",
+        "label": "18 oz"
+      },
+      "facts": {
+        "product": "bread",
+        "variant": "gluten-free-white",
+        "container": "loaf"
+      }
+    },
+    {
+      "id": "bread-sourdough-24",
+      "title": "Private Selection Sourdough Wide Pan Bread",
+      "brand": "Private Selection",
+      "productType": "Sourdough Bread",
+      "priceCents": 449,
+      "size": {
+        "amount": 24,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 24,
+        "baseUnit": "oz",
+        "label": "24 oz"
+      },
+      "facts": {
+        "product": "bread",
+        "variant": "sourdough",
+        "container": "loaf"
+      }
+    },
+    {
+      "id": "eggs-white-18",
+      "title": "Kroger Grade A Large White Eggs 18 Count",
+      "brand": "Kroger",
+      "productType": "Large White Eggs",
+      "priceCents": 399,
+      "size": {
+        "amount": 18,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 18,
+        "baseUnit": "each",
+        "label": "18 ct"
+      },
+      "facts": {
+        "product": "eggs",
+        "variant": "large-white",
+        "container": "carton"
+      }
+    },
+    {
+      "id": "eggs-white-12",
+      "title": "Kroger Grade A Large White Eggs 12 Count",
+      "brand": "Kroger",
+      "productType": "Large White Eggs",
+      "priceCents": 299,
+      "size": {
+        "amount": 12,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 12,
+        "baseUnit": "each",
+        "label": "12 ct"
+      },
+      "facts": {
+        "product": "eggs",
+        "variant": "large-white",
+        "container": "carton"
+      }
+    },
+    {
+      "id": "eggs-brown-12",
+      "title": "Simple Truth Grade A Large Brown Eggs 12 Count",
+      "brand": "Simple Truth",
+      "productType": "Large Brown Eggs",
+      "priceCents": 449,
+      "size": {
+        "amount": 12,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 12,
+        "baseUnit": "each",
+        "label": "12 ct"
+      },
+      "facts": {
+        "product": "eggs",
+        "variant": "large-brown",
+        "container": "carton"
+      }
+    },
+    {
+      "id": "eggs-cagefree-12",
+      "title": "Kroger Cage Free Grade A Large Eggs 12 Count",
+      "brand": "Kroger",
+      "productType": "Cage Free Eggs",
+      "priceCents": 399,
+      "size": {
+        "amount": 12,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 12,
+        "baseUnit": "each",
+        "label": "12 ct"
+      },
+      "facts": {
+        "product": "eggs",
+        "variant": "cage-free",
+        "container": "carton"
+      }
+    },
+    {
+      "id": "bananas-each",
+      "title": "Fresh Banana",
+      "brand": "Fresh",
+      "productType": "Fresh Bananas",
+      "priceCents": 29,
+      "size": {
+        "amount": 1,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 1,
+        "baseUnit": "each",
+        "label": "1 each"
+      },
+      "facts": {
+        "product": "banana",
+        "variant": "fresh",
+        "container": "each"
+      }
+    },
+    {
+      "id": "banana-pudding",
+      "title": "Kroger Banana Cream Instant Pudding Mix",
+      "brand": "Kroger",
+      "productType": "Pudding Mix",
+      "priceCents": 129,
+      "size": {
+        "amount": 3.4,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 3.4,
+        "baseUnit": "oz",
+        "label": "3.4 oz"
+      },
+      "facts": {
+        "product": "pudding",
+        "variant": "banana"
+      }
+    },
+    {
+      "id": "apples-each",
+      "title": "Fresh Gala Apple",
+      "brand": "Fresh",
+      "productType": "Fresh Apples",
+      "priceCents": 89,
+      "size": {
+        "amount": 1,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 1,
+        "baseUnit": "each",
+        "label": "1 each"
+      },
+      "facts": {
+        "product": "apple",
+        "variant": "gala",
+        "container": "each"
+      }
+    },
+    {
+      "id": "avocado-each",
+      "title": "Fresh Hass Avocado",
+      "brand": "Fresh",
+      "productType": "Fresh Avocados",
+      "priceCents": 99,
+      "size": {
+        "amount": 1,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 1,
+        "baseUnit": "each",
+        "label": "1 each"
+      },
+      "facts": {
+        "product": "avocado",
+        "variant": "hass",
+        "container": "each"
+      }
+    },
+    {
+      "id": "apple-juice-64",
+      "title": "Kroger 100% Apple Juice Bottle",
+      "brand": "Kroger",
+      "productType": "Apple Juice",
+      "priceCents": 299,
+      "size": {
+        "amount": 64,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 64,
+        "baseUnit": "fl oz",
+        "label": "64 fl oz"
+      },
+      "facts": {
+        "product": "apple-juice",
+        "container": "bottle"
+      }
+    },
+    {
+      "id": "rice-white-5lb",
+      "title": "Kroger Long Grain Enriched White Rice Bag",
+      "brand": "Kroger",
+      "productType": "Dry White Rice",
+      "priceCents": 499,
+      "size": {
+        "amount": 5,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 80,
+        "baseUnit": "oz",
+        "label": "5 lb"
+      },
+      "facts": {
+        "product": "rice",
+        "variant": "white",
+        "container": "bag"
+      }
+    },
+    {
+      "id": "rice-brown-5lb",
+      "title": "Mahatma Whole Grain Brown Rice Bag",
+      "brand": "Mahatma",
+      "productType": "Dry Brown Rice",
+      "priceCents": 649,
+      "size": {
+        "amount": 5,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 80,
+        "baseUnit": "oz",
+        "label": "5 lb"
+      },
+      "facts": {
+        "product": "rice",
+        "variant": "brown",
+        "container": "bag"
+      }
+    },
+    {
+      "id": "rice-ready-cooked",
+      "title": "Ben's Original Ready Rice Long Grain White Rice Pouch",
+      "brand": "Ben's Original",
+      "productType": "Cooked Rice",
+      "priceCents": 249,
+      "size": {
+        "amount": 8.8,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 8.8,
+        "baseUnit": "oz",
+        "label": "8.8 oz"
+      },
+      "facts": {
+        "product": "ready-rice",
+        "variant": "white",
+        "container": "pouch"
+      }
+    },
+    {
+      "id": "beans-black-can",
+      "title": "Kroger Black Beans Can",
+      "brand": "Kroger",
+      "productType": "Canned Black Beans",
+      "priceCents": 99,
+      "size": {
+        "amount": 15,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 15,
+        "baseUnit": "oz",
+        "label": "15 oz"
+      },
+      "facts": {
+        "product": "beans",
+        "variant": "black",
+        "container": "can"
+      }
+    },
+    {
+      "id": "beans-black-low-sodium-can",
+      "title": "Kroger Low Sodium Black Beans Can",
+      "brand": "Kroger",
+      "productType": "Canned Black Beans",
+      "priceCents": 109,
+      "size": {
+        "amount": 15,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 15,
+        "baseUnit": "oz",
+        "label": "15 oz"
+      },
+      "facts": {
+        "product": "beans",
+        "variant": "black-low-sodium",
+        "container": "can"
+      }
+    },
+    {
+      "id": "beans-kidney-can",
+      "title": "Kroger Dark Red Kidney Beans Can",
+      "brand": "Kroger",
+      "productType": "Canned Kidney Beans",
+      "priceCents": 109,
+      "size": {
+        "amount": 15.5,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 15.5,
+        "baseUnit": "oz",
+        "label": "15.5 oz"
+      },
+      "facts": {
+        "product": "beans",
+        "variant": "kidney",
+        "container": "can"
+      }
+    },
+    {
+      "id": "chickpeas-can",
+      "title": "Kroger Garbanzo Beans Chick Peas Can",
+      "brand": "Kroger",
+      "productType": "Canned Chickpeas",
+      "priceCents": 109,
+      "size": {
+        "amount": 15.5,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 15.5,
+        "baseUnit": "oz",
+        "label": "15.5 oz"
+      },
+      "facts": {
+        "product": "chickpeas",
+        "variant": "regular",
+        "container": "can"
+      }
+    },
+    {
+      "id": "chickpea-pasta",
+      "title": "Banza Chickpea Rotini Pasta Box",
+      "brand": "Banza",
+      "productType": "Chickpea Pasta",
+      "priceCents": 399,
+      "size": {
+        "amount": 8,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 8,
+        "baseUnit": "oz",
+        "label": "8 oz"
+      },
+      "facts": {
+        "product": "pasta",
+        "variant": "chickpea",
+        "container": "box"
+      }
+    },
+    {
+      "id": "tomatoes-diced-can",
+      "title": "Kroger Petite Diced Tomatoes Can",
+      "brand": "Kroger",
+      "productType": "Canned Diced Tomatoes",
+      "priceCents": 99,
+      "size": {
+        "amount": 14.5,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 14.5,
+        "baseUnit": "oz",
+        "label": "14.5 oz"
+      },
+      "facts": {
+        "product": "tomatoes",
+        "variant": "diced",
+        "container": "can"
+      }
+    },
+    {
+      "id": "tomatoes-fresh-each",
+      "title": "Fresh Roma Tomato",
+      "brand": "Fresh",
+      "productType": "Fresh Tomatoes",
+      "priceCents": 69,
+      "size": {
+        "amount": 1,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 1,
+        "baseUnit": "each",
+        "label": "1 each"
+      },
+      "facts": {
+        "product": "tomatoes",
+        "variant": "fresh",
+        "container": "each"
+      }
+    },
+    {
+      "id": "coconut-light-can",
+      "title": "Thai Kitchen Lite Coconut Milk Can",
+      "brand": "Thai Kitchen",
+      "productType": "Canned Coconut Milk",
+      "priceCents": 349,
+      "size": {
+        "amount": 13.66,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 13.66,
+        "baseUnit": "fl oz",
+        "label": "13.66 fl oz"
+      },
+      "facts": {
+        "product": "coconut-milk",
+        "variant": "light",
+        "container": "can"
+      }
+    },
+    {
+      "id": "coconut-regular-can",
+      "title": "Thai Kitchen Unsweetened Coconut Milk Can",
+      "brand": "Thai Kitchen",
+      "productType": "Canned Coconut Milk",
+      "priceCents": 349,
+      "size": {
+        "amount": 13.66,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 13.66,
+        "baseUnit": "fl oz",
+        "label": "13.66 fl oz"
+      },
+      "facts": {
+        "product": "coconut-milk",
+        "variant": "regular",
+        "container": "can"
+      }
+    },
+    {
+      "id": "peanut-butter-creamy-16",
+      "title": "Jif Creamy Peanut Butter Jar",
+      "brand": "Jif",
+      "productType": "Peanut Butter",
+      "priceCents": 349,
+      "size": {
+        "amount": 16,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "16 oz"
+      },
+      "facts": {
+        "product": "peanut-butter",
+        "variant": "creamy",
+        "container": "jar"
+      }
+    },
+    {
+      "id": "olive-oil-evoo-17",
+      "title": "Kroger Extra Virgin Olive Oil Bottle",
+      "brand": "Kroger",
+      "productType": "Olive Oil",
+      "priceCents": 799,
+      "size": {
+        "amount": 16.9,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 16.9,
+        "baseUnit": "fl oz",
+        "label": "16.9 fl oz"
+      },
+      "facts": {
+        "product": "olive-oil",
+        "variant": "extra-virgin",
+        "container": "bottle"
+      }
+    },
+    {
+      "id": "pasta-spaghetti-16",
+      "title": "Barilla Spaghetti Pasta Box",
+      "brand": "Barilla",
+      "productType": "Dry Pasta",
+      "priceCents": 199,
+      "size": {
+        "amount": 16,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "16 oz"
+      },
+      "facts": {
+        "product": "pasta",
+        "variant": "spaghetti",
+        "container": "box"
+      }
+    },
+    {
+      "id": "pasta-penne-16",
+      "title": "Kroger Penne Rigate Pasta Box",
+      "brand": "Kroger",
+      "productType": "Dry Pasta",
+      "priceCents": 149,
+      "size": {
+        "amount": 16,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "16 oz"
+      },
+      "facts": {
+        "product": "pasta",
+        "variant": "penne",
+        "container": "box"
+      }
+    },
+    {
+      "id": "chicken-breast-boneless-1lb",
+      "title": "Simple Truth Boneless Skinless Chicken Breast",
+      "brand": "Simple Truth",
+      "productType": "Fresh Chicken Breast",
+      "priceCents": 599,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "chicken",
+        "variant": "breast-boneless-skinless",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "chicken-thighs-bonein-1lb",
+      "title": "Kroger Bone-In Skin-On Chicken Thighs",
+      "brand": "Kroger",
+      "productType": "Fresh Chicken Thighs",
+      "priceCents": 299,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "chicken",
+        "variant": "thighs-bone-in",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "chicken-wings-2lb",
+      "title": "Kroger Fresh Chicken Wings",
+      "brand": "Kroger",
+      "productType": "Fresh Chicken Wings",
+      "priceCents": 899,
+      "size": {
+        "amount": 2,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 32,
+        "baseUnit": "oz",
+        "label": "2 lb"
+      },
+      "facts": {
+        "product": "chicken",
+        "variant": "wings",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "ground-beef-93-1lb",
+      "title": "Kroger 93% Lean 7% Fat Ground Beef",
+      "brand": "Kroger",
+      "productType": "Ground Beef",
+      "priceCents": 649,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "ground-beef",
+        "variant": "93-7",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "ground-beef-80-1lb",
+      "title": "Kroger 80% Lean 20% Fat Ground Beef",
+      "brand": "Kroger",
+      "productType": "Ground Beef",
+      "priceCents": 449,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "ground-beef",
+        "variant": "80-20",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "ground-turkey-93-1lb",
+      "title": "Kroger 93% Lean 7% Fat Ground Turkey",
+      "brand": "Kroger",
+      "productType": "Ground Turkey",
+      "priceCents": 499,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "ground-turkey",
+        "variant": "93-7",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "bacon-pork-regular-12",
+      "title": "Kroger Regular Cut Hickory Smoked Pork Bacon",
+      "brand": "Kroger",
+      "productType": "Pork Bacon",
+      "priceCents": 499,
+      "size": {
+        "amount": 12,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 12,
+        "baseUnit": "oz",
+        "label": "12 oz"
+      },
+      "facts": {
+        "product": "bacon",
+        "variant": "pork-regular",
+        "container": "package"
+      }
+    },
+    {
+      "id": "bacon-turkey-12",
+      "title": "Oscar Mayer Turkey Bacon",
+      "brand": "Oscar Mayer",
+      "productType": "Turkey Bacon",
+      "priceCents": 499,
+      "size": {
+        "amount": 12,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 12,
+        "baseUnit": "oz",
+        "label": "12 oz"
+      },
+      "facts": {
+        "product": "bacon",
+        "variant": "turkey",
+        "container": "package"
+      }
+    },
+    {
+      "id": "yogurt-greek-plain-32",
+      "title": "Fage Plain Nonfat Greek Yogurt Tub",
+      "brand": "Fage",
+      "productType": "Greek Yogurt",
+      "priceCents": 699,
+      "size": {
+        "amount": 32,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 32,
+        "baseUnit": "oz",
+        "label": "32 oz"
+      },
+      "facts": {
+        "product": "yogurt",
+        "variant": "greek-plain",
+        "container": "tub"
+      }
+    },
+    {
+      "id": "yogurt-greek-vanilla-32",
+      "title": "Kroger Vanilla Blended Nonfat Greek Yogurt Tub",
+      "brand": "Kroger",
+      "productType": "Greek Yogurt",
+      "priceCents": 429,
+      "size": {
+        "amount": 32,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 32,
+        "baseUnit": "oz",
+        "label": "32 oz"
+      },
+      "facts": {
+        "product": "yogurt",
+        "variant": "greek-vanilla",
+        "container": "tub"
+      }
+    },
+    {
+      "id": "yogurt-regular-vanilla-32",
+      "title": "Kroger Vanilla Lowfat Yogurt Tub",
+      "brand": "Kroger",
+      "productType": "Regular Yogurt",
+      "priceCents": 349,
+      "size": {
+        "amount": 32,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 32,
+        "baseUnit": "oz",
+        "label": "32 oz"
+      },
+      "facts": {
+        "product": "yogurt",
+        "variant": "regular-vanilla",
+        "container": "tub"
+      }
+    },
+    {
+      "id": "juice-orange-52",
+      "title": "Simply Orange Pulp Free Orange Juice Bottle",
+      "brand": "Simply",
+      "productType": "Orange Juice",
+      "priceCents": 499,
+      "size": {
+        "amount": 52,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 52,
+        "baseUnit": "fl oz",
+        "label": "52 fl oz"
+      },
+      "facts": {
+        "product": "orange-juice",
+        "variant": "pulp-free",
+        "container": "bottle"
+      }
+    },
+    {
+      "id": "coke-original-12",
+      "title": "Coca-Cola Original Taste Soda Cans 12 Pack",
+      "brand": "Coca-Cola",
+      "productType": "Cola Soda",
+      "priceCents": 899,
+      "size": {
+        "amount": 12,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 144,
+        "baseUnit": "fl oz",
+        "packCount": 12,
+        "perPackageAmount": 12,
+        "label": "12 × 12 fl oz"
+      },
+      "facts": {
+        "product": "cola",
+        "variant": "original",
+        "container": "can"
+      }
+    },
+    {
+      "id": "coke-zero-12",
+      "title": "Coca-Cola Zero Sugar Soda Cans 12 Pack",
+      "brand": "Coca-Cola",
+      "productType": "Cola Soda",
+      "priceCents": 899,
+      "size": {
+        "amount": 12,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 144,
+        "baseUnit": "fl oz",
+        "packCount": 12,
+        "perPackageAmount": 12,
+        "label": "12 × 12 fl oz"
+      },
+      "facts": {
+        "product": "cola",
+        "variant": "zero-sugar",
+        "container": "can"
+      }
+    },
+    {
+      "id": "diet-coke-12",
+      "title": "Diet Coke Soda Cans 12 Pack",
+      "brand": "Coca-Cola",
+      "productType": "Cola Soda",
+      "priceCents": 799,
+      "size": {
+        "amount": 12,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 144,
+        "baseUnit": "fl oz",
+        "packCount": 12,
+        "perPackageAmount": 12,
+        "label": "12 × 12 fl oz"
+      },
+      "facts": {
+        "product": "cola",
+        "variant": "diet",
+        "container": "can"
+      }
+    },
+    {
+      "id": "coke-zero-2liter",
+      "title": "Coca-Cola Zero Sugar Soda Bottle",
+      "brand": "Coca-Cola",
+      "productType": "Cola Soda",
+      "priceCents": 299,
+      "size": {
+        "amount": 67.6,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 67.6,
+        "baseUnit": "fl oz",
+        "label": "2 L"
+      },
+      "facts": {
+        "product": "cola",
+        "variant": "zero-sugar",
+        "container": "bottle"
+      }
+    },
+    {
+      "id": "cheddar-sharp-block-8",
+      "title": "Kroger Sharp Cheddar Cheese Block",
+      "brand": "Kroger",
+      "productType": "Cheddar Cheese",
+      "priceCents": 249,
+      "size": {
+        "amount": 8,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 8,
+        "baseUnit": "oz",
+        "label": "8 oz"
+      },
+      "facts": {
+        "product": "cheese",
+        "variant": "sharp-cheddar-block",
+        "container": "package"
+      }
+    },
+    {
+      "id": "mozzarella-shredded-8",
+      "title": "Kroger Shredded Mozzarella Cheese",
+      "brand": "Kroger",
+      "productType": "Mozzarella Cheese",
+      "priceCents": 229,
+      "size": {
+        "amount": 8,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 8,
+        "baseUnit": "oz",
+        "label": "8 oz"
+      },
+      "facts": {
+        "product": "cheese",
+        "variant": "mozzarella-shredded",
+        "container": "bag"
+      }
+    },
+    {
+      "id": "paper-towels-6roll",
+      "title": "Kroger Ultra Strong Paper Towels 6 Double Rolls",
+      "brand": "Kroger",
+      "productType": "Paper Towels",
+      "priceCents": 999,
+      "size": {
+        "amount": 6,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 6,
+        "baseUnit": "each",
+        "label": "6 rolls"
+      },
+      "facts": {
+        "product": "paper-towels",
+        "variant": "6-roll",
+        "container": "package"
+      }
+    },
+    {
+      "id": "paper-towels-single",
+      "title": "Kroger Everyday Paper Towels 1 Roll",
+      "brand": "Kroger",
+      "productType": "Paper Towels",
+      "priceCents": 199,
+      "size": {
+        "amount": 1,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 1,
+        "baseUnit": "each",
+        "label": "1 roll"
+      },
+      "facts": {
+        "product": "paper-towels",
+        "variant": "single-roll",
+        "container": "package"
+      }
+    },
+    {
+      "id": "toilet-paper-12roll",
+      "title": "Kroger Soft and Strong Toilet Paper 12 Mega Rolls",
+      "brand": "Kroger",
+      "productType": "Toilet Paper",
+      "priceCents": 1499,
+      "size": {
+        "amount": 12,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 12,
+        "baseUnit": "each",
+        "label": "12 rolls"
+      },
+      "facts": {
+        "product": "toilet-paper",
+        "variant": "12-roll",
+        "container": "package"
+      }
+    },
+    {
+      "id": "trash-bags-40count",
+      "title": "Kroger Tall Kitchen Drawstring Trash Bags 40 Count",
+      "brand": "Kroger",
+      "productType": "Trash Bags",
+      "priceCents": 899,
+      "size": {
+        "amount": 40,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 40,
+        "baseUnit": "each",
+        "label": "40 ct"
+      },
+      "facts": {
+        "product": "trash-bags",
+        "variant": "tall-kitchen",
+        "container": "box"
+      }
+    },
+    {
+      "id": "laundry-unscented-92",
+      "title": "All Free Clear Unscented Liquid Laundry Detergent Bottle",
+      "brand": "All",
+      "productType": "Laundry Detergent",
+      "priceCents": 1299,
+      "size": {
+        "amount": 92,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 92,
+        "baseUnit": "fl oz",
+        "label": "92 fl oz"
+      },
+      "facts": {
+        "product": "laundry-detergent",
+        "variant": "unscented",
+        "container": "bottle"
+      }
+    },
+    {
+      "id": "laundry-fresh-92",
+      "title": "Tide Original Fresh Scent Liquid Laundry Detergent Bottle",
+      "brand": "Tide",
+      "productType": "Laundry Detergent",
+      "priceCents": 1399,
+      "size": {
+        "amount": 92,
+        "unit": "fl oz",
+        "kind": "volume",
+        "baseAmount": 92,
+        "baseUnit": "fl oz",
+        "label": "92 fl oz"
+      },
+      "facts": {
+        "product": "laundry-detergent",
+        "variant": "scented",
+        "container": "bottle"
+      }
+    },
+    {
+      "id": "shrimp-large-raw-1lb",
+      "title": "Large Raw Peeled Deveined Shrimp",
+      "brand": "Kroger",
+      "productType": "Raw Shrimp",
+      "priceCents": 999,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "shrimp",
+        "variant": "large-raw",
+        "container": "bag"
+      }
+    },
+    {
+      "id": "shrimp-large-cooked-1lb",
+      "title": "Large Cooked Peeled Deveined Shrimp",
+      "brand": "Kroger",
+      "productType": "Cooked Shrimp",
+      "priceCents": 1099,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "shrimp",
+        "variant": "large-cooked",
+        "container": "bag"
+      }
+    },
+    {
+      "id": "salmon-fillet-1lb",
+      "title": "Fresh Atlantic Salmon Fillet",
+      "brand": "Kroger",
+      "productType": "Salmon Fillet",
+      "priceCents": 1199,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "fish",
+        "variant": "salmon-fillet",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "tilapia-fillet-1lb",
+      "title": "Fresh Tilapia Fillets",
+      "brand": "Kroger",
+      "productType": "Tilapia Fillet",
+      "priceCents": 799,
+      "size": {
+        "amount": 1,
+        "unit": "lb",
+        "kind": "weight",
+        "baseAmount": 16,
+        "baseUnit": "oz",
+        "label": "1 lb"
+      },
+      "facts": {
+        "product": "fish",
+        "variant": "tilapia-fillet",
+        "container": "tray"
+      }
+    },
+    {
+      "id": "onions-each",
+      "title": "Fresh Yellow Onion",
+      "productType": "Produce",
+      "priceCents": 89,
+      "size": {
+        "amount": 1,
+        "unit": "count",
+        "kind": "count",
+        "baseAmount": 1,
+        "baseUnit": "each",
+        "label": "1 count"
+      },
+      "facts": {
+        "product": "onions",
+        "container": "each"
+      }
+    },
+    {
+      "id": "red-lentil-pasta-12",
+      "title": "Barilla Red Lentil Penne Pasta Box",
+      "brand": "Barilla",
+      "productType": "Pasta",
+      "priceCents": 349,
+      "size": {
+        "amount": 12,
+        "unit": "oz",
+        "kind": "weight",
+        "baseAmount": 12,
+        "baseUnit": "oz",
+        "label": "12 oz"
+      },
+      "facts": {
+        "product": "red lentil pasta",
+        "variant": "penne",
+        "container": "box"
+      }
+    }
+  ],
+  "suite": "cartiva-500"
+}

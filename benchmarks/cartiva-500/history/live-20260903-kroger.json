@@ -1,0 +1,18 @@
+{
+  "recordType": "representative-live-kroger-subset",
+  "checkedAt": "2026-09-03T20:18:58-06:00",
+  "command": "CARTIVA500_LIVE_KROGER=1 pnpm test:cartiva500:live",
+  "status": "LIVE_PASSED",
+  "selectedCases": 12,
+  "handoffReady": 12,
+  "externalBlocked": 0,
+  "failed": 0,
+  "retailerCalls": 15,
+  "coverage": ["dairy", "meat", "produce", "canned", "beverages", "pantry", "household"],
+  "store": {
+    "id": "03500529",
+    "name": "Kroger Fresh Fare - Capitol Ave",
+    "postalCode": "75204"
+  },
+  "note": "Read-only product and location validation. No account creation, authentication, cart mutation, order, or purchase occurred."
+}

@@ -1,0 +1,21 @@
+{
+  "runId": "run-0001-baseline",
+  "recordedAt": "2026-09-03T20:12:25-06:00",
+  "sourceBaseCommit": "c005009",
+  "command": "pnpm test:cartiva500",
+  "caseCount": 500,
+  "scores": { "3": 234, "2": 187, "1": 0, "0": 79 },
+  "score2Or3Percent": 84.2,
+  "atLeast1Percent": 84.2,
+  "deadEndPercent": 15.8,
+  "unsafeSelectionCount": 0,
+  "failureCategories": { "QUANTITY": 73, "CLARIFICATION": 6 },
+  "performance": {
+    "averageParsingMs": 0.199,
+    "averageLocalMatchingMs": 2.219,
+    "averageSearchAttempts": 1.61,
+    "retailerCalls": 0
+  },
+  "targetMet": false,
+  "note": "Initial CARTIVA 500 run before planner-prefix, vague-intent, and typo-policy fixes."
+}

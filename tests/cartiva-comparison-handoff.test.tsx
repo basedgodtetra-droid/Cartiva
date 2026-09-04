@@ -84,6 +84,7 @@ function markup(
   plannedBudgetDollars?: number,
   onReviewPlan = vi.fn(),
   extraManualItem?: { item: GroceryNotepadItem; result: KrogerMatchResult; quantity: number },
+  basketSaved = false,
 ) {
   const items = extraManualItem ? [grocery, extraManualItem.item] : [grocery];
   const results = extraManualItem ? [comparisonResult, extraManualItem.result] : [comparisonResult];
@@ -116,7 +117,7 @@ function markup(
       customerConnected: connected,
       cartCapability: true,
     }),
-    basketSaved: false,
+    basketSaved,
     connectionChecking: false,
     connectionState,
     onChangeStore: vi.fn(),
@@ -149,6 +150,18 @@ describe("Cartiva comparison handoff UI", () => {
     const html = markup({ phase: "idle" }, true);
     expect(html).toContain("Kroger API connection is active");
     expect(html).toContain("Add basket to Kroger");
+  });
+
+  it("keeps basket saving compact, stateful, and accessible", () => {
+    const unsaved = markup({ phase: "idle" });
+    const saved = markup({ phase: "idle" }, false, "required", result, 1, undefined, vi.fn(), undefined, true);
+
+    expect(unsaved).toContain('aria-label="Save this basket"');
+    expect(unsaved).toContain('aria-pressed="false"');
+    expect(saved).toContain('aria-label="Remove basket from saved baskets"');
+    expect(saved).toContain('aria-pressed="true"');
+    expect(saved).toContain('title="Saved"');
+    expect(saved).not.toContain(">Basket saved<");
   });
 
   it("shows the resolved multi-package plan and prices every retailer package", () => {

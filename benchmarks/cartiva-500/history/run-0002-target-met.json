@@ -1,0 +1,22 @@
+{
+  "runId": "run-0002-target-met",
+  "recordedAt": "2026-09-03T20:13:43-06:00",
+  "sourceBaseCommit": "c005009",
+  "command": "pnpm test:cartiva500",
+  "caseCount": 500,
+  "scores": { "3": 307, "2": 193, "1": 0, "0": 0 },
+  "score2Or3Percent": 100,
+  "atLeast1Percent": 100,
+  "deadEndPercent": 0,
+  "unsafeSelectionCount": 0,
+  "failureCategories": {},
+  "performance": {
+    "averageParsingMs": 0.173,
+    "averageLocalMatchingMs": 2.028,
+    "averageSearchAttempts": 1.51,
+    "retailerCalls": 0
+  },
+  "stableOutcomeSha256": "de9b5e7d95149d29977daaa6ed1301194112f09ed518a2c592047ec5f8f05e02",
+  "targetMet": true,
+  "note": "All five groups met the target with zero unexplained dead ends and zero unsafe automatic selections."
+}

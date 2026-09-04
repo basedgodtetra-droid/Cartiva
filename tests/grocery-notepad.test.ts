@@ -8,6 +8,20 @@ import {
 import { AttributeOrigin } from "@/packages/shared/src/types";
 
 describe("Smart Grocery Notepad interpretation", () => {
+  it("turns subjective grocery language into one useful choice instead of inventing intent", () => {
+    expect(interpretGroceryInput("healthy cereal").items[0].clarification?.id).toBe("cereal-kind");
+    expect(interpretGroceryInput("good sandwich bread").items[0].clarification?.id).toBe("bread-kind");
+    expect(interpretGroceryInput("cheap rice").items[0].clarification?.id).toBe("rice-kind");
+    expect(interpretGroceryInput("cheese for tacos").items[0].clarification?.id).toBe("cheese-kind");
+  });
+
+  it("repairs common turkey shorthand before applying the protein policy", () => {
+    expect(interpretGroceryInput("ground turky").items[0]).toMatchObject({
+      raw: "ground turkey",
+      clarification: { id: "ground-turkey-ratio" },
+    });
+  });
+
   it("accepts natural separators and known space-separated product phrases", () => {
     expect(interpretGroceryInput("eggs, milk; white bread\nbananas").items.map((item) => item.raw)).toEqual([
       "eggs",

@@ -890,7 +890,7 @@ function categoryFor(raw: string) {
   const lower = raw.toLowerCase();
   if (/\bsomething\s+for\s+tacos?\b/.test(lower)) return "taco-need";
   if (/\bbreakfast\s+food\b/.test(lower)) return "breakfast-kind";
-  if (/\bground\s+meat\b/.test(lower)) return "ground-meat-kind";
+  if (/\b(?:ground\s+meat|meat\s+for\s+burgers?)\b/.test(lower)) return "ground-meat-kind";
   if (/\beggs?\b/.test(lower)) return "eggs";
   if (/\bcoconut\s+milk\b/.test(lower) && /\b(?:cans?|canned|light|lite)\b/.test(lower)) return "canned-goods";
   if (/\b(?:almond|oat|coconut|soy)\s+milk\b/.test(lower)) return "alt-milk";
@@ -930,22 +930,28 @@ function clarificationFor(
     return { id: "beans-kind", prompt: "Which kind of beans?", shortLabel: "Needs a kind", options: BEAN_KINDS };
   }
   const exactCategory = clean(raw).toLowerCase();
-  if (category === "bread" && exactCategory === "bread") {
+  const hasBreadKind = /\b(?:white|whole\s+wheat|wheat|sourdough|gluten[-\s]?free)\b/i.test(raw);
+  const hasYogurtKind = /\b(?:greek|regular|skyr)\b/i.test(raw);
+  const hasRiceKind = /\b(?:white|brown|jasmine|basmati)\b/i.test(raw);
+  const hasCheeseKind = /\b(?:cheddar|mozzarella|swiss|american|cream\s+cheese)\b/i.test(raw);
+  const hasCerealKind = /\b(?:cheerios|corn\s+flakes|oat\s+cereal|granola)\b/i.test(raw);
+  const hasVaguePreference = /\b(?:healthy|good|cheap|budget|affordable|low[-\s]?calorie)\b|\bfor\s+(?:tacos?|sandwiches?|burgers?|dinner)\b/i.test(raw);
+  if (category === "bread" && !hasBreadKind && (exactCategory === "bread" || hasVaguePreference)) {
     return { id: "bread-kind", prompt: "What kind of bread?", shortLabel: "Needs a kind", options: BREAD_KINDS };
   }
-  if (category === "yogurt" && exactCategory === "yogurt") {
+  if (category === "yogurt" && !hasYogurtKind && (exactCategory === "yogurt" || hasVaguePreference)) {
     return { id: "yogurt-kind", prompt: "What kind of yogurt?", shortLabel: "Needs a kind", options: YOGURT_KINDS };
   }
   if (category === "pasta" && exactCategory === "pasta") {
     return { id: "pasta-kind", prompt: "What kind of pasta?", shortLabel: "Needs a kind", options: PASTA_KINDS };
   }
-  if (category === "rice" && exactCategory === "rice") {
+  if (category === "rice" && !hasRiceKind && (exactCategory === "rice" || hasVaguePreference)) {
     return { id: "rice-kind", prompt: "What kind of rice?", shortLabel: "Needs a kind", options: RICE_KINDS };
   }
-  if (category === "cheese" && exactCategory === "cheese") {
+  if (category === "cheese" && !hasCheeseKind && (exactCategory === "cheese" || hasVaguePreference)) {
     return { id: "cheese-kind", prompt: "What kind of cheese?", shortLabel: "Needs a kind", options: CHEESE_KINDS };
   }
-  if (category === "cereal" && exactCategory === "cereal") {
+  if (category === "cereal" && !hasCerealKind && (exactCategory === "cereal" || hasVaguePreference)) {
     return { id: "cereal-kind", prompt: "What kind of cereal?", shortLabel: "Needs a kind", options: CEREAL_KINDS };
   }
   if (category === "juice" && exactCategory === "juice") {
@@ -1186,7 +1192,7 @@ export function resolveGroceryClarification(
     "soda-kind": [/\bsoda\b/i, value],
     "taco-need": [/.+/, value],
     "breakfast-kind": [/.+/, value],
-    "ground-meat-kind": [/\bground\s+meat\b/i, value],
+    "ground-meat-kind": [/\b(?:ground\s+meat|meat\s+for\s+burgers?)\b/i, value],
   };
   const replacement = replacements[clarificationId];
   if (replacement) return { raw: clean(raw.replace(replacement[0], replacement[1])) };

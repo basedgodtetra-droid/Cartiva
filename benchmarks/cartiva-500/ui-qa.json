@@ -1,0 +1,40 @@
+{
+  "runAt": "2026-09-03",
+  "route": "http://localhost:3000/compare",
+  "viewports": [
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "documentWidth": 390,
+      "bodyWidth": 390,
+      "horizontalOverflow": 0
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024,
+      "documentWidth": 768,
+      "bodyWidth": 768,
+      "horizontalOverflow": 0
+    },
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "documentWidth": 1440,
+      "bodyWidth": 1440,
+      "horizontalOverflow": 0
+    }
+  ],
+  "checks": {
+    "sharedPanelTopAndBottomEdges": "passed",
+    "sharedColumnGrid": "passed",
+    "alignedRetailerCards": "passed",
+    "sharedPrimaryActionHeight": "passed",
+    "alignedBasketRowsAndSubtotal": "passed",
+    "compactPersistentSaveControl": "passed",
+    "mobileTouchTargets": "passed",
+    "horizontalOverflow": "passed"
+  }
+}

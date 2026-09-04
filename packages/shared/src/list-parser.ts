@@ -6,7 +6,7 @@ import {
 
 /** Framework-neutral shopping-list parsing shared by every Cartiva client. */
 const LEADING_REQUEST =
-  /^(?:(?:please|could you|can you)\s+)?(?:(?:i|we)(?:'d| would)?\s+)?(?:need|want|would like|am looking for|get|buy|pick up)\s+/i;
+  /^(?:(?:recipe|meal plan)\s+needs?\s+|for\s+meal\s+prep\s*:\s*|shopping\s+list\s*:\s*|(?:(?:please|could you|can you)\s+)?(?:(?:i|we)(?:'d| would)?\s+)?(?:need|want|would like|am looking for|get|buy|pick up)\s+)/i;
 
 const COMPOUND_PHRASES = [
   "mac and cheese",
@@ -222,6 +222,7 @@ const COMMON_GROCERY_TYPOS: Record<string, string> = {
   chickn: "chicken",
   cok: "coke",
   potatos: "potatoes",
+  turky: "turkey",
   tomatos: "tomatoes",
   yogrt: "yogurt",
 };
