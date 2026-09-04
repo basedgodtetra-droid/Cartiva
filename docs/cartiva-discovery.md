@@ -40,7 +40,7 @@ Next16.3.2 serves Vercel; vinext/Vite builds the Sites Worker. Installed Next do
 
 Server-only configuration includes Kroger client ID/secret, exact redirect URI, web-session signing secret; optional Walmart/Target provider keys; mobile session and callback settings. Public-origin hints restrict API origins. No secret values appear in this report. No new credentials, paid integrations or environment values were created.
 
-Sites has no D1/R2 binding configured. Web customer sessions use encrypted cookies plus request-scoped temporary auth files on serverless hosts. Cart receipts/rate buckets rely on filesystem/process state. Mobile writes already declare a single-instance persistent-storage requirement. This is not a transactional multi-instance architecture.
+The current source declares no D1/R2 binding. A subsequent read-only Sites database overview found an existing `DB` database with Kroger operation, comparison, customer-session, OAuth-state and rate-limit tables. This corrects the earlier assumption that no hosted store existed: it exists, but the current source does not wire it into these paths. No customer rows were read or database settings changed. Web customer sessions use encrypted cookies plus request-scoped temporary auth files on serverless hosts. Cart receipts/rate buckets rely on filesystem/process state. Mobile writes already declare a single-instance persistent-storage requirement. This is not a transactional multi-instance architecture.
 
 ## Reproducible issues and fixes
 
@@ -67,6 +67,9 @@ Sites has no D1/R2 binding configured. Web customer sessions use encrypted cooki
 | P2 D19 Recipe noise/units | Dice onions becomes ingredient; liters/optional marker mishandled. | Skip directions without discarding later ingredient lines; liters normalized; optional retained; invalid extraction is recoverable. Recipe tests. |
 | P2 D20 Saved basket/new-list context | Old full-list editor or unrelated preferred store carried into new work. | Reset editor; restore historical basket's store preference but require fresh lookup/prices. State audit and shared browser reload coverage. |
 | P1 D21 Populated mobile basket overlaps footer | Screenshot review found rows rendered beyond their zero-basis flex region; subtotal covered products and footer overlapped them. Horizontal-only tests missed it. | Mobile list/basket content uses natural flex basis; explicit vertical-containment assertions ensure rows precede subtotal and comparison precedes footer. |
+| P1 D22 Mobile API excluded from deployment | Production capabilities endpoint returned404. `.vercelignore` used unanchored `mobile/`, excluding all11 tracked `app/api/mobile` routes as well as the separate client. | Root-only client/artifact exclusions are now anchored. Permanent deployment-input regression reproduced11 unintended exclusions before the fix and0 after it, while retaining root client exclusions. Next production build includes all11 routes. Live rollout verification is recorded below when completed. |
+
+Deployment exclusion semantics were checked against [Vercel's `.vercelignore` documentation](https://vercel.com/docs/deployments/vercel-ignore). The source-boundary regression tests all tracked routes and their shared dependencies, rather than only the first missing endpoint.
 
 ## Discovery passes and actual results
 
@@ -74,6 +77,7 @@ Sites has no D1/R2 binding configured. Web customer sessions use encrypted cooki
 2. Pass1: parser/plan properties, occurrence state, persistence limits, provider/auth review. First full rerun caught6 ratio regressions introduced by decimal-comma normalization; fixed the generalized boundary, kept all hard tests.
 3. Pass2 deliberately changed areas: Oxford-list allergies, parenthetical amounts, storage quota/corruption, response bodies, malformed/truncated streams, stale ZIP responses, receipt account binding, double clicks, browser opener policy. Added permanent regressions and reran everything.
 4. Final full suite before publishing:113 files /2,104 tests. Original benchmark fixtures are unchanged. Screenshot review caught D21 after horizontal checks passed; vertical containment was added to avoid repeating that blind spot.
+5. Follow-up deployment discovery: read-only production API probe found D22. Regression failed with11 excluded routes before the fix and passed afterward. Full suite:114 files /2,106 tests; Next build passed with all mobile routes. No authentication/cart behavior or database schema changed in this follow-up.
 
 | Suite | Actual outcome |
 |---|---|
