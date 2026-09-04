@@ -4,7 +4,7 @@
     "id": "cartiva-500",
     "title": "CARTIVA 500 normal-human grocery reliability benchmark",
     "scoringPolicy": "shopper-outcome-v1",
-    "oracleRevision": 1,
+    "oracleRevision": 2,
     "groups": {
       "A": "Generic groceries",
       "B": "Generic groceries with quantity",
@@ -18045,6 +18045,75 @@
             "excludes": [
               "12",
               "rolls"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "C500-R-001",
+      "level": 4,
+      "group": "D",
+      "input": "Ground beef, 93/7, 1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER",
+        "ATTRIBUTE_EXTRACTION"
+      ],
+      "expectedItems": [
+        {
+          "policy": "automatic",
+          "allowedProductIds": [
+            "ground-beef-93-1lb"
+          ],
+          "candidateIds": [
+            "ground-beef-80-1lb",
+            "ground-turkey-93-1lb",
+            "ground-beef-93-1lb"
+          ],
+          "cartQuantity": 1,
+          "packageCount": 1,
+          "query": {
+            "includes": [
+              "ground",
+              "beef"
+            ],
+            "excludes": [
+              "1",
+              "lb"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "C500-R-002",
+      "level": 4,
+      "group": "D",
+      "input": "Bananas, 6",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER",
+        "QUANTITY"
+      ],
+      "expectedItems": [
+        {
+          "policy": "automatic",
+          "allowedProductIds": [
+            "bananas-each"
+          ],
+          "candidateIds": [
+            "banana-pudding",
+            "bananas-each"
+          ],
+          "cartQuantity": 6,
+          "packageCount": 6,
+          "query": {
+            "includes": [
+              "bananas"
+            ],
+            "excludes": [
+              "6"
             ]
           }
         }

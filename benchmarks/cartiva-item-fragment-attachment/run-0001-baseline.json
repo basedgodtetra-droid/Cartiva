@@ -1,0 +1,21 @@
+{
+  "suiteId": "cartiva-item-fragment-attachment-100",
+  "run": 1,
+  "status": "baseline",
+  "caseCount": 100,
+  "passed": 49,
+  "failed": 51,
+  "passPercent": 49,
+  "failureCategories": {
+    "ITEM_FRAGMENT_ATTACHMENT": 51,
+    "ORPHAN_MODIFIER": 51
+  },
+  "groupResults": {
+    "RATIO": { "passed": 5, "total": 20 },
+    "EACH": { "passed": 10, "total": 20 },
+    "PACKAGE": { "passed": 17, "total": 20 },
+    "ATTRIBUTE": { "passed": 5, "total": 20 },
+    "MIXED": { "passed": 12, "total": 20 }
+  },
+  "notes": "Baseline captured before semantic comma attachment. Separate invariant checks also confirmed that numeric, ratio, weight, count, pack, and container fragments could survive as products."
+}

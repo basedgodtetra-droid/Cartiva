@@ -1,0 +1,22 @@
+{
+  "suiteId": "cartiva-item-fragment-attachment-100",
+  "run": 2,
+  "status": "target_met",
+  "caseCount": 100,
+  "passed": 100,
+  "failed": 0,
+  "passPercent": 100,
+  "failureCategories": {},
+  "groupResults": {
+    "RATIO": { "passed": 20, "total": 20 },
+    "EACH": { "passed": 20, "total": 20 },
+    "PACKAGE": { "passed": 20, "total": 20 },
+    "ATTRIBUTE": { "passed": 20, "total": 20 },
+    "MIXED": { "passed": 20, "total": 20 }
+  },
+  "reportedRegression": {
+    "inputItemCount": 10,
+    "parsedItemCount": 10,
+    "orphanModifiers": 0
+  }
+}

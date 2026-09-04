@@ -17,7 +17,7 @@ import {
 } from "@/packages/shared/src/grocery-notepad";
 
 export const CARTIVA_500_SCORING_POLICY = "shopper-outcome-v1" as const;
-export const CARTIVA_500_ORACLE_REVISION = 1 as const;
+export const CARTIVA_500_ORACLE_REVISION = 2 as const;
 export const CARTIVA_500_FINGERPRINT_ALGORITHM = "recursive-key-sort-json-sha256-v1" as const;
 
 export type Cartiva500Score = 0 | 1 | 2 | 3;
@@ -26,6 +26,8 @@ export type Cartiva500FailureCategory =
   | "PARSING"
   | "TYPO"
   | "ITEM_BOUNDARY"
+  | "ITEM_FRAGMENT_ATTACHMENT"
+  | "ORPHAN_MODIFIER"
   | "CATEGORY"
   | "GENERIC_INTENT"
   | "ATTRIBUTE_EXTRACTION"
@@ -80,6 +82,7 @@ interface Cartiva500Fixture {
     id: "cartiva-500";
     title: string;
     scoringPolicy: typeof CARTIVA_500_SCORING_POLICY;
+    oracleRevision: typeof CARTIVA_500_ORACLE_REVISION;
     requiredPerLevel: Record<"1" | "2" | "3" | "4" | "5", number>;
     targets: {
       score2Or3Percent: number;
@@ -217,6 +220,8 @@ function round(value: number, digits = 2) {
 
 function primaryFailureCategory(testCase: Cartiva500Case) {
   const priority: Cartiva500FailureCategory[] = [
+    "ITEM_FRAGMENT_ATTACHMENT",
+    "ORPHAN_MODIFIER",
     "ITEM_BOUNDARY",
     "PARSING",
     "TYPO",
@@ -317,6 +322,9 @@ function validateFixture() {
   }
   if (fixture.suite.scoringPolicy !== CARTIVA_500_SCORING_POLICY) {
     throw new Error("Cartiva 500 scoring policy does not match the runner.");
+  }
+  if (fixture.suite.oracleRevision !== CARTIVA_500_ORACLE_REVISION) {
+    throw new Error("Cartiva 500 oracle revision does not match the runner.");
   }
   if (fixture.cases.length < 500) {
     throw new Error(`Cartiva 500 must retain all 500 permanent cases; found ${fixture.cases.length}.`);

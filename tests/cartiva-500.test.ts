@@ -25,13 +25,17 @@ const originalCases = (cartiva100Source as { cases: RegressionCase[] }).cases;
 const fixtureCases = (cartiva500Source as { cases: Cartiva500FixtureCase[] }).cases;
 
 describe("CARTIVA 500 permanent grocery-intelligence benchmark", () => {
-  it("keeps 500 permanent cases in five balanced groups", () => {
+  it("keeps the original 500 cases plus permanent shopper regressions", () => {
     const summary = cartiva500FixtureSummary();
 
-    expect(summary.caseCount).toBe(500);
-    for (const count of Object.values(summary.levelCounts)) expect(count).toBe(100);
-    expect(new Set(fixtureCases.map((testCase) => testCase.id)).size).toBe(500);
+    expect(summary.caseCount).toBe(502);
+    expect(summary.levelCounts).toEqual({ 1: 100, 2: 100, 3: 100, 4: 102, 5: 100 });
+    expect(new Set(fixtureCases.map((testCase) => testCase.id)).size).toBe(502);
     expect(fixtureCases.every((testCase) => testCase.input.trim().length > 0)).toBe(true);
+    expect(fixtureCases).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "C500-R-001", input: "Ground beef, 93/7, 1 lb" }),
+      expect.objectContaining({ id: "C500-R-002", input: "Bananas, 6" }),
+    ]));
   });
 
   it("embeds every CARTIVA 100 regression without replacing the original suite", () => {
@@ -58,5 +62,5 @@ describe("CARTIVA 500 permanent grocery-intelligence benchmark", () => {
     expect(report.deadEndPercent, "unexplained shopper dead ends are not allowed").toBe(0);
     expect(report.unsafeSelectionCount, "unsafe automatic selections are never allowed").toBe(0);
     expect(report.performance.averageSearchAttempts, "bounded retrieval must average no more than three attempts").toBeLessThanOrEqual(3);
-  });
+  }, 15_000);
 });

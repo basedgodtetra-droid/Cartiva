@@ -1,0 +1,1725 @@
+{
+  "schemaVersion": 1,
+  "suite": {
+    "id": "cartiva-item-fragment-attachment-100",
+    "title": "Cartiva item fragment attachment regressions",
+    "failureCategories": [
+      "ITEM_FRAGMENT_ATTACHMENT",
+      "ORPHAN_MODIFIER"
+    ],
+    "requiredCases": 100,
+    "requiredPerGroup": 20
+  },
+  "cases": [
+    {
+      "id": "CFR-RATIO-001",
+      "group": "RATIO",
+      "input": "ground beef, 93/7, 1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "93/7 · 1 lb",
+          "canonicalText": "Ground Beef, 93/7, 1 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "1 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-002",
+      "group": "RATIO",
+      "input": "ground beef,93/7,1lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "93/7 · 1 lb",
+          "canonicalText": "Ground Beef, 93/7, 1 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "1 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-003",
+      "group": "RATIO",
+      "input": "93/7 ground beef 1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "93/7 · 1 lb",
+          "canonicalText": "Ground Beef, 93/7, 1 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "1 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-004",
+      "group": "RATIO",
+      "input": "ground beef 93 7 1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "93/7 · 1 lb",
+          "canonicalText": "Ground Beef, 93/7, 1 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "1 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-005",
+      "group": "RATIO",
+      "input": "ground beef, 90/10, 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "90/10 · 2 lb",
+          "canonicalText": "Ground Beef, 90/10, 2 lb",
+          "leanRatio": "90/10",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-006",
+      "group": "RATIO",
+      "input": "ground beef,90/10,2lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "90/10 · 2 lb",
+          "canonicalText": "Ground Beef, 90/10, 2 lb",
+          "leanRatio": "90/10",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-007",
+      "group": "RATIO",
+      "input": "90/10 ground beef 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "90/10 · 2 lb",
+          "canonicalText": "Ground Beef, 90/10, 2 lb",
+          "leanRatio": "90/10",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-008",
+      "group": "RATIO",
+      "input": "ground beef 90 10 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "90/10 · 2 lb",
+          "canonicalText": "Ground Beef, 90/10, 2 lb",
+          "leanRatio": "90/10",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-009",
+      "group": "RATIO",
+      "input": "ground beef, 80/20, 3 pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "80/20 · 3 lb",
+          "canonicalText": "Ground Beef, 80/20, 3 lb",
+          "leanRatio": "80/20",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-010",
+      "group": "RATIO",
+      "input": "ground beef,80/20,3pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "80/20 · 3 lb",
+          "canonicalText": "Ground Beef, 80/20, 3 lb",
+          "leanRatio": "80/20",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-011",
+      "group": "RATIO",
+      "input": "80/20 ground beef 3 pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "80/20 · 3 lb",
+          "canonicalText": "Ground Beef, 80/20, 3 lb",
+          "leanRatio": "80/20",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-012",
+      "group": "RATIO",
+      "input": "ground beef 80 20 3 pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Beef",
+          "detail": "80/20 · 3 lb",
+          "canonicalText": "Ground Beef, 80/20, 3 lb",
+          "leanRatio": "80/20",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-013",
+      "group": "RATIO",
+      "input": "ground turkey, 93/7, 3 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "93/7 · 3 lb",
+          "canonicalText": "Ground Turkey, 93/7, 3 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-014",
+      "group": "RATIO",
+      "input": "ground turkey,93/7,3lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "93/7 · 3 lb",
+          "canonicalText": "Ground Turkey, 93/7, 3 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-015",
+      "group": "RATIO",
+      "input": "93/7 ground turkey 3 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "93/7 · 3 lb",
+          "canonicalText": "Ground Turkey, 93/7, 3 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-016",
+      "group": "RATIO",
+      "input": "ground turkey 93 7 3 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "93/7 · 3 lb",
+          "canonicalText": "Ground Turkey, 93/7, 3 lb",
+          "leanRatio": "93/7",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-017",
+      "group": "RATIO",
+      "input": "ground turkey, 85/15, 2 pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "85/15 · 2 lb",
+          "canonicalText": "Ground Turkey, 85/15, 2 lb",
+          "leanRatio": "85/15",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-018",
+      "group": "RATIO",
+      "input": "ground turkey,85/15,2pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "85/15 · 2 lb",
+          "canonicalText": "Ground Turkey, 85/15, 2 lb",
+          "leanRatio": "85/15",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-019",
+      "group": "RATIO",
+      "input": "85/15 ground turkey 2 pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "85/15 · 2 lb",
+          "canonicalText": "Ground Turkey, 85/15, 2 lb",
+          "leanRatio": "85/15",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-RATIO-020",
+      "group": "RATIO",
+      "input": "ground turkey 85 15 2 pounds",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Ground Turkey",
+          "detail": "85/15 · 2 lb",
+          "canonicalText": "Ground Turkey, 85/15, 2 lb",
+          "leanRatio": "85/15",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-001",
+      "group": "EACH",
+      "input": "bananas, 6",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Bananas",
+          "detail": "6 each",
+          "canonicalText": "Bananas, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-002",
+      "group": "EACH",
+      "input": "bananas,6",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Bananas",
+          "detail": "6 each",
+          "canonicalText": "Bananas, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-003",
+      "group": "EACH",
+      "input": "bananas 6",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Bananas",
+          "detail": "6 each",
+          "canonicalText": "Bananas, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-004",
+      "group": "EACH",
+      "input": "6 bananas",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Bananas",
+          "detail": "6 each",
+          "canonicalText": "Bananas, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-005",
+      "group": "EACH",
+      "input": "apples, 4",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Apples",
+          "detail": "4 each",
+          "canonicalText": "Apples, 4 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-006",
+      "group": "EACH",
+      "input": "apples,4",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Apples",
+          "detail": "4 each",
+          "canonicalText": "Apples, 4 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-007",
+      "group": "EACH",
+      "input": "apples 4",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Apples",
+          "detail": "4 each",
+          "canonicalText": "Apples, 4 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-008",
+      "group": "EACH",
+      "input": "4 apples",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Apples",
+          "detail": "4 each",
+          "canonicalText": "Apples, 4 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-009",
+      "group": "EACH",
+      "input": "avocados, 3",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Avocados",
+          "detail": "3 each",
+          "canonicalText": "Avocados, 3 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-010",
+      "group": "EACH",
+      "input": "avocados,3",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Avocados",
+          "detail": "3 each",
+          "canonicalText": "Avocados, 3 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-011",
+      "group": "EACH",
+      "input": "avocados 3",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Avocados",
+          "detail": "3 each",
+          "canonicalText": "Avocados, 3 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-012",
+      "group": "EACH",
+      "input": "3 avocados",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Avocados",
+          "detail": "3 each",
+          "canonicalText": "Avocados, 3 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-013",
+      "group": "EACH",
+      "input": "limes, 6",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Limes",
+          "detail": "6 each",
+          "canonicalText": "Limes, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-014",
+      "group": "EACH",
+      "input": "limes,6",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Limes",
+          "detail": "6 each",
+          "canonicalText": "Limes, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-015",
+      "group": "EACH",
+      "input": "limes 6",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Limes",
+          "detail": "6 each",
+          "canonicalText": "Limes, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-016",
+      "group": "EACH",
+      "input": "6 limes",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Limes",
+          "detail": "6 each",
+          "canonicalText": "Limes, 6 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-017",
+      "group": "EACH",
+      "input": "tomatoes, 5",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Tomatoes",
+          "detail": "5 each",
+          "canonicalText": "Tomatoes, 5 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-018",
+      "group": "EACH",
+      "input": "tomatoes,5",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Tomatoes",
+          "detail": "5 each",
+          "canonicalText": "Tomatoes, 5 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-019",
+      "group": "EACH",
+      "input": "tomatoes 5",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Tomatoes",
+          "detail": "5 each",
+          "canonicalText": "Tomatoes, 5 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-EACH-020",
+      "group": "EACH",
+      "input": "5 tomatoes",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Tomatoes",
+          "detail": "5 each",
+          "canonicalText": "Tomatoes, 5 each"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-001",
+      "group": "PACKAGE",
+      "input": "large eggs, 18 count",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Large Eggs",
+          "detail": "18 ct",
+          "canonicalText": "Large Eggs, 18 ct"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-002",
+      "group": "PACKAGE",
+      "input": "large eggs,18ct",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Large Eggs",
+          "detail": "18 ct",
+          "canonicalText": "Large Eggs, 18 ct"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-003",
+      "group": "PACKAGE",
+      "input": "large eggs 18 count",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Large Eggs",
+          "detail": "18 ct",
+          "canonicalText": "Large Eggs, 18 ct"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-004",
+      "group": "PACKAGE",
+      "input": "large eggs, 18-count",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Large Eggs",
+          "detail": "18 ct",
+          "canonicalText": "Large Eggs, 18 ct"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-005",
+      "group": "PACKAGE",
+      "input": "2% milk, 1 gallon",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "2% Milk",
+          "detail": "1 gallon",
+          "canonicalText": "2% Milk, 1 gallon"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-006",
+      "group": "PACKAGE",
+      "input": "2%milk,1gallon",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "2% Milk",
+          "detail": "1 gallon",
+          "canonicalText": "2% Milk, 1 gallon"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-007",
+      "group": "PACKAGE",
+      "input": "2% milk 1 gallon",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "2% Milk",
+          "detail": "1 gallon",
+          "canonicalText": "2% Milk, 1 gallon"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-008",
+      "group": "PACKAGE",
+      "input": "2% milk, 1 gal",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "2% Milk",
+          "detail": "1 gallon",
+          "canonicalText": "2% Milk, 1 gallon"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-009",
+      "group": "PACKAGE",
+      "input": "Coke Zero, 12 pack",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Coke Zero",
+          "detail": "12 pack",
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-010",
+      "group": "PACKAGE",
+      "input": "Coke Zero,12pk",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Coke Zero",
+          "detail": "12 pack",
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-011",
+      "group": "PACKAGE",
+      "input": "Coke Zero 12 pack",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Coke Zero",
+          "detail": "12 pack",
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-012",
+      "group": "PACKAGE",
+      "input": "Coke Zero, 12-pack",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Coke Zero",
+          "detail": "12 pack",
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-013",
+      "group": "PACKAGE",
+      "input": "paper towels, 6 rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Paper Towels",
+          "detail": "6 rolls",
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-014",
+      "group": "PACKAGE",
+      "input": "paper towels,6rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Paper Towels",
+          "detail": "6 rolls",
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-015",
+      "group": "PACKAGE",
+      "input": "paper towels 6 rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Paper Towels",
+          "detail": "6 rolls",
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-016",
+      "group": "PACKAGE",
+      "input": "paper towels, 6-rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Paper Towels",
+          "detail": "6 rolls",
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-017",
+      "group": "PACKAGE",
+      "input": "black beans, 3 cans",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Black Beans",
+          "detail": "3 cans",
+          "canonicalText": "Black Beans, 3 cans"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-018",
+      "group": "PACKAGE",
+      "input": "black beans,3cans",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Black Beans",
+          "detail": "3 cans",
+          "canonicalText": "Black Beans, 3 cans"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-019",
+      "group": "PACKAGE",
+      "input": "black beans 3 cans",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Black Beans",
+          "detail": "3 cans",
+          "canonicalText": "Black Beans, 3 cans"
+        }
+      ]
+    },
+    {
+      "id": "CFR-PACKAGE-020",
+      "group": "PACKAGE",
+      "input": "black beans, 3 cans total",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "name": "Black Beans",
+          "detail": "3 cans",
+          "canonicalText": "Black Beans, 3 cans total"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-001",
+      "group": "ATTRIBUTE",
+      "input": "chicken breast, boneless, skinless, 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "boneless skinless",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-002",
+      "group": "ATTRIBUTE",
+      "input": "chicken breast,boneless,skinless,2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "boneless skinless",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-003",
+      "group": "ATTRIBUTE",
+      "input": "chicken breast boneless skinless 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "boneless skinless",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-004",
+      "group": "ATTRIBUTE",
+      "input": "chicken breast; boneless skinless 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-005",
+      "group": "ATTRIBUTE",
+      "input": "chicken thighs, bone-in, skin-on, 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "bone-in skin-on",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-006",
+      "group": "ATTRIBUTE",
+      "input": "chicken thighs,bone-in,skin-on,2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "bone-in skin-on",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-007",
+      "group": "ATTRIBUTE",
+      "input": "chicken thighs bone-in skin-on 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "bone-in skin-on",
+          "requestedWeight": "2 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-008",
+      "group": "ATTRIBUTE",
+      "input": "chicken thighs; bone-in skin-on 2 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-009",
+      "group": "ATTRIBUTE",
+      "input": "shrimp, large, 1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "size": "large",
+          "requestedWeight": "1 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-010",
+      "group": "ATTRIBUTE",
+      "input": "shrimp,large,1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "size": "large",
+          "requestedWeight": "1 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-011",
+      "group": "ATTRIBUTE",
+      "input": "shrimp large 1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "size": "large",
+          "requestedWeight": "1 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-012",
+      "group": "ATTRIBUTE",
+      "input": "shrimp; large 1 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-013",
+      "group": "ATTRIBUTE",
+      "input": "pork bacon, thick-cut, 12 oz",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "style": "thick cut",
+          "requestedWeight": "12 oz"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-014",
+      "group": "ATTRIBUTE",
+      "input": "pork bacon,thick-cut,12 oz",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "style": "thick cut",
+          "requestedWeight": "12 oz"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-015",
+      "group": "ATTRIBUTE",
+      "input": "pork bacon thick-cut 12 oz",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "style": "thick cut",
+          "requestedWeight": "12 oz"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-016",
+      "group": "ATTRIBUTE",
+      "input": "pork bacon; thick-cut 12 oz",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-017",
+      "group": "ATTRIBUTE",
+      "input": "turkey breast, boneless, 3 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "boneless",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-018",
+      "group": "ATTRIBUTE",
+      "input": "turkey breast,boneless,3 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "boneless",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-019",
+      "group": "ATTRIBUTE",
+      "input": "turkey breast boneless 3 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true,
+          "preparation": "boneless",
+          "requestedWeight": "3 lb"
+        }
+      ]
+    },
+    {
+      "id": "CFR-ATTRIBUTE-020",
+      "group": "ATTRIBUTE",
+      "input": "turkey breast; boneless 3 lb",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "itemCountOnly": true
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-001",
+      "group": "MIXED",
+      "input": "milk, eggs, bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Milk"
+        },
+        {
+          "canonicalText": "Eggs"
+        },
+        {
+          "canonicalText": "Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-002",
+      "group": "MIXED",
+      "input": "milk,eggs,bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Milk"
+        },
+        {
+          "canonicalText": "Eggs"
+        },
+        {
+          "canonicalText": "Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-003",
+      "group": "MIXED",
+      "input": "milk\neggs\nbread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Milk"
+        },
+        {
+          "canonicalText": "Eggs"
+        },
+        {
+          "canonicalText": "Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-004",
+      "group": "MIXED",
+      "input": "milk; eggs; bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Milk"
+        },
+        {
+          "canonicalText": "Eggs"
+        },
+        {
+          "canonicalText": "Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-005",
+      "group": "MIXED",
+      "input": "bananas, 6, 2% milk, 1 gallon, white bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-006",
+      "group": "MIXED",
+      "input": "bananas,6,2% milk,1 gallon,white bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-007",
+      "group": "MIXED",
+      "input": "bananas, 6\n2% milk, 1 gallon\nwhite bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-008",
+      "group": "MIXED",
+      "input": "bananas, 6; 2% milk, 1 gallon; white bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-009",
+      "group": "MIXED",
+      "input": "ground beef, 93/7, 1 lb, bananas, 6, white bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Ground Beef, 93/7, 1 lb"
+        },
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-010",
+      "group": "MIXED",
+      "input": "ground beef,93/7,1 lb,bananas,6,white bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Ground Beef, 93/7, 1 lb"
+        },
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-011",
+      "group": "MIXED",
+      "input": "ground beef, 93/7, 1 lb\nbananas, 6\nwhite bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Ground Beef, 93/7, 1 lb"
+        },
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-012",
+      "group": "MIXED",
+      "input": "ground beef, 93/7, 1 lb; bananas, 6; white bread",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Ground Beef, 93/7, 1 lb"
+        },
+        {
+          "canonicalText": "Bananas, 6 each"
+        },
+        {
+          "canonicalText": "White Bread"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-013",
+      "group": "MIXED",
+      "input": "large eggs, 18 count, 2% milk, 1 gallon, Coke Zero, 12 pack",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Large Eggs, 18 ct"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-014",
+      "group": "MIXED",
+      "input": "large eggs,18 count,2% milk,1 gallon,Coke Zero,12 pack",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Large Eggs, 18 ct"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-015",
+      "group": "MIXED",
+      "input": "large eggs, 18 count\n2% milk, 1 gallon\nCoke Zero, 12 pack",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Large Eggs, 18 ct"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-016",
+      "group": "MIXED",
+      "input": "large eggs, 18 count; 2% milk, 1 gallon; Coke Zero, 12 pack",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Large Eggs, 18 ct"
+        },
+        {
+          "canonicalText": "2% Milk, 1 gallon"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-017",
+      "group": "MIXED",
+      "input": "black beans, 3 cans, Coke Zero, 12 pack, paper towels, 6 rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Black Beans, 3 cans"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        },
+        {
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-018",
+      "group": "MIXED",
+      "input": "black beans,3 cans,Coke Zero,12 pack,paper towels,6 rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Black Beans, 3 cans"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        },
+        {
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-019",
+      "group": "MIXED",
+      "input": "black beans, 3 cans\nCoke Zero, 12 pack\npaper towels, 6 rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Black Beans, 3 cans"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        },
+        {
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    },
+    {
+      "id": "CFR-MIXED-020",
+      "group": "MIXED",
+      "input": "black beans, 3 cans; Coke Zero, 12 pack; paper towels, 6 rolls",
+      "tags": [
+        "ITEM_FRAGMENT_ATTACHMENT",
+        "ORPHAN_MODIFIER"
+      ],
+      "expectedItems": [
+        {
+          "canonicalText": "Black Beans, 3 cans"
+        },
+        {
+          "canonicalText": "Coke Zero, 12 pack"
+        },
+        {
+          "canonicalText": "Paper Towels, 6 rolls"
+        }
+      ]
+    }
+  ]
+}

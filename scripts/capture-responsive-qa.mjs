@@ -254,7 +254,70 @@ try {
     throw new Error(`Long-list page height changed by ${pageHeightRange}px.`);
   }
 
-  console.log(JSON.stringify({ responsive: results, longLists, pageHeightRange }, null, 2));
+  const fragmentWorkspace = {
+    rawInput: [
+      "Large eggs, 18 count",
+      "2% Milk, 1 gallon",
+      "White Bread",
+      "Chicken Breast, 2 lb",
+      "Ground Beef, 93/7, 1 lb",
+      "Bananas, 6",
+      "Black Beans, 3 cans",
+      "Coke Zero, 12 pack",
+      "Greek Yogurt, 32 oz",
+      "Paper Towels, 6 rolls",
+    ].join("\n"),
+    zipCode: "75201",
+    quantities: {},
+    fulfillmentMode: "pickup",
+    listName: "Fragment attachment regression",
+    proteinOrigins: {},
+    creationMode: "grocery-list",
+    activePlanIngredients: [],
+  };
+  const fragmentStorageWrite = await client.send("Runtime.evaluate", {
+    expression: `localStorage.setItem("cartiva-web-workspace-v1", ${JSON.stringify(JSON.stringify(fragmentWorkspace))});`,
+    returnByValue: true,
+  });
+  if (fragmentStorageWrite.exceptionDetails) {
+    throw new Error("Could not prepare the item-fragment regression fixture.");
+  }
+  const fragmentUrl = `${targetUrl}${targetUrl.includes("?") ? "&" : "?"}fragment-qa=10`;
+  await client.send("Page.navigate", { url: fragmentUrl });
+  await delay(3_000);
+  const fragmentEvaluation = await client.send("Runtime.evaluate", {
+    expression: `JSON.stringify((() => {
+      const rows = [...document.querySelectorAll('[aria-label="Your grocery list"] [id^="list-item-"]')];
+      const rowText = rows.map((row) => row.textContent?.replace(/\\s+/g, ' ').trim() ?? '');
+      return {
+        currentUrl: location.href,
+        renderedGroceries: rows.length,
+        rowText,
+        orphanRows: rowText.filter((text) => /^(?:93\\/7|6)(?:\\s|$)/i.test(text)),
+        groundBeefAttached: rowText.some((text) => /ground beef/i.test(text) && /93\\/7/.test(text) && /1 lb/i.test(text)),
+        bananasAttached: rowText.some((text) => /bananas/i.test(text) && /6 each/i.test(text)),
+      };
+    })())`,
+    returnByValue: true,
+  });
+  const fragmentRegression = JSON.parse(fragmentEvaluation.result.value);
+  const fragmentScreenshot = await client.send("Page.captureScreenshot", {
+    format: "png",
+    fromSurface: true,
+    captureBeyondViewport: false,
+  });
+  fragmentRegression.screenshotPath = path.join(tmpdir(), "cartiva-fragment-regression-10.png");
+  writeFileSync(fragmentRegression.screenshotPath, Buffer.from(fragmentScreenshot.data, "base64"));
+  if (
+    fragmentRegression.renderedGroceries !== 10
+    || fragmentRegression.orphanRows.length > 0
+    || !fragmentRegression.groundBeefAttached
+    || !fragmentRegression.bananasAttached
+  ) {
+    throw new Error(`Item-fragment browser regression failed: ${JSON.stringify(fragmentRegression)}`);
+  }
+
+  console.log(JSON.stringify({ responsive: results, longLists, pageHeightRange, fragmentRegression }, null, 2));
 } finally {
   client?.close();
   chrome.kill();

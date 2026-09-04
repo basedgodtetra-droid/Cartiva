@@ -185,11 +185,35 @@ replaceCase("C500-E-007", {
   expectedItems: [{ ...expectedFrom("light coconut milk 2 cans")[0], cartQuantity: 3, packageCount: 3 }],
 });
 
+// Verified shopper failures are appended permanently. The original 500 cases
+// and their five balanced groups remain intact.
+cases.push({
+  id: "C500-R-001",
+  level: 4,
+  group: "D",
+  input: "Ground beef, 93/7, 1 lb",
+  tags: ["ITEM_FRAGMENT_ATTACHMENT", "ORPHAN_MODIFIER", "ATTRIBUTE_EXTRACTION"],
+  expectedItems: expectedFrom("93/7 ground beef 1 lb"),
+});
+cases.push({
+  id: "C500-R-002",
+  level: 4,
+  group: "D",
+  input: "Bananas, 6",
+  tags: ["ITEM_FRAGMENT_ATTACHMENT", "ORPHAN_MODIFIER", "QUANTITY"],
+  expectedItems: expectedFrom("6 bananas"),
+});
+
 const counts = Object.fromEntries(groups.map((group) => [
   group.key,
   cases.filter((testCase) => testCase.group === group.key).length,
 ]));
-if (cases.length !== 500 || Object.values(counts).some((count) => count !== 100)) {
+if (cases.length !== 502
+  || counts.A !== 100
+  || counts.B !== 100
+  || counts.C !== 100
+  || counts.D !== 102
+  || counts.E !== 100) {
   throw new Error(`CARTIVA 500 distribution is invalid: ${JSON.stringify(counts)}`);
 }
 
@@ -199,7 +223,7 @@ const fixture = {
     id: "cartiva-500",
     title: "CARTIVA 500 normal-human grocery reliability benchmark",
     scoringPolicy: "shopper-outcome-v1",
-    oracleRevision: 1,
+    oracleRevision: 2,
     groups: Object.fromEntries(groups.map((group) => [group.key, group.title])),
     requiredPerLevel: { "1": 100, "2": 100, "3": 100, "4": 100, "5": 100 },
     targets: { score2Or3Percent: 95, atLeast1Percent: 99, deadEndPercentExclusive: 0.1 },

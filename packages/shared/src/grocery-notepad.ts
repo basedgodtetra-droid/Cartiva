@@ -1,4 +1,9 @@
-import { normalizeHumanGroceryText, parseShoppingList } from "./list-parser";
+import {
+  isOrphanGroceryModifier,
+  normalizeHumanGroceryText,
+  parseShoppingList,
+} from "./list-parser";
+export { isOrphanGroceryModifier } from "./list-parser";
 import {
   COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE,
   COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE,
@@ -95,7 +100,7 @@ const HALF_GALLON_PATTERN = /\b(?:a\s+)?half[-\s]?gallon\b/i;
 const BARE_GALLON_PATTERN = /\bgallon\b/i;
 const DOZEN_PATTERN = /\b(?:(\d+|one|two|three|four|a)\s+)?dozen\b/i;
 const BARE_EGG_COUNT_PREFIX = /\b(12|18|24)(?=\s+eggs?\b)/i;
-const BARE_EGG_COUNT_SUFFIX = /\beggs?\s+(12|18|24)\b/i;
+const BARE_EGG_COUNT_SUFFIX = /\beggs?\s*,?\s+(12|18|24)\b/i;
 const CONTAINER_QUANTITY_PATTERN = /\b(\d{1,2})\s+(cans?|bottles?|jars?|bags?|boxes?|cartons?|pouch(?:es)?|trays?|tubs?|bunches?|loaves?)\b/i;
 const COUNT_UNIT_QUANTITY_PATTERN = new RegExp(
   `\\b(\\d{1,3})${COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE}${COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE}(${COUNTED_CONTENT_UNIT_PATTERN_SOURCE})\\b\\s*$`,
@@ -109,8 +114,8 @@ const CART_QUANTITY_SUFFIX_PATTERN = /\s+(?:x|×)\s*(\d{1,2})\s*$/i;
 const TRAILING_TOTAL_PATTERN = /\s+total\s*$/i;
 const LEADING_MILK_VOLUME_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(.+?\bmilk)\s+(gallons?|gal)\s*$/i;
 const LEADING_VOLUME_OF_PRODUCT_PATTERN = /^\s*(\d{1,2})\s+(gallons?|gal|quarts?|qt|pints?|pt)\s+(?:of\s+)?(.+)$/i;
-const LEADING_EACH_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\b/i;
-const TRAILING_EACH_QUANTITY_PATTERN = /\b(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)\s+(\d{1,2})\s*$/i;
+const LEADING_EACH_QUANTITY_PATTERN = /^\s*(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?|yogurts?)\b/i;
+const TRAILING_EACH_QUANTITY_PATTERN = /\b(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?|yogurts?)\s*,?\s+(\d{1,2})\s*$/i;
 
 const EGG_COUNTS: GroceryClarificationOption[] = [
   { id: "eggs-12", label: "12 count", value: "12 count" },
@@ -746,10 +751,19 @@ function stableId(value: string, index: number) {
 function explicitSegments(input: string) {
   return input
     .replace(/\r/g, "")
-    .split(/\n+|\s*[;,]\s*/)
-    .map(clean)
-    .filter(Boolean)
-    .slice(0, 25);
+    .split(/\n+|\s*;\s*/)
+    .flatMap((strongSegment) => {
+      const repaired: string[] = [];
+      for (const candidate of strongSegment.split(/\s*,\s*/).map(clean).filter(Boolean)) {
+        if (isOrphanGroceryModifier(candidate)) {
+          if (repaired.length > 0) repaired[repaired.length - 1] = `${repaired.at(-1)}, ${candidate}`;
+          continue;
+        }
+        repaired.push(candidate);
+      }
+      return repaired;
+    })
+    .slice(0, 50);
 }
 
 function dozenCount(value: string | undefined) {
@@ -1007,6 +1021,8 @@ function stripLeanRatioText(raw: string) {
   return raw
     .replace(/\b\d{2}\s*[/:-]\s*\d{1,2}\b/i, " ")
     .replace(/\b\d{2}\s*(?:%|percent)(?:\s+lean)?\b/i, " ")
+    .replace(/\s*,(?:\s*,)+/g, ",")
+    .replace(/^[,\s]+|[,\s]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }

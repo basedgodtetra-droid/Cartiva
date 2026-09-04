@@ -1,0 +1,27 @@
+{
+  "suiteId": "cartiva-500",
+  "run": 3,
+  "status": "target_met",
+  "oracleRevision": 2,
+  "caseCount": 502,
+  "scoreCounts": {
+    "3": 309,
+    "2": 193,
+    "1": 0,
+    "0": 0
+  },
+  "score2Or3Percent": 100,
+  "atLeast1Percent": 100,
+  "deadEndPercent": 0,
+  "unsafeAutomaticSelections": 0,
+  "performance": {
+    "averageParsingMs": 0.183,
+    "averageLocalMatchingMs": 2.066,
+    "averageSearchAttempts": 1.51,
+    "retailerCalls": 0
+  },
+  "addedRegressions": [
+    "Ground beef, 93/7, 1 lb",
+    "Bananas, 6"
+  ]
+}

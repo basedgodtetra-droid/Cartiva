@@ -26,6 +26,40 @@ const PACKAGE_ONLY = new RegExp(
   "i",
 );
 
+const LEAN_RATIO_ONLY = /^(\d{2})\s*[/:-]\s*(\d{1,2})$/i;
+const BARE_QUANTITY_ONLY = /^(?:x\s*)?\d{1,3}$/i;
+const PERCENT_ONLY = /^\d{1,2}\s*(?:%|percent)$/i;
+const ATTRIBUTE_ONLY = /^(?:(?:boneless|skinless|bone[- ]?in|skin[- ]?on|large|small|medium|jumbo|plain|regular|thick[- ]?cut)(?:\s+|$)){1,4}$/i;
+const SIMPLE_PACKAGE_ONLY = /^\d+(?:\.\d+)?\s*[- ]?\s*(?:fl\s*oz|fluid\s*ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|milliliters?|millilitres?|ml|liters?|litres?|l|gallons?|gal|quarts?|qt|pints?|pt|count|ct|packs?|pk|each|cans?|bottles?|bags?|boxes?|cartons?|jars?|pouch(?:es)?|trays?|tubs?|bunches?|loaves?|rolls?)$/i;
+
+/**
+ * Returns true only for fragments that cannot stand on their own as a useful
+ * grocery identity. The check is deliberately strict so numeric product names
+ * such as "7 Up" and "3 Musketeers" remain valid products.
+ */
+export function isOrphanGroceryModifier(value: string) {
+  const fragment = cleanItem(value).replace(/\s+total$/i, "").trim();
+  if (!fragment) return false;
+  const ratio = fragment.match(LEAN_RATIO_ONLY);
+  if (ratio) return Number(ratio[1]) + Number(ratio[2]) === 100;
+  if (BARE_QUANTITY_ONLY.test(fragment)
+    || PERCENT_ONLY.test(fragment)
+    || ATTRIBUTE_ONLY.test(fragment)
+    || QUALIFIER_ONLY.test(fragment)
+    || SIMPLE_PACKAGE_ONLY.test(fragment)
+    || PACKAGE_ONLY.test(fragment)) return true;
+
+  const withoutAttributes = fragment
+    .replace(/\b\d{2}\s*[/:-]\s*\d{1,2}\b/g, " ")
+    .replace(/\b(?:boneless|skinless|bone[- ]?in|skin[- ]?on|large|small|medium|jumbo|plain|regular|thick[- ]?cut)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return withoutAttributes !== fragment
+    && (!withoutAttributes
+      || SIMPLE_PACKAGE_ONLY.test(withoutAttributes)
+      || PACKAGE_ONLY.test(withoutAttributes));
+}
+
 /**
  * Common grocery anchors used only to detect missing separators. Longer phrases
  * win over their individual words, so "chicken breast" and "black beans" stay
@@ -259,6 +293,14 @@ export function normalizeHumanGroceryText(input: string) {
       Number(leanText) + Number(fatText) === 100 ? `${leanText}/${fatText}` : match
     ),
   );
+  value = value.replace(
+    /\b((?:ground\s+)(?:beef|turkey|meat))\s+(\d{2})\s+(\d{1,2})\b/gi,
+    (match, productText: string, leanText: string, fatText: string) => (
+      Number(leanText) + Number(fatText) === 100
+        ? `${productText} ${leanText}/${fatText}`
+        : match
+    ),
+  );
   return value.replace(/[ \t]+/g, " ").trim();
 }
 
@@ -359,29 +401,37 @@ export function parseShoppingList(input: string, limit = 24): string[] {
 
   const withoutPrefix = normalizeHumanGroceryText(input).replace(LEADING_REQUEST, "");
   const { protectedValue, replacements } = protectCompounds(withoutPrefix);
+  const restoreCompounds = (chunk: string) => {
+    let restored = chunk;
+    replacements.forEach((phrase, token) => {
+      restored = restored.replaceAll(token, phrase);
+    });
+    return cleanItem(restored);
+  };
   const chunks = protectedValue
     .replace(/\r/g, "")
-    .split(/\n+|\s*[;,]\s*/)
-    .flatMap((chunk) => chunk.split(/\s+(?:and then|and|plus|also)\s+/i))
+    .split(/\n+|\s*;\s*/)
     .slice(0, chunkScanLimit)
-    .map((chunk) => {
-      let restored = chunk;
-      replacements.forEach((phrase, token) => {
-        restored = restored.replaceAll(token, phrase);
-      });
-      return cleanItem(restored);
+    .flatMap((strongSegment) => {
+      const candidates = strongSegment
+        .split(/\s*,\s*/)
+        .flatMap((chunk) => chunk.split(/\s+(?:and then|and|plus|also)\s+/i))
+        .map(restoreCompounds)
+        .filter(Boolean)
+        .flatMap(splitImplicitGroceryItems);
+      const repaired: string[] = [];
+      for (const candidate of candidates) {
+        if (isOrphanGroceryModifier(candidate)) {
+          if (repaired.length > 0) {
+            repaired[repaired.length - 1] = `${repaired.at(-1)}, ${candidate}`;
+          }
+          continue;
+        }
+        repaired.push(candidate);
+      }
+      return repaired;
     })
-    .filter(Boolean)
-    .flatMap(splitImplicitGroceryItems);
+    .slice(0, chunkScanLimit);
 
-  const combined: string[] = [];
-  for (const chunk of chunks) {
-    if ((QUALIFIER_ONLY.test(chunk) || PACKAGE_ONLY.test(chunk)) && combined.length > 0) {
-      combined[combined.length - 1] = `${combined.at(-1)}, ${chunk}`;
-    } else {
-      combined.push(chunk);
-    }
-  }
-
-  return combined.slice(0, safeLimit);
+  return chunks.slice(0, safeLimit);
 }
