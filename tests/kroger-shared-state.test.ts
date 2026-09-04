@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { krogerHandoffSchemaStatements } from "../db/schema";
 import { executeSharedCommand, consumeBridgeNonce, withSharedDatabase, type SharedDatabase, type SharedStatement } from "@/lib/kroger-shared-sql";
-import { bridgeSignature, SHARED_PATH, SESSION_LEASE_MS, sealShared, stateHash, validSharedCommand, type SharedSession, type SharedCommand } from "@/lib/kroger-shared-protocol";
+import { bridgeSignature, SHARED_PATH, SESSION_LEASE_MS, sealShared, openShared, stateHash, validSharedCommand, type SharedSession, type SharedCommand } from "@/lib/kroger-shared-protocol";
 import { createSharedKrogerAuthorization, disconnectSharedKrogerWebSession, sharedLeaseForClient, sharedWebOwner, withSharedKrogerWebSession } from "@/lib/kroger-shared-web";
 import { runSharedKrogerCartOperation, sharedCartId } from "@/lib/kroger-shared-cart";
 import { GET as callback } from "@/app/api/kroger/oauth/callback/route";
@@ -76,6 +76,12 @@ const accepted = { success: true as const, addedCount: 2, itemCount: 1, cartUrl:
   selectedSearchLocation: { locationId: "03500529", name: "Test store" }, locationBoundByCartApi: false as const, message: "Kroger accepted the test items." };
 
 describe("real SQLite shared-state contract", () => {
+  it("round-trips UTF-8 authenticated envelopes and rejects cross-owner decryption", () => {
+    const value = { label: "Café · 🥛", operationId: "synthetic-operation-12345" };
+    const encrypted = sealShared(value, "cart:test-owner");
+    expect(openShared(encrypted, "cart:test-owner")).toEqual(value);
+    expect(() => openShared(encrypted, "cart:different-owner")).toThrow();
+  });
   it.each(["toString", "constructor", "__proto__", "valueOf", "unknown"])("rejects prototype/unknown command %s", op => {
     expect(validSharedCommand({ op })).toBe(false);
   });

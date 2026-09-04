@@ -64,7 +64,8 @@ export function sealShared(value: unknown, binding: string) {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   cipher.setAAD(Buffer.from(binding));
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(value)), cipher.final()]);
+  // Workers requires an explicit encoding for string cipher input.
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
   return [iv, encrypted, cipher.getAuthTag()].map(b => b.toString("base64url")).join(".");
 }
 export function openShared<T>(value: string, binding: string): T {

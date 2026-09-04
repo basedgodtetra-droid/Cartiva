@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   } catch (error) {
     const status = error instanceof KrogerAuthError || error instanceof SharedStateError ? error.status : 500;
     return Response.json(
-      { error: error instanceof Error ? error.message : "Kroger connection could not start." },
+      { error: error instanceof KrogerAuthError || error instanceof SharedStateError ? error.message : "Kroger connection could not start. Your basket is preserved; please retry." },
       { status, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const status = error instanceof KrogerAuthError || error instanceof SharedStateError ? error.status : 500;
     return Response.json(
-      { error: error instanceof Error ? error.message : "Kroger connection could not start." },
+      { error: error instanceof KrogerAuthError || error instanceof SharedStateError ? error.message : "Kroger connection could not start. Your basket is preserved; please retry." },
       { status, headers: { "Cache-Control": "no-store" } },
     );
   }
