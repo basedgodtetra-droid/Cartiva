@@ -7,30 +7,40 @@ import {
   enforceRateLimit,
   validateLocalApiRequest,
 } from "@/lib/api-security";
+import { sharedWebSessionEnabled } from "@/lib/kroger-shared-client";
+import { createSharedKrogerAuthorization } from "@/lib/kroger-shared-web";
+import { enforceSharedKrogerRateLimit } from "@/lib/kroger-shared-rate";
+import { SharedStateError } from "@/lib/kroger-shared-protocol";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function authorization(request: Request): { authorizationUrl: string; setCookie?: string } {
+async function authorization(request: Request): Promise<{ authorizationUrl: string; setCookie?: string; setCookies?: string[] }> {
+  if (usesServerlessKrogerWebSession(request) && sharedWebSessionEnabled()) {
+    const started = await createSharedKrogerAuthorization(request);
+    return { authorizationUrl: started.result.authorizationUrl, setCookies: [...started.setCookies, started.result.stateCookie] };
+  }
   if (usesServerlessKrogerWebSession(request)) return createServerlessKrogerAuthorization();
   return { authorizationUrl: getKrogerAuthClient().createAuthorizationUrl() };
 }
 
-function guard(request: Request) {
+async function guard(request: Request) {
   return validateLocalApiRequest(request)
-    ?? enforceRateLimit(request, "kroger-oauth-start", { limit: 8, windowMs: 10 * 60_000 });
+    ?? enforceRateLimit(request, "kroger-oauth-start", { limit: 8, windowMs: 10 * 60_000 })
+    ?? await enforceSharedKrogerRateLimit(request, "kroger-oauth-start", { limit: 8, windowMs: 10 * 60_000 });
 }
 
-export function GET(request: Request) {
-  const rejected = guard(request);
+export async function GET(request: Request) {
+  const rejected = await guard(request);
   if (rejected) return rejected;
   try {
-    const started = authorization(request);
-    const response = Response.redirect(started.authorizationUrl, 302);
+    const started = await authorization(request);
+    const response = new Response(null, { status: 302, headers: { Location: started.authorizationUrl, "Cache-Control": "no-store" } });
     if (started.setCookie) response.headers.append("Set-Cookie", started.setCookie);
+    for (const cookie of started.setCookies ?? []) response.headers.append("Set-Cookie", cookie);
     return response;
   } catch (error) {
-    const status = error instanceof KrogerAuthError ? error.status : 500;
+    const status = error instanceof KrogerAuthError || error instanceof SharedStateError ? error.status : 500;
     return Response.json(
       { error: error instanceof Error ? error.message : "Kroger connection could not start." },
       { status, headers: { "Cache-Control": "no-store" } },
@@ -38,19 +48,20 @@ export function GET(request: Request) {
   }
 }
 
-export function POST(request: Request) {
-  const rejected = guard(request);
+export async function POST(request: Request) {
+  const rejected = await guard(request);
   if (rejected) return rejected;
   try {
-    const started = authorization(request);
+    const started = await authorization(request);
     const response = Response.json(
       { authorizationUrl: started.authorizationUrl },
       { headers: { "Cache-Control": "no-store" } },
     );
     if (started.setCookie) response.headers.append("Set-Cookie", started.setCookie);
+    for (const cookie of started.setCookies ?? []) response.headers.append("Set-Cookie", cookie);
     return response;
   } catch (error) {
-    const status = error instanceof KrogerAuthError ? error.status : 500;
+    const status = error instanceof KrogerAuthError || error instanceof SharedStateError ? error.status : 500;
     return Response.json(
       { error: error instanceof Error ? error.message : "Kroger connection could not start." },
       { status, headers: { "Cache-Control": "no-store" } },

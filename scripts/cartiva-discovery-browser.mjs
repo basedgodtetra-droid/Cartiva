@@ -43,6 +43,19 @@ try {
     window.fetch=async (url,init={})=>{
       const route=String(url); if(!route.startsWith('/api/kroger/')) return realFetch(url,init);
       window.qa.calls.push(route); const body=init.body?JSON.parse(init.body):{};
+      if(route.endsWith('/cart/review')) {
+        if(!window.qa.reviewOwner) return Response.json({error:'Reconnect Cartiva before confirming this review.'},{status:401});
+        if(init.method==='POST') {
+          if(window.qa.reviewFailure) return Response.json({error:'Review storage unavailable. Please retry.'},{status:503});
+          if(window.qa.newerPending) localStorage.setItem('cartiva-kroger-pending-cart-v1',JSON.stringify(window.qa.newerPending));
+          return Response.json({acknowledged:true});
+        }
+        return Response.json({operationId:'legacy-blocked-operation-12345'});
+      }
+      if(route.endsWith('/oauth/start')) {
+        window.qa.reviewOwner=true; window.qa.connected=true;
+        return Response.json({authorizationUrl:'http://127.0.0.1:9242/'});
+      }
       if(route.endsWith('/auth/status')) return Response.json({configured:true,connected:window.qa.connected});
       if(route.endsWith('/locations')) {
         const zip=body.zipCode; await new Promise(r=>setTimeout(r,zip==='11111'?650:30));
@@ -148,6 +161,29 @@ try {
   await delay(400);
   assert.equal(await evaluate('!!window.qaPopup && !window.qaPopup.closed'),true,'live cross-origin popup must not look cancelled');
   await evaluate('window.qaPopup.close()'); results.push('actual cross-origin popup survives Cartiva opener policy');
+  // Cutover recovery: old blocked work has no new server-owner cookie. This
+  // path must authorize only; it must never invoke the cart-writing endpoint.
+  await evaluate(`(() => {
+    const now=Date.now(); window.qa.connected=false; window.qa.reviewOwner=false;
+    window.qa.legacyPending={version:1,intent:'shopper_transfer',operationId:'legacy-blocked-operation-12345',locationId:'03500529',fulfillmentMode:'pickup',items:[{upc:'0001111012000',quantity:1}],itemCount:1,createdAt:now,submittedAt:now,blocked:{code:'outcome_unknown',message:'Review interrupted retailer transfer.',blockedAt:now}};
+    localStorage.setItem('cartiva-kroger-pending-cart-v1',JSON.stringify(window.qa.legacyPending));
+  })()`);
+  await evaluate("[...document.querySelectorAll('button')].find(b=>/Add basket to Kroger/.test(b.textContent)).click()");
+  await click('Items were not added');
+  await until("document.body.innerText.includes('Reconnect to review')",'legacy ownerless review recovery');
+  const writesBefore=await evaluate("qa.calls.filter(c=>c.endsWith('/cart')).length");
+  await send('Runtime.evaluate',{expression:"[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Reconnect to review').click()",userGesture:true});
+  await until("document.body.innerText.includes('No items were sent')",'authentication-only recovery',15000);
+  assert.equal(await evaluate("qa.calls.filter(c=>c.endsWith('/cart')).length"),writesBefore);
+  assert(await evaluate("!!localStorage.getItem('cartiva-kroger-pending-cart-v1')"));
+  await evaluate('qa.reviewFailure=true'); await click('Items were not added');
+  await until("document.body.innerText.includes('Review storage unavailable')",'failed acknowledgement retains work');
+  assert(await evaluate("!!localStorage.getItem('cartiva-kroger-pending-cart-v1')"));
+  await evaluate("qa.reviewFailure=false; qa.newerPending={...qa.legacyPending,operationId:'newer-other-tab-operation-12345'}");
+  await click('Items were not added'); await delay(300);
+  assert.equal(await evaluate("JSON.parse(localStorage.getItem('cartiva-kroger-pending-cart-v1')).operationId"),'newer-other-tab-operation-12345');
+  assert.equal(await evaluate("qa.calls.filter(c=>c.endsWith('/cart')).length"),writesBefore);
+  results.push('ownerless legacy review reconnects without transfer; failed review retains work; late acknowledgement preserves newer tab marker');
   const output={target,results,passed:results.length,profile};
   const reportPath=path.join(tmpdir(),'cartiva-discovery-browser-results.json'); writeFileSync(reportPath,JSON.stringify(output,null,2));
   console.log(JSON.stringify({...output,reportPath},null,2));

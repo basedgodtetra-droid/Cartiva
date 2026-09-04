@@ -35,4 +35,6 @@ export interface CartState {
   itemCount?: number;
   retrySafe?: boolean;
   code?: CartivaKrogerCartCode;
+  recoveryOperationId?: string;
+  reviewReconnectRequired?: boolean;
 }

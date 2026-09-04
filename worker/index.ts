@@ -1,4 +1,5 @@
 import handler from "vinext/server/app-router-entry";
+import { withSharedDatabase, type SharedDatabase } from "../lib/kroger-shared-sql";
 
 const SECURITY_HEADERS = {
   "Content-Security-Policy": [
@@ -40,7 +41,8 @@ const worker = {
       return Response.redirect(url, 308);
     }
 
-    const response = await handler.fetch(request, env, ctx);
+    const database = (env as unknown as { DB?: SharedDatabase } | undefined)?.DB;
+    const response = await withSharedDatabase(database, () => handler.fetch(request, env, ctx));
     const headers = new Headers(response.headers);
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
     return new Response(response.body, {

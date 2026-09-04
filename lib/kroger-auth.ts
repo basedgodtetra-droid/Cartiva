@@ -62,6 +62,13 @@ export interface KrogerAuthConfig {
   sessionFile?: string;
   /** Domain-separates encrypted customer sessions for a temporary mobile owner. */
   sessionBinding?: string;
+  /** Encrypted server-owned storage; caller supplies shared fencing. */
+  sessionStore?: {
+    read(): Promise<string | null>;
+    write(encrypted: string): Promise<void>;
+    remove(): Promise<void>;
+    uncertainRefresh?(): Promise<void>;
+  };
   /**
    * Mobile owners use this hook to enforce their inactivity window before
    * every cached or on-disk customer-session read. Returning false means the
@@ -142,6 +149,14 @@ export function createKrogerAuthClientForSessionFile(sessionFile: string) {
     fetch,
     async () => undefined,
   );
+}
+
+export function createKrogerAuthClientForSharedSession(
+  sessionBinding: string,
+  sessionStore: NonNullable<KrogerAuthConfig["sessionStore"]>,
+  beforeCustomerSessionAccess: () => Promise<boolean>,
+) {
+  return new KrogerAuthClient({ ...configFromEnvironment(), sessionBinding, sessionStore, beforeCustomerSessionAccess }, fetch, async () => undefined);
 }
 
 function validTokenResponse(value: unknown): value is KrogerTokenResponse {
@@ -512,7 +527,11 @@ export class KrogerAuthClient {
     this.customerSessionLoad ??= (async () => {
       let serialized: string;
       try {
-        serialized = await readFile(this.sessionFile, "utf8");
+        const stored = this.config.sessionStore
+          ? await this.config.sessionStore.read()
+          : await readFile(this.sessionFile, "utf8");
+        if (stored === null) { this.customerSession = null; return null; }
+        serialized = stored;
       } catch (error) {
         // Only a genuinely absent file means this owner has no saved account.
         // Permission, I/O, or path failures may hide an existing connection and
@@ -557,7 +576,8 @@ export class KrogerAuthClient {
   private async saveCustomerSession(session: StoredCustomerSession) {
     const encrypted = encryptCustomerSession(this.config, session);
     try {
-      await durableAtomicWriteFile(this.sessionFile, JSON.stringify(encrypted));
+      if (this.config.sessionStore) await this.config.sessionStore.write(JSON.stringify(encrypted));
+      else await durableAtomicWriteFile(this.sessionFile, JSON.stringify(encrypted));
       this.customerSession = session;
     } catch {
       throw customerSessionStorageError();
@@ -580,7 +600,7 @@ export class KrogerAuthClient {
       if (!token.refresh_token) {
         throw new KrogerAuthError(
           "Kroger did not rotate the customer refresh token. Reconnect Kroger.",
-          "upstream",
+          "not_connected",
           401,
         );
       }
@@ -613,13 +633,19 @@ export class KrogerAuthClient {
       try {
         return (await this.refreshCustomerSession(session, staleAccessToken)).accessToken;
       } catch (error) {
-        if (error instanceof KrogerAuthError && error.status === 401) {
+        if (error instanceof KrogerAuthError && error.code === "not_connected" && error.status === 401) {
           await this.forgetCustomerSession();
           throw new KrogerAuthError(
             "Your Kroger connection expired or was revoked. Connect Kroger again.",
             "not_connected",
             401,
           );
+        }
+        // A lost rotation response cannot justify spending the old refresh
+        // token again. Shared storage revokes only this fenced session.
+        if (this.config.sessionStore?.uncertainRefresh
+          && !(error instanceof KrogerAuthError && error.code === "upstream" && error.status === 401)) {
+          await this.config.sessionStore.uncertainRefresh();
         }
         throw error;
       }
@@ -725,7 +751,8 @@ export class KrogerAuthClient {
   private async forgetCustomerSession() {
     this.customerSession = null;
     try {
-      await durableRemoveFile(this.sessionFile);
+      if (this.config.sessionStore) await this.config.sessionStore.remove();
+      else await durableRemoveFile(this.sessionFile);
     } catch {
       throw customerSessionStorageError();
     }

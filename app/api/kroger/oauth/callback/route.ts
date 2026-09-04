@@ -1,4 +1,7 @@
 import { getKrogerAuthClient, KrogerAuthError } from "@/lib/kroger-auth";
+import { sharedWebSessionEnabled } from "@/lib/kroger-shared-client";
+import { consumeSharedKrogerAuthorization, sharedLeaseForClient, withSharedKrogerWebSession } from "@/lib/kroger-shared-web";
+import { SharedStateError } from "@/lib/kroger-shared-protocol";
 import {
   clearServerlessKrogerAuthorizationCookie,
   usesServerlessKrogerWebSession,
@@ -19,7 +22,7 @@ function escapeHtml(value: string) {
   })[character]!);
 }
 
-function page(title: string, message: string, success: boolean, status = 200) {
+function page(title: string, message: string, success: boolean, status = 200, retry = false) {
   const color = success ? "#258b34" : "#b42318";
   const safeTitle = escapeHtml(title);
   const safeMessage = escapeHtml(message);
@@ -27,7 +30,7 @@ function page(title: string, message: string, success: boolean, status = 200) {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <title>${safeTitle}</title><style>body{margin:0;background:#f6f8f2;color:#10271a;font:600 18px system-ui,sans-serif;display:grid;min-height:100vh;place-items:center}.card{background:#fff;border:1px solid #d8e2d5;border-radius:24px;box-shadow:0 20px 60px #173c2222;max-width:540px;padding:42px;text-align:center}h1{font-size:32px;margin:0 0 12px;color:${color}}p{font-weight:450;line-height:1.55;margin:0}</style></head>
-<body><main class="card"><h1>${safeTitle}</h1><p>${safeMessage}</p></main></body></html>`;
+<body><main class="card"><h1>${safeTitle}</h1><p>${safeMessage}</p>${retry ? '<p><a href="">Try connection again</a></p>' : ""}</main></body></html>`;
   return new Response(html, {
     status,
     headers: {
@@ -46,7 +49,8 @@ export async function GET(request: Request) {
     const state = parameters.get("state") ?? "";
     if (usesServerlessKrogerWebSession()) {
       try {
-        validateServerlessKrogerAuthorization(request, state);
+        if (sharedWebSessionEnabled()) await consumeSharedKrogerAuthorization(request, state);
+        else validateServerlessKrogerAuthorization(request, state);
       } catch {
         return page(
           "Kroger wasn't connected",
@@ -81,7 +85,16 @@ export async function GET(request: Request) {
   }
   try {
     let sessionCookies: string[] | undefined;
-    if (usesServerlessKrogerWebSession()) {
+    if (usesServerlessKrogerWebSession() && sharedWebSessionEnabled()) {
+      const completed = await withSharedKrogerWebSession(request, async client => {
+        // Acquire the owner lease BEFORE spending a one-use OAuth state. A
+        // background status request must not burn an otherwise valid callback.
+        const validated = await consumeSharedKrogerAuthorization(request, state);
+        if (sharedLeaseForClient(client)?.version !== validated.version) throw new KrogerAuthError("This Kroger connection request is no longer current.", "oauth_state", 400);
+        return client.exchangeAuthorizationCodeAfterExternalStateValidation(code, validated.redirectUri);
+      });
+      sessionCookies = completed.setCookies;
+    } else if (usesServerlessKrogerWebSession()) {
       validateServerlessKrogerAuthorization(request, state);
       const completed = await withServerlessKrogerWebSession(
         request,
@@ -104,6 +117,9 @@ export async function GET(request: Request) {
     }
     return response;
   } catch (error) {
+    if (error instanceof SharedStateError && error.code === "busy") {
+      return page("Finish connecting Kroger", "Cartiva is finishing another request. Wait a moment, then try this connection again. Your basket is preserved.", false, 503, true);
+    }
     const status = error instanceof KrogerAuthError ? error.status : 500;
     const response = page(
       "Kroger wasn't connected",

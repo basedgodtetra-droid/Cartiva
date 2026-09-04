@@ -10,7 +10,7 @@ import {
 } from "@/lib/cartiva-kroger-cart";
 import { getCartivaKrogerHandoffStage } from "@/lib/cartiva-kroger-handoff";
 import type { CartivaKrogerConnectionState } from "@/lib/cartiva-kroger-connection";
-import { krogerShoppingUrl } from "@/lib/kroger-family-links";
+import { krogerCartUrl, krogerShoppingUrl } from "@/lib/kroger-family-links";
 import { comparePlanBudget } from "@/lib/cartiva-planning";
 import styles from "@/components/cartiva-workspace.module.css";
 
@@ -31,7 +31,9 @@ interface CartivaComparisonProps {
   onSaveBasket?: () => void;
   onAddToKroger: () => void;
   onContinueWithoutTransfer: () => void;
-  onResolveCartReview: (itemsWereAdded: boolean) => void;
+  onResolveCartReview: (itemsWereAdded: boolean) => void | Promise<boolean>;
+  reviewBusy?: boolean;
+  onReconnectForReview?: () => void;
   plannedBudgetDollars?: number;
   plannedItemIds?: ReadonlySet<string>;
   onReviewPlan?: () => void;
@@ -75,6 +77,8 @@ export function CartivaComparison({
   onAddToKroger,
   onContinueWithoutTransfer,
   onResolveCartReview,
+  reviewBusy = false,
+  onReconnectForReview,
   plannedBudgetDollars,
   plannedItemIds,
   onReviewPlan,
@@ -482,12 +486,15 @@ export function CartivaComparison({
                 <span>{cart.message ?? "Your matched basket remains in Cartiva."}</span>
                 {cart.retrySafe === false ? (
                   <div className={styles.cartNoticeActions}>
-                    <button type="button" onClick={() => onResolveCartReview(true)}>Items are in Kroger</button>
+                    <a href={krogerCartUrl(selectedLocation?.chain)} target="_blank" rel="noopener noreferrer">Open Kroger cart</a>
+                    {cart.reviewReconnectRequired && onReconnectForReview ? <button type="button" disabled={reviewBusy} onClick={onReconnectForReview}>Reconnect to review</button> : null}
+                    <button type="button" disabled={reviewBusy} onClick={() => void onResolveCartReview(true)}>{reviewBusy ? "Saving review…" : "Items are in Kroger"}</button>
                     <button
                       type="button"
-                      onClick={() => {
-                        onResolveCartReview(false);
-                        window.requestAnimationFrame(() => cartActionRef.current?.focus());
+                      disabled={reviewBusy}
+                      onClick={async () => {
+                        const resolved = await onResolveCartReview(false);
+                        if (resolved !== false) window.requestAnimationFrame(() => cartActionRef.current?.focus());
                       }}
                     >
                       Items were not added

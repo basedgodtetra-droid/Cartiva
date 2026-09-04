@@ -171,12 +171,13 @@ async function responseError(response: Response, fallback: string) {
 async function cartResponseError(
   response: Response,
   fallback: string,
-): Promise<{ message: string; code?: CartivaKrogerCartCode; retrySafe: boolean }> {
+): Promise<{ message: string; code?: CartivaKrogerCartCode; retrySafe: boolean; recoveryOperationId?: string }> {
   try {
     const body = await response.json() as {
       error?: unknown;
       code?: unknown;
       retrySafe?: unknown;
+      recoveryOperationId?: unknown;
     };
     return {
       message: typeof body.error === "string" && body.error.trim() ? body.error : fallback,
@@ -184,6 +185,8 @@ async function cartResponseError(
         ? body.code
         : undefined,
       retrySafe: body.retrySafe === true,
+      recoveryOperationId: typeof body.recoveryOperationId === "string" && /^[A-Za-z0-9_-]{16,128}$/.test(body.recoveryOperationId)
+        ? body.recoveryOperationId : undefined,
     };
   } catch {
     return { message: fallback, retrySafe: false };
@@ -314,6 +317,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   const locationAbortRef = useRef<AbortController | null>(null);
   const preferredLocationRef = useRef("");
   const cartTransferRef = useRef<string | undefined>(undefined);
+  const cartReviewRef = useRef(false);
+  const [cartReviewBusy, setCartReviewBusy] = useState(false);
   const handoffAttemptRef = useRef<string | undefined>(undefined);
   const loadedRequestRef = useRef("");
   const previousClarificationCountRef = useRef<number | undefined>(undefined);
@@ -484,6 +489,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
           message: failure.message,
           code: failure.code ?? "cart_add_failed",
           retrySafe: failure.retrySafe,
+          recoveryOperationId: failure.recoveryOperationId,
         });
         if (cartResponse.status === 401 || failure.code === "auth_expired") {
           setKrogerConnection({
@@ -527,7 +533,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         });
         return;
       }
-      window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
+      const latestPending = parsePendingKrogerCart(window.localStorage.getItem(KROGER_PENDING_CART_STORAGE_KEY));
+      if (latestPending?.operationId === pending.operationId) window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
       const itemCount = submitting.itemCount;
       setCart({
         phase: "success",
@@ -1626,20 +1633,81 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     };
   }, [cart.phase, completePendingCart, hydrated]);
 
-  const resolveCartReview = (itemsWereAdded: boolean) => {
-    if (!itemsWereAdded) {
-      window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
-      setCart(initialCart);
-      return;
+  const resolveCartReview = async (itemsWereAdded: boolean) => {
+    if (cartReviewRef.current) return false;
+    cartReviewRef.current = true;
+    setCartReviewBusy(true);
+    try {
+      const pending = parsePendingKrogerCart(window.localStorage.getItem(KROGER_PENDING_CART_STORAGE_KEY));
+        const pendingResponse = await fetchBufferedResponse("/api/kroger/cart/review", { cache: "no-store" });
+        if (pendingResponse.status === 401) {
+          setCart(current => ({ ...current, phase: "error", code: "outcome_unknown", retrySafe: false, reviewReconnectRequired: true,
+            message: "Reconnect Kroger to record your cart review. Reconnecting will not send this basket again." }));
+          return false;
+        }
+      if (!pendingResponse.ok) throw new Error(await responseError(pendingResponse, "Cartiva could not load the cart review. Please retry."));
+      const latest = await pendingResponse.json() as { operationId?: unknown };
+      const operationId = typeof latest.operationId === "string" && /^[A-Za-z0-9_-]{16,128}$/.test(latest.operationId)
+        ? latest.operationId : cart.recoveryOperationId ?? pending?.operationId;
+      if (!operationId) throw new Error("Cartiva could not identify the pending cart. Keep this basket and retry the review.");
+      const response = await fetchBufferedResponse("/api/kroger/cart/review", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operationId, acknowledgement: "REVIEWED_RETAILER_CART" }),
+      });
+      const confirmed = await response.json().catch(() => null) as { acknowledged?: unknown; error?: unknown } | null;
+      if (!response.ok || confirmed?.acknowledged !== true) throw new Error(typeof confirmed?.error === "string" ? confirmed.error : "Cartiva could not save the review. Your basket is preserved; please retry.");
+      const latestPending = parsePendingKrogerCart(window.localStorage.getItem(KROGER_PENDING_CART_STORAGE_KEY));
+      if (latestPending?.operationId === pending?.operationId) window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
+      if (!itemsWereAdded) { setCart(initialCart); return true; }
+      const message = "You confirmed these items are already in the retailer cart. Cartiva will not send them again.";
+      setCart({ phase: "reviewed", cartUrl: krogerCartUrl(selectedLocation?.chain), retrySafe: false, message });
+      return true;
+    } catch (error) {
+      setCart(current => ({ ...current, phase: "error", code: "outcome_unknown", retrySafe: false,
+        message: error instanceof Error ? error.message : "Cartiva could not save the review. Please retry." }));
+      return false;
+    } finally {
+      cartReviewRef.current = false;
+      setCartReviewBusy(false);
     }
-    const message = "You confirmed these items are already in the retailer cart. Cartiva will not send them again.";
-    window.localStorage.removeItem(KROGER_PENDING_CART_STORAGE_KEY);
-    setCart({
-      phase: "reviewed",
-      cartUrl: krogerCartUrl(selectedLocation?.chain),
-      retrySafe: false,
-      message,
-    });
+  };
+
+  // Recovery-only authorization: leave the blocked marker intact and never
+  // invoke completePendingCart. The shopper must still review and acknowledge.
+  const reconnectForCartReview = async () => {
+    if (cartReviewRef.current) return;
+    cartReviewRef.current = true;
+    setCartReviewBusy(true);
+    const popup = window.open("about:blank", "cartiva-kroger-oauth", "popup,width=560,height=760");
+    try {
+      if (!popup) throw new Error("Allow pop-ups for Cartiva, then reconnect to review.");
+      popup.document.body.textContent = "Connecting to Kroger for cart review. No items will be sent.";
+      const response = await fetchBufferedResponse("/api/kroger/oauth/start", { method: "POST" });
+      if (!response.ok) throw new Error(await responseError(response, "Kroger could not reconnect."));
+      const started = await response.json() as { authorizationUrl?: string };
+      if (!started.authorizationUrl) throw new Error("Kroger did not return a connection link.");
+      popup.location.href = started.authorizationUrl;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        await wait(3_000);
+        const status = await checkKrogerConnection();
+        if (status.connected) {
+          setKrogerConnection({ checked: true, connected: true, configured: true, state: "connected" });
+          setCart(current => ({ ...current, phase: "error", retrySafe: false, reviewReconnectRequired: false,
+            message: "Kroger is connected. No items were sent. Review the retailer cart, then confirm whether the earlier items are there." }));
+          return;
+        }
+        const outcome = krogerOAuthPopupOutcome(popup);
+        if (outcome === "cancelled" || outcome === "failed") throw new Error("Kroger was not connected. Your basket is preserved; reconnect to review when ready.");
+      }
+      throw new Error("Kroger sign-in was not completed. Your basket is preserved.");
+    } catch (error) {
+      setCart(current => ({ ...current, phase: "error", retrySafe: false, reviewReconnectRequired: true,
+        message: error instanceof Error ? error.message : "Reconnect Kroger to review this basket." }));
+    } finally {
+      popup?.close();
+      cartReviewRef.current = false;
+      setCartReviewBusy(false);
+    }
   };
 
   const continueWithoutTransfer = () => {
@@ -1808,6 +1876,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                   onAddToKroger={addToKroger}
                   onContinueWithoutTransfer={continueWithoutTransfer}
                   onResolveCartReview={resolveCartReview}
+                  reviewBusy={cartReviewBusy}
+                  onReconnectForReview={() => void reconnectForCartReview()}
                   plannedBudgetDollars={activePlanBudgetDollars}
                   plannedItemIds={activePlanItemIds}
                   onReviewPlan={activePlanBudgetDollars ? () => {

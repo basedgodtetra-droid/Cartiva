@@ -13,6 +13,8 @@ import {
   type KrogerAuthClient,
 } from "./kroger-auth";
 import "./server-only-guard";
+import { sharedWebSessionConfigured, sharedWebSessionEnabled } from "./kroger-shared-client";
+import { withSharedKrogerWebSession } from "./kroger-shared-web";
 
 const LEGACY_SESSION_COOKIE = "__Host-cartiva-kroger-session";
 const SESSION_COOKIE_PREFIX = "__Host-cartiva-kroger-session-";
@@ -136,6 +138,7 @@ export function serverlessKrogerWebSessionIsConfigured() {
   if (!usesServerlessKrogerWebSession()) return true;
   try {
     stateSecret();
+    if (sharedWebSessionEnabled() && !sharedWebSessionConfigured()) return false;
     return true;
   } catch {
     return false;
@@ -146,6 +149,7 @@ export async function withServerlessKrogerWebSession<T>(
   request: Request,
   operation: (client: KrogerAuthClient) => Promise<T>,
 ) {
+  if (sharedWebSessionEnabled()) return withSharedKrogerWebSession(request, operation);
   const directory = await mkdtemp(path.join(os.tmpdir(), "cartiva-kroger-web-"));
   const sessionFile = path.join(directory, "session.json");
   try {

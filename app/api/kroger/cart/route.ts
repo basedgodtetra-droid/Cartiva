@@ -6,6 +6,10 @@ import {
   readValidatedJson,
 } from "@/lib/api-security";
 import { createHash } from "node:crypto";
+import { sharedLeaseForClient } from "@/lib/kroger-shared-web";
+import { runSharedKrogerCartOperation, SharedCartReviewRequiredError } from "@/lib/kroger-shared-cart";
+import { SharedStateError } from "@/lib/kroger-shared-protocol";
+import { enforceSharedKrogerRateLimit } from "@/lib/kroger-shared-rate";
 import {
   KrogerCartOperationConflictError,
   KrogerCartOutcomeUnknownError,
@@ -63,7 +67,7 @@ function normalizedItems(value: unknown, modality: "PICKUP" | "DELIVERY") {
 function cartErrorResponse(error: unknown) {
   const status = error instanceof KrogerAuthError
     ? error.status
-    : error instanceof KrogerProviderError ? error.status : 502;
+    : error instanceof KrogerProviderError || error instanceof SharedStateError ? error.status : 502;
   const ambiguous = error instanceof KrogerCartOutcomeUnknownError;
   const conflict = error instanceof KrogerCartOperationConflictError;
   const authenticationExpired = (
@@ -79,6 +83,7 @@ function cartErrorResponse(error: unknown) {
           error: "Kroger's response was interrupted, so Cartiva cannot safely retry automatically. Check your retailer cart before trying again.",
           code: "outcome_unknown",
           retrySafe: false,
+          ...(error instanceof SharedCartReviewRequiredError ? { recoveryOperationId: error.recoveryOperationId } : {}),
         }
       : authenticationExpired
         ? {
@@ -120,7 +125,11 @@ async function writeCart(
       fulfillmentMode,
       items,
     })).digest("base64url");
-    const { receipt, replayed } = await runKrogerCartOperation(operationId, requestFingerprint, async () => {
+    const shared = sharedLeaseForClient(customerAuth);
+    const runner: typeof runKrogerCartOperation = shared
+      ? (id, fingerprint, operation, retry) => runSharedKrogerCartOperation(shared, id, fingerprint, operation, retry ?? (() => false), { locationId, fulfillmentMode, items })
+      : runKrogerCartOperation;
+    const { receipt, replayed } = await runner(operationId, requestFingerprint, async () => {
       const recentlyVerified = krogerCartItemsWereVerified(locationId, fulfillmentMode, items);
       if (
         !recentlyVerified
@@ -170,7 +179,8 @@ async function writeCart(
 }
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, "kroger-cart", { limit: 12, windowMs: 60_000 });
+  const limited = enforceRateLimit(request, "kroger-cart", { limit: 12, windowMs: 60_000 })
+    ?? await enforceSharedKrogerRateLimit(request, "kroger-cart", { limit: 12, windowMs: 60_000 });
   if (limited) return preWriteErrorResponse(limited);
   const parsed = await readValidatedJson<unknown>(request);
   if (!parsed.ok) return preWriteErrorResponse(parsed.response);

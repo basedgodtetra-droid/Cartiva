@@ -12,6 +12,8 @@ import {
   enforceRateLimit,
   validateLocalApiRequest,
 } from "@/lib/api-security";
+import { enforceSharedKrogerRateLimit } from "@/lib/kroger-shared-rate";
+import { SharedStateError } from "@/lib/kroger-shared-protocol";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +22,8 @@ export async function GET(request: Request) {
   const rejected = validateLocalApiRequest(request)
     ?? enforceRateLimit(request, "kroger-auth-status", { limit: 60, windowMs: 60_000 });
   if (rejected) return rejected;
+  const limited = await enforceSharedKrogerRateLimit(request, "kroger-auth-status", { limit: 60, windowMs: 60_000 });
+  if (limited) return limited;
   if (!krogerAuthIsConfigured() || !serverlessKrogerWebSessionIsConfigured()) {
     return Response.json(
       { connected: false, configured: false },
@@ -51,7 +55,7 @@ export async function GET(request: Request) {
         error: error instanceof Error ? error.message : "Kroger connection status could not be read.",
       },
       {
-        status: error instanceof KrogerAuthError ? error.status : 500,
+        status: error instanceof KrogerAuthError || error instanceof SharedStateError ? error.status : 500,
         headers: { "Cache-Control": "no-store" },
       },
     );

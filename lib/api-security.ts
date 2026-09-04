@@ -136,6 +136,11 @@ function publicReadClientIdentity(request: Request) {
   return `client:${digest}`;
 }
 
+/** Only hashed platform-derived identity crosses the shared-state boundary. */
+export function sharedRateIdentity(request: Request, scope: string) {
+  return createHash("sha256").update(`${scope}\0${publicReadClientIdentity(request)}`).digest("hex");
+}
+
 /**
  * A process-local abuse guard for anonymous, read-only public endpoints.
  * Deployment infrastructure should additionally enforce a durable edge limit.

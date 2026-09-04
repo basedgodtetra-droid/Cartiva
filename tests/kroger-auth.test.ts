@@ -155,7 +155,7 @@ describe("Kroger OAuth", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("reports disconnected only after a definitive refresh rejection clears the session", async () => {
+  it("retains a customer session when the token endpoint rejects client authentication", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "cartiva-kroger-status-revoked-"));
     const sessionFile = path.join(directory, "session.json");
     await writeFile(sessionFile, JSON.stringify({
@@ -165,7 +165,7 @@ describe("Kroger OAuth", () => {
       expiresAt: 1,
     }));
     const fetcher = vi.fn(async () => new Response(JSON.stringify({
-      error: "invalid_token",
+      error: "invalid_client",
     }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -177,10 +177,10 @@ describe("Kroger OAuth", () => {
       sessionFile,
     }, fetcher);
 
-    await expect(auth.connectionStatus()).resolves.toEqual({ connected: false, expired: true });
-    await expect(stat(sessionFile)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(auth.connectionStatus()).rejects.toMatchObject({ code: "upstream", status: 401 });
+    await expect(stat(sessionFile)).resolves.toBeDefined();
     await expect(auth.getCustomerAccessToken()).rejects.toMatchObject({
-      code: "not_connected",
+      code: "upstream",
       status: 401,
     });
   });

@@ -679,7 +679,7 @@ describe("anonymous mobile v1 read boundary", () => {
       fulfillmentMode: "pickup",
       items: [{ upc: "0001111012345", quantity: 1 }],
     }));
-    const oauthStart = oauthStartPost(new Request(`${apiOrigin}/api/kroger/oauth/start`, {
+    const oauthStart = await oauthStartPost(new Request(`${apiOrigin}/api/kroger/oauth/start`, {
       method: "POST",
     }));
     const disconnect = await disconnectPost(new Request(
