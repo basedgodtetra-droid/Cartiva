@@ -251,7 +251,7 @@ function normalizeKrogerProduct(
   // Kroger's Products contract exposes productId and UPC independently, while
   // Cart API writes specifically require `upc`. Never relabel productId as a
   // shopper-cart identifier when the provider omitted explicit UPC evidence.
-  const upc = textValue(raw.upc);
+  const upc = typeof raw.upc === "string" ? raw.upc.trim() : "";
   const title = textValue(raw.description);
   if (!productId || !upc || !title || !/^\d{8,14}$/.test(upc)) return null;
 
@@ -540,7 +540,8 @@ export async function findKrogerLocations(
       await auth.fetchPublic(`/v1/locations?${query}`, { signal: AbortSignal.timeout(12_000) }),
       "find nearby stores",
     ));
-    return records(payload?.data)
+    if (!Array.isArray(payload?.data)) throw new KrogerProviderError("Kroger returned an incomplete store response. Try again.", "bad_response");
+    return records(payload.data)
       .map(normalizeLocation)
       .filter((location): location is KrogerLocation => Boolean(location));
   })();
@@ -638,7 +639,8 @@ export async function searchKrogerProducts(
       "search products",
     ));
     const checkedAt = new Date().toISOString();
-    const products = records(payload?.data)
+    if (!Array.isArray(payload?.data)) throw new KrogerProviderError("Kroger returned an incomplete product response. Try again.", "bad_response");
+    const products = records(payload.data)
       .map((product) => normalizeKrogerProduct(product, { ...context, checkedAt }))
       .filter((product): product is KrogerProduct => Boolean(product));
     for (const product of products) {

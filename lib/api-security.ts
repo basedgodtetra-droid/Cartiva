@@ -83,8 +83,7 @@ export function enforceRateLimit(
   scope: string,
   policy: RateLimitPolicy,
 ) {
-  const origin = request.headers.get("Origin") ?? new URL(request.url).origin;
-  return rateLimitResponse(`${scope}:${origin}`, policy);
+  return rateLimitResponse(`${scope}:${publicReadClientIdentity(request)}`, policy);
 }
 
 function normalizedClientAddress(value: string | null) {
@@ -107,6 +106,12 @@ function normalizedClientAddress(value: string | null) {
  * never retained in the process-local limiter.
  */
 function publicReadClientIdentity(request: Request) {
+  // Vercel overwrites this single-address header at its edge. Never trust it
+  // merely because an arbitrary caller supplied it to another deployment.
+  if (process.env.VERCEL === "1") {
+    const address = normalizedClientAddress(request.headers.get("x-vercel-forwarded-for"));
+    if (address) return `ip:${address}`;
+  }
   // Forwarding headers are caller-controlled unless the deployment explicitly
   // places Cartiva behind a trusted edge and makes the origin unreachable.
   // Ignoring them by default prevents a direct caller from rotating a spoofed

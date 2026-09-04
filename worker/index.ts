@@ -16,7 +16,7 @@ const SECURITY_HEADERS = {
     "upgrade-insecure-requests",
     "worker-src 'self' blob:",
   ].join("; "),
-  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
   "Cross-Origin-Resource-Policy": "same-origin",
   "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
   "Referrer-Policy": "no-referrer",

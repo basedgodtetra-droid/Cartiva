@@ -35,6 +35,8 @@ import { trackCartivaEvent } from "@/lib/cartiva-product-events";
 interface CartivaLibraryContextValue {
   state: CartivaLibraryState;
   hydrated: boolean;
+  persisted: boolean;
+  retrySaving: () => void;
   saveList: (input: {
     id?: string;
     name: string;
@@ -62,6 +64,12 @@ const CartivaLibraryContext = createContext<CartivaLibraryContextValue | null>(n
 export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<CartivaLibraryState>(emptyCartivaLibrary);
   const [hydrated, setHydrated] = useState(false);
+  const [lastPersisted, setLastPersisted] = useState<string | null>(null);
+  const [persistenceFailed, setPersistenceFailed] = useState(false);
+  const [saveAttempt, setSaveAttempt] = useState(0);
+  const serialized = useMemo(() => serializeCartivaLibrary(state), [state]);
+  const persisted = hydrated && lastPersisted === serialized && !persistenceFailed;
+  const retrySaving = useCallback(() => setSaveAttempt((value) => value + 1), []);
 
   useEffect(() => {
     const load = () => {
@@ -87,12 +95,17 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
+    const timer = window.setTimeout(() => {
     try {
-      window.localStorage.setItem(CARTIVA_LIBRARY_KEY, serializeCartivaLibrary(state));
+      window.localStorage.setItem(CARTIVA_LIBRARY_KEY, serialized);
+      setLastPersisted(serialized);
+      setPersistenceFailed(false);
     } catch {
-      // Browsing can continue when storage is unavailable or full.
+      setPersistenceFailed(true);
     }
-  }, [hydrated, state]);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [hydrated, serialized, saveAttempt]);
 
   const saveList = useCallback((input: {
     id?: string;
@@ -135,6 +148,8 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CartivaLibraryContextValue>(() => ({
     state,
     hydrated,
+    persisted,
+    retrySaving,
     saveList,
     renameList,
     duplicateList,
@@ -158,9 +173,15 @@ export function CartivaLibraryProvider({ children }: { children: ReactNode }) {
       const occurredAt = new Date().toISOString();
       setState((current) => appendCartActivity(current, { ...input, occurredAt }));
     },
-  }), [duplicateList, hydrated, renameList, saveList, savePlan, state]);
+  }), [duplicateList, hydrated, persisted, retrySaving, renameList, saveList, savePlan, state]);
 
-  return <CartivaLibraryContext.Provider value={value}>{children}</CartivaLibraryContext.Provider>;
+  return <CartivaLibraryContext.Provider value={value}>
+    {persistenceFailed && <div role="alert" style={{ padding: 16, background: "#FFF7E8", color: "#17221D" }}>
+      Changes are only in this open tab. Your browser could not save them. Keep this tab open to avoid losing work.
+      {" "}<button type="button" onClick={retrySaving}>Retry saving</button>
+    </div>}
+    {children}
+  </CartivaLibraryContext.Provider>;
 }
 
 export function useCartivaLibrary() {

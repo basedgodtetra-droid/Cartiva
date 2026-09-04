@@ -20,8 +20,12 @@ export interface CartivaKrogerPreflight {
 
 export function getCartivaKrogerPreflight(
   responseOk: boolean,
-  body: CartivaKrogerAuthStatusBody,
+  value: unknown,
 ): CartivaKrogerPreflight {
+  const body = value && typeof value === "object" && !Array.isArray(value) ? value as CartivaKrogerAuthStatusBody : {};
+  if (responseOk && typeof body.connected !== "boolean" && body.configured !== false && body.expired !== true) {
+    return { state: "unavailable", connected: false, configured: true, message: "Cartiva could not verify your Kroger connection. Please try again." };
+  }
   if (body.configured === false) {
     return {
       state: "unavailable",
@@ -35,7 +39,7 @@ export function getCartivaKrogerPreflight(
       state: "unavailable",
       connected: false,
       configured: true,
-      message: body.error?.trim() || "Cartiva could not verify the saved Kroger connection.",
+      message: (typeof body.error === "string" && body.error.trim()) || "Cartiva could not verify the saved Kroger connection.",
     };
   }
   if (body.connected === true) {

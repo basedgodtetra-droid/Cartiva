@@ -16,7 +16,7 @@ function recency(value: string) {
 }
 
 export function CartivaUtilityRail() {
-  const { state, hydrated } = useCartivaLibrary();
+  const { state, hydrated, persisted } = useCartivaLibrary();
   const historyGroups = new Map<string, typeof state.basketHistory>();
   for (const item of state.basketHistory) {
     const key = `${item.fingerprint}|${item.retailer}|${item.locationId}|${item.fulfillmentMode}`;
@@ -30,7 +30,7 @@ export function CartivaUtilityRail() {
   return (
     <aside className={styles.utilityRail} aria-labelledby="your-cartiva-heading">
       <p className={styles.utilityEyebrow}>Your Cartiva</p>
-      <h2 id="your-cartiva-heading">Saved on this device</h2>
+      <h2 id="your-cartiva-heading">{persisted ? "Saved on this device" : "Your lists and history"}</h2>
 
       <section className={styles.utilitySection} aria-labelledby="utility-lists-heading">
         <div className={styles.utilitySectionHeading}><h3 id="utility-lists-heading">My lists</h3><Link href="/lists">View all <ArrowRight aria-hidden="true" /></Link></div>

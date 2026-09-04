@@ -13,9 +13,11 @@ export interface CartivaKrogerReceipt {
 }
 
 export function verifiedKrogerCartReceipt(
-  receipt: CartivaKrogerReceipt,
+  value: unknown,
   pending: PendingKrogerCart,
 ) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const receipt = value as CartivaKrogerReceipt;
   const expectedQuantity = pending.items.reduce((sum, item) => sum + item.quantity, 0);
   if (
     receipt.success !== true

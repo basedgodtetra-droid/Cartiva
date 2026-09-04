@@ -152,11 +152,12 @@ export function decodeKrogerCartRecovery(value: unknown): KrogerCartRecovery | n
       !handoff
       || !Number.isSafeInteger(recovery.addedCount)
       || (recovery.addedCount as number) < 1
-      || (recovery.addedCount as number) > 2_376
+      || (recovery.addedCount as number) > 4_950
       || !Number.isSafeInteger(recovery.itemCount)
       || (recovery.itemCount as number) < 1
-      || (recovery.itemCount as number) > 24
+      || (recovery.itemCount as number) > 50
       || (recovery.addedCount as number) < (recovery.itemCount as number)
+      || (recovery.addedCount as number) > (recovery.itemCount as number) * 99
     ) return null;
     return {
       status: "CONFIRMED",

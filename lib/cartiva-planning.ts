@@ -1,3 +1,6 @@
+import { plannerDietaryRestrictions, plannerIngredientAllowed } from "./planner-restrictions";
+import { normalizeMeasurementFractions, invalidGroceryQuantity } from "@/packages/shared/src/quantity-text";
+
 const MAX_CARTIVA_INGREDIENTS = 24;
 
 export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
@@ -601,7 +604,8 @@ export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
     `\\b(?:(?:no|without|avoid|exclude|don'?t (?:like|want|eat)|hate|dislike)\\s+(?:any\\s+)?${food}|allerg(?:ic\\s+to|y\\s+to|y)\\s+${food}|${food}\\s+allerg(?:y|ies))\\b`,
     "i",
   ).test(prompt);
-  const vegetarian = /\bvegetarian|meatless|no meat\b/i.test(prompt);
+  const dietary = plannerDietaryRestrictions(prompt);
+  const vegetarian = dietary.vegetarian;
   const noChicken = avoids("chicken");
   const noBeef = avoids("(?:ground\\s+)?beef");
   const noRice = avoids("rice");
@@ -656,7 +660,7 @@ export function normalizePlannerGoal(draft: PlannerGoalDraft): PlannerGoal {
     people,
     mealSlots: mealSlotsFor(`${prompt}${dailyCalories ? " calories" : ""}`, proteinGrams?.value),
     preferences: [...new Set(preferences)],
-    exclusions: [...new Set(exclusions)],
+    exclusions: [...new Set([...exclusions, ...dietary.exclusions])],
     priority,
     originalPrompt: prompt,
   };
@@ -846,6 +850,7 @@ export function consolidatePlanIngredients(meals: PlannedMeal[]) {
 }
 
 function templateAllowed(template: MealTemplate, goal: PlannerGoal) {
+  if (!template.ingredients.every((ingredient) => plannerIngredientAllowed(ingredient.name, goal.exclusions))) return false;
   const ingredientText = template.ingredients.map((ingredient) => ingredient.name).join(" ").toLowerCase();
   if (goal.exclusions.includes("fish") && (template.tags.includes("fish") || /salmon|tuna|fish|shrimp/.test(ingredientText))) return false;
   if (goal.exclusions.includes("chicken") && (template.tags.includes("chicken") || /chicken/.test(ingredientText))) return false;
@@ -863,6 +868,7 @@ function templateAllowed(template: MealTemplate, goal: PlannerGoal) {
 }
 
 function proteinBoosterAllowed(booster: ProteinBooster, goal: PlannerGoal) {
+  if (!plannerIngredientAllowed(booster.name, goal.exclusions)) return false;
   if (goal.preferences.includes("vegetarian") && !booster.tags.includes("vegetarian")) return false;
   if (goal.exclusions.includes("meat") && !booster.tags.includes("vegetarian")) return false;
   if (goal.exclusions.includes("chicken") && booster.tags.includes("chicken")) return false;
@@ -1312,6 +1318,9 @@ function finishMealPlan(
   meals: PlannedMeal[],
   trace: PlannerOptimizationAttempt[],
 ) {
+  if (!meals.every((meal) => meal.ingredients.every((ingredient) => plannerIngredientAllowed(ingredient.name, goal.exclusions)))) {
+    throw new Error("This plan couldn't satisfy your food restrictions. Edit the goals or create a reviewed grocery list.");
+  }
   const consolidated = consolidatePlanIngredients(meals);
   const estimates = planEstimates(meals, goal.days.value);
   const evaluation = evaluateMealPlanGoal(meals, goal);
@@ -1564,17 +1573,17 @@ function parseAmount(value: string | undefined) {
   if (/^\d+\s+\d+\/\d+$/.test(value)) {
     const [whole, fraction] = value.split(/\s+/);
     const [numerator, denominator] = fraction.split("/").map(Number);
-    return Number(whole) + numerator / denominator;
+    return denominator > 0 ? Number(whole) + numerator / denominator : NaN;
   }
   if (/^\d+\/\d+$/.test(value)) {
     const [numerator, denominator] = value.split("/").map(Number);
-    return numerator / denominator;
+    return denominator > 0 ? numerator / denominator : NaN;
   }
   if (/^\d+(?:\.\d+)?\s*[-–—]\s*\d+(?:\.\d+)?$/.test(value)) {
     const [minimum, maximum] = value.split(/[-–—]/).map(Number);
     return (minimum + maximum) / 2;
   }
-  return Number(value) || 1;
+  return Number(value);
 }
 
 const UNIT_ALIASES: Record<string, IngredientUnit> = {
@@ -1589,6 +1598,7 @@ const UNIT_ALIASES: Record<string, IngredientUnit> = {
   can: "can", cans: "can",
   gallon: "gallon", gallons: "gallon", gal: "gallon",
   ml: "ml", milliliter: "ml", milliliters: "ml", millilitre: "ml", millilitres: "ml",
+  l: "ml", liter: "ml", liters: "ml", litre: "ml", litres: "ml",
   piece: "each", pieces: "each", item: "each", items: "each",
   package: "package", packages: "package", pkg: "package",
   jar: "jar", jars: "jar", box: "box", boxes: "box",
@@ -1596,11 +1606,11 @@ const UNIT_ALIASES: Record<string, IngredientUnit> = {
   slice: "slice", slices: "slice",
 };
 
-const DIRECTION_START = /^(?:preheat|bake|cook|stir|mix|combine|heat|serve|simmer|whisk|add|place|pour|bring|reduce|cover|fold|blend|roast|grill|let)\b/i;
+const DIRECTION_START = /^(?:preheat|bake|cook|stir|mix|combine|heat|serve|simmer|whisk|add|place|pour|bring|reduce|cover|fold|blend|roast|grill|let|dice|chop|mince|drain|rinse|slice|peel|season|marinate|remove|transfer)\b/i;
 
 function parseRecipeIngredient(line: string, insideIngredientSection: boolean): MealIngredientNeed | undefined {
-  const cleaned = unicodeFractions(line)
-    .replace(/^\s*(?:[-*•▪◦]\s*|\d+[.)]\s+)/, "")
+  const cleaned = normalizeMeasurementFractions(unicodeFractions(line))
+    .replace(/^\s*(?:[-*•▪◦]\s+|\d+[.)]\s+)/, "")
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -1608,14 +1618,20 @@ function parseRecipeIngredient(line: string, insideIngredientSection: boolean): 
   if (/^(?:directions?|instructions?|method|steps?|notes?|nutrition)\b/i.test(cleaned)) return undefined;
   if (/\b(?:ignore|disregard|override)\s+(?:all\s+)?(?:previous|prior|system|developer|user)\s+(?:instructions?|prompts?|messages?)\b/i.test(cleaned)) return undefined;
   if (DIRECTION_START.test(cleaned)) return undefined;
+  if (invalidGroceryQuantity(cleaned)) throw new Error(`Check the amount in “${line}”. Use a positive, finite quantity and try again.`);
   if (/^[^\d]+:\s*$/.test(cleaned)) return undefined;
-  const match = cleaned.match(/^(?:(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?\s*[-–—]\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)(?:\s+|\s*-\s*))?(?:(cups?|c|tbsp|tablespoons?|tsp|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|kilograms?|ml|millilit(?:er|re)s?|count|ct|cans?|gallons?|gal|pieces?|items?|packages?|pkg|jars?|boxes?|cloves?|bunch(?:es)?|slices?)\s+(?:of\s+)?)?(.*)$/i);
+  const match = cleaned.match(/^(?:(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?\s*[-–—]\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)(?:\s+|\s*-\s*))?(?:(cups?|c|tbsp|tablespoons?|tsp|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|kilograms?|ml|millilit(?:er|re)s?|l|lit(?:er|re)s?|count|ct|cans?|gallons?|gal|pieces?|items?|packages?|pkg|jars?|boxes?|cloves?|bunch(?:es)?|slices?)\s+(?:of\s+)?)?(.*)$/i);
   if (!match) return undefined;
   let amount = parseAmount(match[1]);
+  if (/^(?:l|lit(?:er|re)s?)$/i.test(match[2] ?? "")) amount *= 1000;
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100_000) throw new Error(`Check the amount in “${line}” and try again.`);
   let unit = match[2] ? UNIT_ALIASES[match[2].toLowerCase()] : undefined;
   let name = match[3].trim();
+  const optional = /\boptional\b/i.test(name);
+  name = name.replace(/\s*\(?optional\)?\s*/gi, " ").trim();
   const parenthetical = name.match(/^\((\d+(?:\.\d+)?)\s*[- ]?(oz|ounces?|g|grams?|ml|millilit(?:er|re)s?)\)\s*(cans?|packages?|pkg|jars?|boxes?)?\s*(.*)$/i);
   if (parenthetical) {
+    if (!(Number(parenthetical[1]) > 0) || Number(parenthetical[1]) > 100_000) throw new Error(`Check the amount in “${line}” and try again.`);
     const container = parenthetical[3]?.toLowerCase();
     if (container) unit = UNIT_ALIASES[container] ?? unit;
     else if (!unit) {
@@ -1624,6 +1640,7 @@ function parseRecipeIngredient(line: string, insideIngredientSection: boolean): 
     }
     name = parenthetical[4].trim();
   }
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100_000) throw new Error(`Check the amount in “${line}” and try again.`);
   if (!unit) unit = "each";
   name = name
     .replace(/^an?\s+/i, "")
@@ -1635,7 +1652,7 @@ function parseRecipeIngredient(line: string, insideIngredientSection: boolean): 
   if (!name || name.length < 2) return undefined;
   const hasAmount = Boolean(match[1] || match[2] || parenthetical);
   if (!insideIngredientSection && !hasAmount) return undefined;
-  return { name: titleCase(name), amount: cleanNumber(amount, 2), unit };
+  return { name: titleCase(name), amount: cleanNumber(amount, 2), unit, ...(optional ? { optional } : {}) };
 }
 
 function consolidateRecipeNeeds(needs: MealIngredientNeed[], servings: number) {
@@ -1680,7 +1697,7 @@ export function parseRecipeText(rawText: string): RecipeImport {
     if (ingredientHeadingIndex >= 0 && index <= ingredientHeadingIndex) continue;
     if (directionIndex >= 0 && index >= directionIndex) break;
     const insideIngredientSection = ingredientHeadingIndex >= 0 && (directionIndex < 0 || index < directionIndex);
-    if (insideIngredientSection && DIRECTION_START.test(line)) break;
+    if (insideIngredientSection && DIRECTION_START.test(line)) continue;
     const parsed = parseRecipeIngredient(line, insideIngredientSection);
     if (parsed) needs.push(parsed);
   }

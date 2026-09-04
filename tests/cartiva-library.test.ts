@@ -74,6 +74,27 @@ function verifiedResult(upc: string, price: number, title: string, packageLabel:
 }
 
 describe("Cartiva local library", () => {
+  it("round-trips 50-row lists, quantities, and historical baskets", () => {
+    const items = Array.from({ length: 50 }, (_, index) => ({ id: `item-${index}`, raw: `Coffee ${index}`, name: "Coffee", canonicalText: `Coffee ${index}`, status: "ready" as const }));
+    const quantities = Object.fromEntries(items.map((item) => [item.id, 99]));
+    const listSnapshot = { rawInput: items.map((item) => item.raw).join("\n"), quantities, fulfillmentMode: "pickup" as const, zipCode: "75201" };
+    const results = items.map((item, index) => verifiedResult(String(1111012000 + index).padStart(13, "0"), 3, item.name, "1 count"));
+    const record = buildCartivaComparisonRecord({ listName: "Long list", listSnapshot, items, quantities, results, location: { locationId: "store-1", name: "Capitol Ave", chain: "Kroger", address: { addressLine1: "4241 Capitol Ave" } }, fulfillmentMode: "pickup", observedAt: now });
+    expect(record?.products).toHaveLength(50);
+    let state = upsertSavedList(emptyCartivaLibrary(), { id: "list-long", name: "Long list", snapshot: listSnapshot, itemCount: 50, now });
+    state = saveHistoricalBasket(state, record!, now);
+    const restored = parseCartivaLibrary(serializeCartivaLibrary(state));
+    expect(restored.lists[0].itemCount).toBe(50);
+    expect(Object.keys(restored.lists[0].quantities)).toHaveLength(50);
+    expect(restored.baskets[0].products).toHaveLength(50);
+    expect(restored.baskets[0].subtotalCents).toBe(50 * 99 * 300);
+  });
+  it("separates basket trends when the actual UPC/package changes", () => {
+    const item = { id: "soda", raw: "soda", name: "Soda", canonicalText: "Soda", status: "ready" as const };
+    const create = (upc: string, label: string, price: number) => buildCartivaComparisonRecord({ listName: "Weekly", listSnapshot: { rawInput: "soda", quantities: {}, fulfillmentMode: "pickup", zipCode: "75201" }, items: [item], quantities: {}, results: [verifiedResult(upc, price, "Soda", label)], location: { locationId: "store-1", name: "Capitol Ave", chain: "Kroger", address: { addressLine1: "1 Main" } }, fulfillmentMode: "pickup", observedAt: now })!;
+    expect(create("0001111010012", "12 pack", 6).fingerprint).not.toBe(create("0001111010024", "24 pack", 9).fingerprint);
+    expect(create("0001111010012", "12 pack", 6).fingerprint).toBe(create("0001111010012", "12 pack", 8).fingerprint);
+  });
   it("saves and restores an editable plan with pantry selections but no stale retailer prices", () => {
     const generated = generateMealPlan({
       notes: "High protein work meal prep",

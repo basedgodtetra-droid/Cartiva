@@ -5689,8 +5689,13 @@
 
   .listContent,
   .basketItems {
+    flex: 0 0 auto;
     overflow: visible;
     scrollbar-gutter: auto;
+  }
+
+  .basketCard {
+    flex: 0 0 auto;
   }
 
   .retailerCard[data-unavailable="true"] {

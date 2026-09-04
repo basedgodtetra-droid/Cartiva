@@ -3,6 +3,7 @@ import {
   COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE,
   COUNTED_CONTENT_UNIT_PATTERN_SOURCE,
 } from "./package-grammar";
+import { normalizeMeasurementFractions } from "./quantity-text";
 
 /** Framework-neutral shopping-list parsing shared by every Cartiva client. */
 const LEADING_REQUEST =
@@ -273,8 +274,7 @@ function conservativeGroceryTypo(token: string) {
  */
 export function normalizeHumanGroceryText(input: string) {
   const compactUnit = "(?:lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|fl\\s*oz|ounces?|oz|milliliters?|millilitres?|ml|liters?|litres?|l|count|ct|packs?|pk|bars?|blades?|pacs?|pieces?|pods?|rolls?|sheets?|wipes?|cans?|bottles?|bags?|boxes?|cartons?|jars?|pouch(?:es)?|trays?|tubs?|bunches?|loaves?|gallons?|gal|quarts?|qt|pints?|pt)";
-  let value = input
-    .normalize("NFKC")
+  let value = normalizeMeasurementFractions(input)
     .replace(new RegExp(`([a-z])(?=\\d+(?:\\.\\d+)?(?:\\s*)?${compactUnit}\\b)`, "gi"), "$1 ")
     .replace(new RegExp(`(\\d)(?=${compactUnit}\\b)`, "gi"), "$1 ")
     .replace(/%(?=[a-z])/gi, "% ");
@@ -392,11 +392,12 @@ export function normalizeShoppingItem(value: string) {
   return cleanItem(value).toLowerCase();
 }
 
-export function parseShoppingList(input: string, limit = 24): string[] {
-  if (!input.trim()) return [];
+export function inspectShoppingList(input: string, limit = 24, splitImplicit = true) {
+  const unattachedModifiers: string[] = [];
+  if (!input.trim()) return { items: [], unattachedModifiers };
 
   const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 24;
-  if (safeLimit === 0) return [];
+  if (safeLimit === 0) return { items: [], unattachedModifiers };
   const chunkScanLimit = safeLimit * 4;
 
   const withoutPrefix = normalizeHumanGroceryText(input).replace(LEADING_REQUEST, "");
@@ -418,20 +419,26 @@ export function parseShoppingList(input: string, limit = 24): string[] {
         .flatMap((chunk) => chunk.split(/\s+(?:and then|and|plus|also)\s+/i))
         .map(restoreCompounds)
         .filter(Boolean)
-        .flatMap(splitImplicitGroceryItems);
+        .flatMap((value) => splitImplicit ? splitImplicitGroceryItems(value) : [value]);
       const repaired: string[] = [];
+      const prefixModifiers: string[] = [];
       for (const candidate of candidates) {
         if (isOrphanGroceryModifier(candidate)) {
           if (repaired.length > 0) {
             repaired[repaired.length - 1] = `${repaired.at(-1)}, ${candidate}`;
-          }
+          } else prefixModifiers.push(candidate);
           continue;
         }
-        repaired.push(candidate);
+        repaired.push(prefixModifiers.length ? `${candidate}, ${prefixModifiers.splice(0).join(", ")}` : candidate);
       }
+      unattachedModifiers.push(...prefixModifiers);
       return repaired;
     })
     .slice(0, chunkScanLimit);
 
-  return chunks.slice(0, safeLimit);
+  return { items: chunks.slice(0, safeLimit), unattachedModifiers };
+}
+
+export function parseShoppingList(input: string, limit = 24): string[] {
+  return inspectShoppingList(input, limit).items;
 }

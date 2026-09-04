@@ -1,4 +1,4 @@
-import { KrogerAuthError, type KrogerAuthClient } from "@/lib/kroger-auth";
+import { getKrogerAuthClient, KrogerAuthError, type KrogerAuthClient } from "@/lib/kroger-auth";
 import {
   enforceRateLimit,
   hasOnlyKeys,
@@ -74,7 +74,7 @@ function cartErrorResponse(error: unknown) {
     && error.status === 401
   );
   return Response.json(
-    ambiguous
+    ambiguous || conflict
       ? {
           error: "Kroger's response was interrupted, so Cartiva cannot safely retry automatically. Check your retailer cart before trying again.",
           code: "outcome_unknown",
@@ -110,7 +110,12 @@ async function writeCart(
   auth?: KrogerAuthClient,
 ) {
   try {
+    const customerAuth = auth ?? getKrogerAuthClient();
+    await customerAuth.getCustomerAccessToken();
+    const authorizationGeneration = await customerAuth.getAuthorizationGeneration();
+    if (!authorizationGeneration) throw new KrogerAuthError("Connect Kroger before adding this basket.", "not_connected", 401);
     const requestFingerprint = createHash("sha256").update(JSON.stringify({
+      authorizationGeneration,
       locationId,
       fulfillmentMode,
       items,

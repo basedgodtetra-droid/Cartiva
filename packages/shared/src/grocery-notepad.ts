@@ -1,8 +1,8 @@
 import {
-  isOrphanGroceryModifier,
+  inspectShoppingList,
   normalizeHumanGroceryText,
-  parseShoppingList,
 } from "./list-parser";
+import { invalidGroceryQuantity } from "./quantity-text";
 export { isOrphanGroceryModifier } from "./list-parser";
 import {
   COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE,
@@ -85,6 +85,7 @@ export interface GroceryInterpretation {
   usedSmartSplit: boolean;
   limitReached: boolean;
   omittedCount: number;
+  inputIssues?: string[];
 }
 
 export interface InterpretOptions {
@@ -749,21 +750,7 @@ function stableId(value: string, index: number) {
 }
 
 function explicitSegments(input: string) {
-  return input
-    .replace(/\r/g, "")
-    .split(/\n+|\s*;\s*/)
-    .flatMap((strongSegment) => {
-      const repaired: string[] = [];
-      for (const candidate of strongSegment.split(/\s*,\s*/).map(clean).filter(Boolean)) {
-        if (isOrphanGroceryModifier(candidate)) {
-          if (repaired.length > 0) repaired[repaired.length - 1] = `${repaired.at(-1)}, ${candidate}`;
-          continue;
-        }
-        repaired.push(candidate);
-      }
-      return repaired;
-    })
-    .slice(0, 50);
+  return inspectShoppingList(input, 501, false).items;
 }
 
 function dozenCount(value: string | undefined) {
@@ -1106,19 +1093,30 @@ export function interpretGroceryInput(
 ): GroceryInterpretation {
   const normalizedInput = normalizeHumanGroceryText(input);
   const explicit = explicitSegments(normalizedInput);
-  const detectedItems = options.undoImplicitSplits ? explicit : parseShoppingList(normalizedInput, 51);
+  const inspection = inspectShoppingList(normalizedInput, 501, !options.undoImplicitSplits);
+  const detectedItems = inspection.items;
   const rawItems = detectedItems.slice(0, 50);
-  const items = rawItems.map((item, index) => itemFromRaw(item, index, options.proteinOrigins));
-  const unresolvedCount = items.filter((item) => item.status === "needs-detail").length;
+  const items = rawItems.map((raw, index) => {
+    const problem = invalidGroceryQuantity(raw);
+    if (!problem) return itemFromRaw(raw, index, options.proteinOrigins);
+    return {
+      id: stableId(raw, index), raw, name: raw, canonicalText: raw,
+      detail: "Check quantity", status: "needs-detail" as const,
+      clarification: { id: "invalid-quantity", shortLabel: "Check quantity", prompt: `${problem} Edit this item to continue.`, options: [] },
+    };
+  });
+  const inputIssues = inspection.unattachedModifiers.map((fragment) => `Which grocery does “${fragment}” belong to? Put it on the same line as the grocery.`);
+  const unresolvedCount = items.filter((item) => item.status === "needs-detail").length + inputIssues.length;
 
   return {
     items,
     serialized: serializeGroceryItems(items),
-    readyCount: items.length - unresolvedCount,
+    readyCount: items.filter((item) => item.status === "ready").length,
     unresolvedCount,
     usedSmartSplit: !options.undoImplicitSplits && items.length > explicit.length && explicit.length > 0,
     limitReached: detectedItems.length > 50,
     omittedCount: Math.max(0, detectedItems.length - 50),
+    ...(inputIssues.length ? { inputIssues } : {}),
   };
 }
 

@@ -36,6 +36,12 @@ const confirmed = {
 } as const;
 
 describe("mobile owner-level Kroger cart recovery", () => {
+  it("accepts 50 lines and 4,950 units, but rejects impossible receipt totals", () => {
+    expect(decodeKrogerCartRecovery({ ...confirmed, itemCount: 50, addedCount: 4950 })).toMatchObject({ itemCount: 50, addedCount: 4950 });
+    for (const counts of [{ itemCount: 51, addedCount: 51 }, { itemCount: 50, addedCount: 4951 }, { itemCount: 1, addedCount: 100 }]) {
+      expect(decodeKrogerCartRecovery({ ...confirmed, ...counts })).toBeNull();
+    }
+  });
   beforeEach(async () => {
     vi.stubGlobal("__DEV__", true);
     secureStore.getItemAsync = vi.fn(async () => null);

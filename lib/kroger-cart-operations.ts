@@ -296,11 +296,12 @@ function validRecord(value: unknown): value is KrogerCartOperationRecord {
     && validKrogerCartUrl(receipt.cartUrl)
     && Number.isInteger(receipt.addedCount)
     && (receipt.addedCount as number) >= 1
-    && (receipt.addedCount as number) <= 2_376
+    && (receipt.addedCount as number) <= 50 * 99
     && Number.isInteger(receipt.itemCount)
     && (receipt.itemCount as number) >= 1
     && (receipt.itemCount as number) <= 50
     && (receipt.addedCount as number) >= (receipt.itemCount as number)
+    && (receipt.addedCount as number) <= (receipt.itemCount as number) * 99
     && validPossiblyEmptyBoundedString(receipt.chain, MAX_RETAILER_LABEL_LENGTH)
     && selectedSearchLocation !== null
     && typeof selectedSearchLocation === "object"

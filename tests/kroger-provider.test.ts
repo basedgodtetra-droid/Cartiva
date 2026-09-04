@@ -20,6 +20,13 @@ function authWithResponses(responses: unknown[]) {
 beforeEach(() => resetKrogerProviderForTests());
 
 describe("Kroger provider normalization", () => {
+  it("never converts numeric UPCs into verified identities or loses leading zeros", async () => {
+    const product = (upc: unknown) => ({ productId: "0001111012345", upc, description: "Kroger White Bread", categories: ["Bread"], items: [{ itemId: "0001111012345", size: "20 oz", price: { regular: 2 }, fulfillment: { curbside: true } }] });
+    const auth = authWithResponses([{ data: [product(1111012345), product("0001111012345")] }]);
+    const result = await searchKrogerProducts("bread", { locationId: "01400912", locationVerified: true, fulfillmentMode: "pickup" }, auth);
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0].upc).toBe("0001111012345");
+  });
   it("prefers official sellable size metadata over nutrition numbers in a title", async () => {
     const auth = authWithResponses([{ data: [{
       productId: "0001111017676",

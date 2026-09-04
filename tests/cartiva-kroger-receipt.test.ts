@@ -27,6 +27,9 @@ const receipt = {
 };
 
 describe("Cartiva Kroger transfer receipt", () => {
+  it.each([null, undefined, [], "accepted", {}])("rejects malformed receipt %j", (value) => {
+    expect(verifiedKrogerCartReceipt(value, pending)).toBeNull();
+  });
   it("accepts only the exact confirmed basket and trusted cart route", () => {
     expect(verifiedKrogerCartReceipt(receipt, pending)).toEqual({
       cartUrl: "https://www.kroger.com/cart",

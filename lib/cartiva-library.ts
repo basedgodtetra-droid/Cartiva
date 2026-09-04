@@ -6,6 +6,7 @@ import {
 import { resolvedKrogerCartQuantity } from "@/lib/cartiva-kroger-cart";
 import type { MealPlan } from "@/lib/cartiva-planning";
 import type { KrogerMatchResult } from "@/lib/types";
+import { MAX_WORKSPACE_ITEMS } from "@/lib/cartiva-workspace-state";
 
 export const CARTIVA_LIBRARY_KEY = "cartiva-local-library-v1";
 
@@ -446,7 +447,7 @@ function isListSnapshot(value: unknown): value is CartivaListSnapshot {
     && typeof value.rawInput === "string"
     && value.rawInput.length <= 12_000
     && isRecord(value.quantities)
-    && Object.keys(value.quantities).length <= 25
+    && Object.keys(value.quantities).length <= MAX_WORKSPACE_ITEMS
     && Object.values(value.quantities).every(validQuantity)
     && (value.proteinOrigins === undefined || isRecord(value.proteinOrigins))
     && (value.fulfillmentMode === "pickup" || value.fulfillmentMode === "delivery")
@@ -466,11 +467,11 @@ function isComparisonRecord(value: unknown): value is CartivaComparisonRecord {
     && (value.fulfillmentMode === "pickup" || value.fulfillmentMode === "delivery")
     && validDate(value.observedAt)
     && positiveInteger(value.subtotalCents)
-    && integerBetween(value.matchedCount, 0, 25)
-    && integerBetween(value.itemCount, 1, 25)
+    && integerBetween(value.matchedCount, 0, MAX_WORKSPACE_ITEMS)
+    && integerBetween(value.itemCount, 1, MAX_WORKSPACE_ITEMS)
     && typeof value.complete === "boolean"
     && Array.isArray(value.products)
-    && value.products.length <= 25
+    && value.products.length <= MAX_WORKSPACE_ITEMS
     && value.products.every(isSavedProduct)
     && value.provenanceLabel === "Official Kroger API · exact selected store";
 }
@@ -614,14 +615,14 @@ export function upsertSavedList(
     quantities: Object.fromEntries(
       Object.entries(input.snapshot.quantities)
         .filter(([, quantity]) => Number.isInteger(quantity) && quantity >= 1 && quantity <= 99)
-        .slice(0, 25),
+        .slice(0, MAX_WORKSPACE_ITEMS),
     ),
     fulfillmentMode: input.snapshot.fulfillmentMode,
     zipCode: /^\d{5}$/.test(input.snapshot.zipCode) ? input.snapshot.zipCode : "",
     proteinOrigins: Object.keys(input.snapshot.proteinOrigins ?? {}).length
       ? sanitizeGroceryProteinOrigins(input.snapshot.proteinOrigins)
       : undefined,
-    itemCount: Math.max(0, Math.min(25, Math.floor(input.itemCount))),
+    itemCount: Math.max(0, Math.min(MAX_WORKSPACE_ITEMS, Math.floor(input.itemCount))),
     createdAt: existing?.createdAt ?? input.now,
     updatedAt: input.now,
   };
@@ -789,9 +790,9 @@ export function buildCartivaComparisonRecord(
     }];
   });
   if (!products.length) return null;
-  const fingerprintSource = [input.fulfillmentMode, ...input.items
+  const fingerprintSource = ["composition-v2", input.fulfillmentMode, ...input.items
     .map((item) => `${item.canonicalText.toLowerCase()}|${input.quantities[item.id] ?? 1}`)
-    .sort()]
+    .sort(), ...products.map((product) => `${product.upc}|${product.packageKey}|${product.quantity}`).sort()]
     .join("\n");
   const fingerprint = `basket_${hash(fingerprintSource)}`;
   const evidenceFingerprint = products

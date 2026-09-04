@@ -70,8 +70,12 @@ function protocol(webSocketUrl) {
 }
 
 const viewports = [
+  { name: "mobile-320", width: 320, height: 568, mobile: true },
+  { name: "mobile-375", width: 375, height: 812, mobile: true },
   { name: "mobile-390", width: 390, height: 844, mobile: true },
+  { name: "mobile-430", width: 430, height: 932, mobile: true },
   { name: "tablet-768", width: 768, height: 1024, mobile: true },
+  { name: "laptop-1024", width: 1024, height: 768, mobile: false },
   { name: "desktop-1440", width: 1440, height: 1000, mobile: false },
 ];
 

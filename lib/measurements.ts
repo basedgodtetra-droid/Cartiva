@@ -1,5 +1,7 @@
 import type { Measurement, WalmartProduct } from "./types";
 import { extractProduceIdentity } from "./product-knowledge";
+import { normalizeMeasurementFractions } from "@/packages/shared/src/quantity-text";
+export { normalizeMeasurementFractions } from "@/packages/shared/src/quantity-text";
 import {
   COUNTED_CONTENT_MODIFIER_PATTERN_SOURCE,
   COUNTED_CONTENT_SEPARATOR_PATTERN_SOURCE,
@@ -35,54 +37,6 @@ const COUNT_PACK_MULTIPLIER = `(?:(?:packs?|pks?)\\b|[x×](?=\\s*\\d))`;
 const PLURAL_MULTIPACK_CONTAINER = "bags|bottles|boxes|bunches|canisters|cans|cartons|containers|jars|loaves|pouches|rolls|trays|tubs";
 const COUNT_CAPACITY_CONTAINER = MULTIPACK_CONTAINER_UNIT_PATTERN_SOURCE;
 const FRESH_HERB = /\b(?:cilantro|coriander|parsley|basil|mint|rosemary|thyme|dill|sage|chives?)\b/i;
-
-const FRACTION_UNIT_LOOKAHEAD = "(?=\\s*(?:fl\\s*oz|fluid ounces?|oz|ounces?|lbs?|pounds?|kilograms?|kgs?|kg|grams?|g|liters?|litres?|milliliters?|millilitres?|gallons?|gal|quarts?|qt|pints?|pt|ml|l)\\b)";
-const VULGAR_FRACTIONS: Record<string, string> = {
-  "¼": "1/4", "½": "1/2", "¾": "3/4", "⅐": "1/7", "⅑": "1/9", "⅒": "1/10",
-  "⅓": "1/3", "⅔": "2/3", "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5",
-  "⅙": "1/6", "⅚": "5/6", "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8",
-};
-
-/**
- * Convert shopper-friendly measurement fractions before any quantity parser
- * sees them. Limiting conversion to values immediately followed by a physical
- * unit avoids changing product names, dates, model numbers, and URLs.
- */
-export function normalizeMeasurementFractions(value: string) {
-  const vulgarPattern = /[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g;
-  let normalized = value
-    .replace(/(\d+)\s*([¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])/g, (_match, whole: string, fraction: string) => (
-      `${whole} ${VULGAR_FRACTIONS[fraction]}`
-    ))
-    .replace(vulgarPattern, (fraction) => VULGAR_FRACTIONS[fraction])
-    .replace(/⁄/g, "/")
-    .normalize("NFKC")
-    .replace(
-      new RegExp(`(\\d+),(\\d+)${FRACTION_UNIT_LOOKAHEAD}`, "gi"),
-      "$1.$2",
-    )
-    .replace(
-      new RegExp(`(^|[^\\d])\\.(\\d+)${FRACTION_UNIT_LOOKAHEAD}`, "gi"),
-      (_match, prefix: string, decimals: string) => `${prefix}0.${decimals}`,
-    );
-
-  normalized = normalized.replace(
-    new RegExp(`\\b(\\d+)(?:\\s+|\\s*-\\s*)(\\d+)\\s*\\/\\s*(\\d+)${FRACTION_UNIT_LOOKAHEAD}`, "gi"),
-    (match, wholeText: string, numeratorText: string, denominatorText: string) => {
-      const denominator = Number(denominatorText);
-      if (!denominator) return match;
-      return String(Number(wholeText) + Number(numeratorText) / denominator);
-    },
-  );
-  return normalized.replace(
-    new RegExp(`\\b(\\d+)\\s*\\/\\s*(\\d+)${FRACTION_UNIT_LOOKAHEAD}`, "gi"),
-    (match, numeratorText: string, denominatorText: string) => {
-      const denominator = Number(denominatorText);
-      if (!denominator) return match;
-      return String(Number(numeratorText) / denominator);
-    },
-  );
-}
 
 function isSingularCountDescriptor(amount: string, unit: string) {
   return SINGULAR_COUNT_DESCRIPTOR.test(`${amount} ${unit}`);

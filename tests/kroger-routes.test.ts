@@ -116,6 +116,10 @@ function searchResponse(products: KrogerProduct[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getKrogerAuthClient).mockReturnValue({
+    getCustomerAccessToken: vi.fn(async () => "test-access-token"),
+    getAuthorizationGeneration: vi.fn(async () => "test-authorization-generation"),
+  } as never);
   resetKrogerCartOperationsForTests();
   vi.stubEnv("KROGER_CART_RECEIPT_FILE", path.join(os.tmpdir(), `cartiva-kroger-receipts-${Date.now()}-${Math.random()}.json`));
   vi.mocked(krogerCartItemsWereVerified).mockReturnValue(true);
@@ -129,6 +133,22 @@ beforeEach(() => {
 });
 
 describe("Kroger extension routes", () => {
+  it("authenticates receipt replay and binds it to the original authorization", async () => {
+    const operationId = "discovery_auth_binding_1234";
+    const request = () => new Request("http://localhost:3000/api/kroger/cart", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operationId, locationId: "AB12CD34", fulfillmentMode: "pickup", items: [{ upc: "0001111012345", quantity: 2 }] }) });
+    vi.mocked(addToKrogerCart).mockResolvedValue(undefined as never);
+    expect((await cartPost(request())).status).toBe(200);
+    const replay = await cartPost(request());
+    expect(await replay.json()).toMatchObject({ replayed: true });
+    expect(addToKrogerCart).toHaveBeenCalledTimes(1);
+    vi.mocked(getKrogerAuthClient).mockReturnValue({ getCustomerAccessToken: async () => { throw new KrogerAuthError("Connect", "not_connected", 401); } } as never);
+    expect((await cartPost(request())).status).toBe(401);
+    vi.mocked(getKrogerAuthClient).mockReturnValue({ getCustomerAccessToken: async () => "new-token", getAuthorizationGeneration: async () => "other-account" } as never);
+    const conflict = await cartPost(request());
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ code: "outcome_unknown", retrySafe: false });
+    expect(addToKrogerCart).toHaveBeenCalledTimes(1);
+  });
   it("returns an authorization URL as JSON instead of following the redirect", async () => {
     vi.mocked(getKrogerAuthClient).mockReturnValue({
       createAuthorizationUrl: () => "https://api.kroger.com/v1/connect/oauth2/authorize?state=safe",

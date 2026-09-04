@@ -364,6 +364,7 @@ function IngredientReview({
 interface CartivaPlanBuilderProps {
   availableIngredientSlots: number;
   savedPlans: CartivaSavedPlan[];
+  libraryPersisted?: boolean;
   basketOverageCents?: number;
   committedPlanId?: string;
   replacementIngredientSlots?: number;
@@ -477,6 +478,7 @@ function replacementOptions(plan: MealPlan, mealId: string) {
 export function CartivaPlanBuilder({
   availableIngredientSlots,
   savedPlans,
+  libraryPersisted = false,
   basketOverageCents,
   committedPlanId,
   replacementIngredientSlots,
@@ -621,7 +623,7 @@ export function CartivaPlanBuilder({
     setActiveSavedPlanId(id);
     setSaveName(saveName.trim() || plan.title);
     setLastSavedSignature(savedPlanSignature(saveName.trim() || plan.title, plan, ownedIngredientIds));
-    setActionStatus(`${saveName.trim() || plan.title} saved. You can reuse it next time.`);
+    setActionStatus(`Saving ${saveName.trim() || plan.title} on this device.`);
   };
 
   const applyMealChange = (
@@ -699,7 +701,7 @@ export function CartivaPlanBuilder({
 
   const neededIngredientCount = plan?.ingredients.filter((ingredient) => !ownedIngredientIds.has(ingredient.id)).length ?? 0;
   const currentSavedSignature = plan ? savedPlanSignature(saveName, plan, ownedIngredientIds) : undefined;
-  const planSaved = Boolean(activeSavedPlanId && lastSavedSignature === currentSavedSignature);
+  const planSaved = Boolean(libraryPersisted && activeSavedPlanId && lastSavedSignature === currentSavedSignature);
   const expensiveMeals = useMemo(() => [...(plan?.meals ?? [])]
     .sort((left, right) => (right.estimatedCostPerServing * right.servings) - (left.estimatedCostPerServing * left.servings))
     .slice(0, 3), [plan?.meals]);
@@ -1098,7 +1100,13 @@ export function CartivaRecipeImporter({ availableIngredientSlots, onCommit }: Ca
 
   const extractRecipe = (event: FormEvent) => {
     event.preventDefault();
-    const next = parseRecipeText(recipeText);
+    let next: RecipeImport;
+    try { next = parseRecipeText(recipeText); }
+    catch (problem) {
+      setRecipe(undefined);
+      setError(problem instanceof Error ? problem.message : "Check the recipe amounts and try again.");
+      return;
+    }
     if (!next.ingredients.length) {
       setRecipe(undefined);
       setError("We couldn’t find a clear ingredient list. Include the ingredient amounts or an “Ingredients” heading and try again.");
