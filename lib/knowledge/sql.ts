@@ -40,16 +40,30 @@ export async function executeKnowledgeCommand(db: SharedDatabase, c: KnowledgeCo
   const concept = (id: string, canonical: string, category: string, attributes: string[], curated: boolean) => {
     statements.push(q(`INSERT INTO cartiva_product_concepts
       (id,canonical,category,attributes,source,confidence,stage,version,createdAt,updatedAt,lastConfirmedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET updatedAt=MAX(updatedAt,excluded.updatedAt),lastConfirmedAt=MAX(lastConfirmedAt,excluded.lastConfirmedAt)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+      category=CASE WHEN source='CURATED' AND excluded.source<>'CURATED' THEN category ELSE excluded.category END,
+      attributes=CASE WHEN source='CURATED' AND excluded.source<>'CURATED' THEN attributes ELSE excluded.attributes END,
+      source=CASE WHEN source='CURATED' AND excluded.source<>'CURATED' THEN source ELSE excluded.source END,
+      stage=CASE WHEN source='CURATED' AND excluded.source<>'CURATED' THEN stage ELSE excluded.stage END,
+      confidence=CASE WHEN source='CURATED' AND excluded.source<>'CURATED' THEN confidence ELSE excluded.confidence END,
+      version=excluded.version,updatedAt=MAX(updatedAt,excluded.updatedAt),lastConfirmedAt=MAX(lastConfirmedAt,excluded.lastConfirmedAt)
+      WHERE excluded.version>=version`,
     id, canonical, category, JSON.stringify(attributes), curated ? "CURATED" : "RETAILER_METADATA", curated ? 1 : 0.8, curated ? "TRUSTED" : "PROVISIONAL", KNOWLEDGE_VERSION, now, now, now));
   };
   const alias = (id: string, value: string, curated: boolean, retailerMetadata = false) => {
     statements.push(q(`INSERT INTO cartiva_product_aliases
       (id,conceptId,alias,source,confidence,stage,version,createdAt,updatedAt,lastConfirmedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET lastConfirmedAt=MAX(lastConfirmedAt,excluded.lastConfirmedAt),updatedAt=MAX(updatedAt,excluded.updatedAt)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+      source=CASE WHEN excluded.source='CURATED' THEN excluded.source ELSE source END,
+      stage=CASE WHEN excluded.source='CURATED' THEN excluded.stage ELSE stage END,
+      confidence=CASE WHEN excluded.source='CURATED' THEN excluded.confidence ELSE confidence END,
+      version=excluded.version,lastConfirmedAt=MAX(lastConfirmedAt,excluded.lastConfirmedAt),updatedAt=MAX(updatedAt,excluded.updatedAt)
+      WHERE excluded.version>=version`,
     knowledgeId(`${id}:alias:${value}`), id, value, curated ? "CURATED" : retailerMetadata ? "RETAILER_METADATA" : "INFERRED", curated ? 1 : retailerMetadata ? 0.8 : 0.6, curated ? "TRUSTED" : "PROVISIONAL", KNOWLEDGE_VERSION, now, now, now));
   };
   if (c.op === "knowledge.seed") {
+    statements.push(q(`UPDATE cartiva_product_aliases SET stage='RETIRED',updatedAt=? WHERE source='CURATED' AND version<?`, now, KNOWLEDGE_VERSION));
+    statements.push(q(`UPDATE cartiva_product_relationships SET stage='RETIRED',updatedAt=? WHERE source='CURATED' AND version<?`, now, KNOWLEDGE_VERSION));
     for (const rule of CURATED_CONCEPTS) {
       const id = knowledgeId(rule.canonical);
       concept(id, rule.canonical, rule.category, [], true);
@@ -58,7 +72,8 @@ export async function executeKnowledgeCommand(db: SharedDatabase, c: KnowledgeCo
     for (const [a, b] of CURATED_CONTRADICTIONS) for (const [from, to] of [[a, b], [b, a]]) {
       statements.push(q(`INSERT INTO cartiva_product_relationships
         (id,fromConcept,toConcept,kind,source,confidence,stage,version,createdAt,updatedAt,lastConfirmedAt)
-        VALUES (?,?,?,'CONTRADICTORY','CURATED',1,'TRUSTED',?,?,?,?) ON CONFLICT(id) DO NOTHING`,
+        VALUES (?,?,?,'CONTRADICTORY','CURATED',1,'TRUSTED',?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+        stage=excluded.stage,version=excluded.version,updatedAt=excluded.updatedAt,lastConfirmedAt=excluded.lastConfirmedAt WHERE excluded.version>=version`,
       knowledgeId(`contradiction:${from}:${to}`), knowledgeId(from), knowledgeId(to), KNOWLEDGE_VERSION, now, now, now));
     }
     for (const [category, rules] of Object.entries(CATEGORY_RULES)) {
@@ -85,8 +100,8 @@ export async function executeKnowledgeCommand(db: SharedDatabase, c: KnowledgeCo
       if (p) statements.push(q(`INSERT INTO cartiva_retailer_products
         (id,retailer,upc,conceptId,title,brand,package,source,version,createdAt,lastObservedAt)
         VALUES (?,'kroger',?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
-        title=excluded.title,brand=excluded.brand,package=excluded.package,lastObservedAt=excluded.lastObservedAt
-        WHERE excluded.lastObservedAt>=lastObservedAt`, productId, p.upc, r.concept.id, p.title, p.brand, p.package, r.source, KNOWLEDGE_VERSION, now, r.checkedAt));
+        title=excluded.title,brand=excluded.brand,package=excluded.package,lastObservedAt=excluded.lastObservedAt,version=excluded.version
+        WHERE excluded.lastObservedAt>=lastObservedAt AND excluded.version>=version`, productId, p.upc, r.concept.id, p.title, p.brand, p.package, r.source, KNOWLEDGE_VERSION, now, r.checkedAt));
       for (const attempt of r.queries) {
         const eventId = knowledgeId(`${r.id}:${attempt.query}`);
         statements.push(q(`INSERT INTO cartiva_match_observations
@@ -101,7 +116,7 @@ export async function executeKnowledgeCommand(db: SharedDatabase, c: KnowledgeCo
           ?,?,?,?,COALESCE(MAX(CASE WHEN outcome='VERIFIED' THEN checkedAt END),0)
           FROM cartiva_match_observations WHERE conceptId=? AND query=? AND version=? AND checkedAt>?
           ON CONFLICT(id) DO UPDATE SET successes=excluded.successes,failures=excluded.failures,quality=excluded.quality,
-          stage=excluded.stage,updatedAt=excluded.updatedAt,lastConfirmedAt=excluded.lastConfirmedAt`,
+          stage=excluded.stage,updatedAt=excluded.updatedAt,lastConfirmedAt=excluded.lastConfirmedAt,version=excluded.version WHERE excluded.version>=version`,
         knowledgeId(`query:${r.concept.id}:${attempt.query}`), r.concept.id, attempt.query, r.source, KNOWLEDGE_VERSION, now, now, r.concept.id, attempt.query, KNOWLEDGE_VERSION, now - 90 * 86400000));
       }
     }

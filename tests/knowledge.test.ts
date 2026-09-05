@@ -67,6 +67,21 @@ describe("persistent product knowledge", () => {
     expect(sqlite.prepare("SELECT source,stage FROM cartiva_product_aliases WHERE alias='coca cola zero sugar soda cans'").get()).toEqual({ source: "RETAILER_METADATA", stage: "PROVISIONAL" });
     expect(conceptForIntent(parseProductIntent("paper towels"))?.category).toBe("paper products");
   });
+  it("refreshes corrected taxonomy versions and retires removed curated mappings", async () => {
+    const { db, sqlite } = open();
+    await executeSharedCommand(db, { op: "knowledge.seed" });
+    sqlite.prepare("UPDATE cartiva_product_aliases SET version=0").run();
+    sqlite.prepare("UPDATE cartiva_product_aliases SET alias='obsolete mapping',id='old' WHERE alias='coke zero'").run();
+    await executeSharedCommand(db, { op: "knowledge.seed" });
+    expect(sqlite.prepare("SELECT stage FROM cartiva_product_aliases WHERE id='old'").get()?.stage).toBe("RETIRED");
+    expect(sqlite.prepare("SELECT stage,version FROM cartiva_product_aliases WHERE alias='coke zero'").get()).toEqual({ stage: "TRUSTED", version: 1 });
+    await executeSharedCommand(db, { op: "knowledge.learn", records: [learning()] });
+    sqlite.prepare("UPDATE cartiva_retailer_products SET version=0").run();
+    sqlite.prepare("UPDATE cartiva_search_query_memory SET version=0").run();
+    await executeSharedCommand(db, { op: "knowledge.learn", records: [learning()] });
+    expect(sqlite.prepare("SELECT version FROM cartiva_retailer_products LIMIT 1").get()?.version).toBe(1);
+    expect(sqlite.prepare("SELECT version FROM cartiva_search_query_memory LIMIT 1").get()?.version).toBe(1);
+  });
   it("survives close/reopen and applies migrations twice without modifying existing OAuth rows", async () => {
     const directory = mkdtempSync(join(tmpdir(), "cartiva-knowledge-test-"));
     const path = join(directory, "knowledge.sqlite");

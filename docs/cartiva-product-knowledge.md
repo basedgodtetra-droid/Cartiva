@@ -122,6 +122,16 @@ from which to infer general shopper conversion or universal grocery coverage.
 - Isolated browser: 12 scenario groups passed, including six widths
   (320/375/390/430/768/1024), candidate revalidation, feedback failure,
   unchanged quantities/store, saved-list reload and handoff safeguards.
+- Full automated suite: 117 files / 2,173 tests passed, including 33 focused
+  knowledge tests. Both Next.js and Sites builds pass.
+- Deployed Sites and Vercel: the same seven-item live basket passed 7/7 on
+  each host, with seven fresh product searches each and no local cache hits.
+  The live database contains the actual successful query and retailer identity
+  records. Reviewed foundations were seeded after the response. Live tests
+  did not pretend to be shopper-confirmed feedback or write a Kroger cart.
+- Production npm lockfile synchronized with the existing Vercel install
+  command; no existing package version was upgraded as part of this repair.
+  New Drizzle development tools bring their own additional transitive builds.
 
 ## Discovery and remaining work
 
