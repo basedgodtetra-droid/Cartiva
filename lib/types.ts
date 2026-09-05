@@ -337,6 +337,9 @@ export interface KrogerMatchResult extends RetailMatchResult<RankedKrogerProduct
   retailer: "kroger";
 }
 
+export interface ProductFeedbackOffer { upc: string; productId: string; title: string; package: string; canChoose: boolean }
+export interface ProductFeedback { receipt: string; offers: ProductFeedbackOffer[] }
+
 export interface KrogerSearchItemStreamEvent {
   type: "item";
   retailer: "kroger";
@@ -352,6 +355,8 @@ export interface KrogerSearchItemStreamEvent {
     reason: string;
   };
   result: KrogerMatchResult;
+  /** Web-only ephemeral evidence, never part of a saved match/snapshot. */
+  correction?: ProductFeedback;
   diagnostics: {
     searchResultCount: number;
     selectedProductId?: string;

@@ -41,8 +41,12 @@ try {
   await send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
     const realFetch=window.fetch.bind(window); window.qa={calls:[], failure:'', connected:true};
     window.fetch=async (url,init={})=>{
-      const route=String(url); if(!route.startsWith('/api/kroger/')) return realFetch(url,init);
+      const route=String(url); if(!route.startsWith('/api/kroger/') && route!=='/api/knowledge/feedback') return realFetch(url,init);
       window.qa.calls.push(route); const body=init.body?JSON.parse(init.body):{};
+      if(route==='/api/knowledge/feedback') {
+        window.qa.feedbackBody=body;
+        return window.qa.feedbackFailure ? Response.json({error:'Feedback unavailable'},{status:409}) : Response.json({result:{recorded:true}});
+      }
       if(route.endsWith('/cart/review')) {
         if(!window.qa.reviewOwner) return Response.json({error:'Reconnect Cartiva before confirming this review.'},{status:401});
         if(init.method==='POST') {
@@ -62,6 +66,7 @@ try {
         return Response.json({zipCode:zip,locations:[{locationId:'03500529',name:'QA Store '+zip,chain:'Kroger',address:{addressLine1:'1 Main',city:'Dallas',state:'TX',zipCode:zip},departments:[]}]});
       }
       if(route.endsWith('/search')) {
+        window.qa.lastSearch=body;
         await new Promise(r=>setTimeout(r,150));
         if(window.qa.failure==='500') return Response.json({error:'Store temporarily unavailable. Try again.'},{status:500});
         if(window.qa.failure==='malformed') return new Response(JSON.stringify({type:'item',index:999,result:null})+'\\n');
@@ -69,7 +74,8 @@ try {
         const events=body.items.map((item,index)=>{
           const upc=String(index+1111012000).padStart(13,'0');
           const product={retailer:'kroger',id:upc,productId:upc,upc,title:item.text,price:3,priceCents:300,link:'https://www.kroger.com/p/'+upc,sponsored:false,size:{amount:1,unit:'count',kind:'count',baseAmount:1,baseUnit:'each',label:'1 count'},inStock:true,availabilityStatus:'in_stock',cartEligible:true,identityVerified:true,dataSource:'kroger_public_api',confidence:'high',score:10,comparablePrice:3,matchedTerms:[],reasons:[],priceProvenance:{retailer:'kroger',priceSource:'kroger_location_product',priceScope:'exact_store',priceReliability:'verified',exactStoreVerified:true,locationId:body.locationId,location:{requestedStoreId:body.locationId,observedStoreId:body.locationId,responseProvesLocation:true,storeMatched:true},fulfillment:[body.fulfillmentMode],checkedAt:now}};
-          return {type:'item',retailer:'kroger',phase:'verification',index,mode:'live',checkedAt:now,cartAutomation:{enabled:true,requiresCustomerConnection:true},diagnostics:{locationId:body.locationId,verificationStatus:'verified',searchResultCount:1},result:{retailer:'kroger',requestedItem:item.text,recommended:product,alternatives:[],confidence:'high',status:'matched',explanation:'QA verified fixture'}};
+          const correction=window.qa.feedback ? {receipt:'qa-ephemeral-receipt-'+index,offers:[{upc,productId:upc,title:product.title,package:'1 count',canChoose:true},{upc:String(Number(upc)+100).padStart(13,'0'),productId:String(Number(upc)+100).padStart(13,'0'),title:product.title+' alternative',package:'1 count',canChoose:true}]} : undefined;
+          return {type:'item',retailer:'kroger',phase:'verification',index,mode:'live',checkedAt:now,correction,cartAutomation:{enabled:true,requiresCustomerConnection:true},diagnostics:{locationId:body.locationId,verificationStatus:'verified',searchResultCount:1},result:{retailer:'kroger',requestedItem:item.text,recommended:product,alternatives:[],confidence:'high',status:'matched',explanation:'QA verified fixture'}};
         });
         if(window.qa.failure==='partial') events.pop();
         return new Response(events.map(e=>JSON.stringify(e)).join('\\n')+'\\n',{headers:{'Content-Type':'application/x-ndjson'}});
@@ -157,6 +163,28 @@ try {
     }
   }
   results.push('five-item results at320/375/390/430/768/1024: horizontal and vertical containment; handoff focusable and scrollable');
+  await evaluate('qa.feedback=true');
+  await click('Compare again');
+  await until("document.querySelectorAll('details').length>0 && document.body.innerText.includes('Product subtotal')",'feedback comparison');
+  await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Choose & recheck')",'candidate recovery controls');
+  await evaluate("document.querySelector('details').open=true");
+  const beforeChoice=await evaluate('qa.lastSearch');
+  await click('Choose & recheck');
+  await until("qa.lastSearch.items[0].preferredProductId",'selection starts fresh comparison');
+  const afterChoice=await evaluate('qa.lastSearch');
+  assert.equal(afterChoice.locationId,beforeChoice.locationId);
+  assert.equal(afterChoice.fulfillmentMode,beforeChoice.fulfillmentMode);
+  assert.deepEqual(afterChoice.items.map(i=>[i.text,i.quantity]),beforeChoice.items.map(i=>[i.text,i.quantity]));
+  await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='This matches'&&!b.disabled)",'fresh feedback');
+  await evaluate("qa.feedbackFailure=true;document.querySelector('details').open=true");
+  await click('This matches');
+  await until("document.body.innerText.includes(\"Feedback wasn't saved\")",'truthful feedback failure');
+  assert.equal(await evaluate('qa.lastSearch.items.length'),5);
+  assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'),'feedback overflows mobile');
+  await evaluate('qa.feedbackFailure=false');
+  await click('This matches');
+  await until("document.body.innerText.includes('Feedback saved.')",'feedback success');
+  results.push('candidate choice rechecks with original list/quantity/store; failed feedback preserves basket; compact feedback fits mobile');
   await send('Runtime.evaluate',{expression:"window.qaPopup=window.open('http://127.0.0.1:9242/','cartiva-policy-test','popup,width=560,height=760')",userGesture:true});
   await delay(400);
   assert.equal(await evaluate('!!window.qaPopup && !window.qaPopup.closed'),true,'live cross-origin popup must not look cancelled');

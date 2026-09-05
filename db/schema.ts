@@ -63,3 +63,4 @@ export const krogerHandoffSchemaStatements = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_kroger_cart_operations_basket_version
     ON kroger_cart_operations (owner_id, comparison_id, selection_version)`,
 ] as const;
+export * from "./product-knowledge-schema";

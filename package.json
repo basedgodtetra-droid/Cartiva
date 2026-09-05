@@ -6,6 +6,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "knowledge": "node scripts/knowledge.mjs",
+    "test:knowledge": "vitest run tests/knowledge.test.ts tests/cartiva-knowledge-benchmark.test.ts --silent=false",
     "dev": "next dev --hostname 127.0.0.1",
     "dev:mobile-api": "next dev --hostname 0.0.0.0",
     "build": "next build",
@@ -43,6 +46,8 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
+    "drizzle-kit": "0.31.10",
+    "drizzle-orm": "0.45.2",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.2",
     "react-server-dom-webpack": "19.2.8",

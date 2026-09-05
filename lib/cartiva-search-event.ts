@@ -22,6 +22,10 @@ export function decodeCartivaSearchEvent(value: unknown, itemCount: number, loca
     || !["search", "verification"].includes(String(value.phase)) || !record(value.result)
     || !record(value.diagnostics) || value.diagnostics.locationId !== locationId) return bad();
   const result = value.result;
+  if (value.correction !== undefined && (!record(value.correction) || typeof value.correction.receipt !== "string"
+    || value.correction.receipt.length > 16000 || !Array.isArray(value.correction.offers) || value.correction.offers.length > 4
+    || !value.correction.offers.every(p => record(p) && typeof p.title === "string" && typeof p.package === "string"
+      && typeof p.productId === "string" && typeof p.upc === "string" && /^\d{12,14}$/.test(p.upc) && typeof p.canChoose === "boolean"))) return bad();
   if (result.retailer !== "kroger" || typeof result.requestedItem !== "string" || typeof result.explanation !== "string"
     || !["matched", "review", "no_match"].includes(String(result.status))
     || !["high", "medium", "low"].includes(String(result.confidence))

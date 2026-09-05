@@ -682,6 +682,22 @@ export function krogerCartItemsWereVerified(
   ) > now);
 }
 
+/** Identity memory supplies only a UPC. Never rehydrate an old offer. */
+export async function refreshKrogerProductIdentity(
+  upc: string,
+  context: { locationId: string; locationVerified: true; locationName?: string; chain?: string; fulfillmentMode: RetailFulfillmentMode },
+  auth: KrogerAuthClient = getKrogerAuthClient(),
+) {
+  if (!/^\d{12,14}$/.test(upc)) return null;
+  const parameters = new URLSearchParams({ "filter.locationId": context.locationId });
+  const payload = record(await checkedJson(await auth.fetchPublic(
+    `/v1/products/${encodeURIComponent(upc)}?${parameters}`, { signal: AbortSignal.timeout(12_000) },
+  ), "refresh a known product"));
+  const product = normalizeKrogerProduct(record(payload?.data) ?? {}, { ...context, checkedAt: new Date().toISOString() });
+  // Cart writes retain their independent exact-UPC verification path.
+  return product?.upc === upc ? product : null;
+}
+
 /**
  * Re-verifies exact UPCs when a comparison and cart request are handled by
  * different serverless functions. This preserves the same fail-closed rule as

@@ -5714,3 +5714,12 @@
     box-shadow: none;
   }
 }
+.productFeedback { margin-top: 12px; display: grid; gap: 8px; }
+.productFeedback ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.productFeedback li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border, #dde3df); padding-top: 8px; }
+.productFeedback li > span { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.productFeedback small { display: block; }
+.productFeedback button { min-height: 44px; border-radius: 999px; border: 1px solid #dde3df; padding: 8px 12px; background: #fff; color: #17221d; font: inherit; cursor: pointer; }
+.productFeedback button:disabled { opacity: .5; cursor: default; }
+.productFeedback button:focus-visible { outline: 2px solid #0f8a6a; outline-offset: 3px; }
+.feedbackActions { display: flex; flex-wrap: wrap; gap: 8px; }

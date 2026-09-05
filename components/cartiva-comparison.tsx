@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { CartivaProductFeedback } from "./cartiva-product-feedback";
+import type { ProductFeedback } from "@/lib/types";
 import { AlertCircle, Bookmark, Check, CircleDashed, ExternalLink, LockKeyhole, PackageCheck, RefreshCw, Store } from "lucide-react";
 import type { GroceryNotepadItem } from "@/lib/grocery-notepad";
 import type { CartState, CartivaLocation, ComparisonState } from "@/components/cartiva-workspace-types";
@@ -15,6 +17,8 @@ import { comparePlanBudget } from "@/lib/cartiva-planning";
 import styles from "@/components/cartiva-workspace.module.css";
 
 interface CartivaComparisonProps {
+  productFeedback?: Record<number, ProductFeedback>;
+  onChooseProduct?: (index: number, productId: string) => void;
   items: GroceryNotepadItem[];
   quantities: Record<string, number>;
   comparison: ComparisonState;
@@ -60,6 +64,8 @@ function confidenceLabel(value?: "high" | "medium" | "low") {
 }
 
 export function CartivaComparison({
+  productFeedback,
+  onChooseProduct,
   items,
   quantities,
   comparison,
@@ -420,11 +426,19 @@ export function CartivaComparison({
                         : fulfillmentLabel
                       : busy ? "Searching Kroger for this request…" : status === "no_match" ? result?.explanation : item.detail ?? "Waiting to compare"}
                   </span>
-                  {product ? (
+                  {product || productFeedback?.[index] ? (
                     <details className={styles.matchDetails}>
                       <summary>Match details</summary>
                       <p>Requested: {item.canonicalText}</p>
                       <p>{confidenceLabel(result?.confidence)} · Official Kroger data for this store.</p>
+                      {productFeedback?.[index] ? <CartivaProductFeedback
+                        key={productFeedback[index].receipt}
+                        feedback={productFeedback[index]}
+                        recommendedUpc={product?.upc}
+                        disabled={busy || transferring || handoffStage === "outcome_unknown" || cart.phase === "success"}
+                        onChoose={productId => onChooseProduct?.(index, productId)}
+                        onEdit={() => onReviewItem(index)}
+                      /> : null}
                     </details>
                   ) : null}
                 </div>

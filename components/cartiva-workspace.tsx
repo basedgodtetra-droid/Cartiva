@@ -9,7 +9,7 @@ import {
   type GroceryNotepadItem,
   type GroceryProteinOriginMap,
 } from "@/lib/grocery-notepad";
-import type { KrogerMatchResult } from "@/lib/types";
+import type { KrogerMatchResult, ProductFeedback } from "@/lib/types";
 import { decodeCartivaSearchEvent } from "@/lib/cartiva-search-event";
 import { CartivaComparison } from "@/components/cartiva-comparison";
 import { CartivaGroceryList } from "@/components/cartiva-grocery-list";
@@ -312,6 +312,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     state?: CartivaKrogerConnectionState;
   }>({});
   const comparisonRunRef = useRef(0);
+  const [productFeedback, setProductFeedback] = useState<{ runId: number; items: Record<number, ProductFeedback> }>({ runId: -1, items: {} });
   const comparisonAbortRef = useRef<AbortController | null>(null);
   const locationRunRef = useRef(0);
   const locationAbortRef = useRef<AbortController | null>(null);
@@ -856,6 +857,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
   ]);
 
   const invalidateComparison = () => {
+    setProductFeedback({ runId: -1, items: {} });
     comparisonRunRef.current += 1;
     comparisonAbortRef.current?.abort();
     comparisonAbortRef.current = null;
@@ -1160,7 +1162,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     }
   };
 
-  const runComparison = async (): Promise<{
+  const runComparison = async (preferred?: { index: number; productId: string }): Promise<{
     results: KrogerMatchResult[];
     location: CartivaLocation;
     comparisonRecord: CartivaComparisonRecord | null;
@@ -1168,6 +1170,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
     if (comparisonAbortRef.current) return null;
     const runId = comparisonRunRef.current + 1;
     comparisonRunRef.current = runId;
+    setProductFeedback({ runId, items: {} });
     const currentInterpretation = interpretGroceryInput(rawInput, { proteinOrigins });
     const runQuantities = Object.fromEntries(
       currentInterpretation.items.map((item) => [
@@ -1231,10 +1234,11 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
       if (comparisonRunRef.current !== runId) return null;
       setComparison((current) => ({ ...current, phase: "searching", message: `Checking ${location.name}…` }));
 
-      const requestItems = currentInterpretation.items.map((item) => ({
+      const requestItems = currentInterpretation.items.map((item, index) => ({
         text: item.canonicalText,
         quantity: runQuantities[item.id] ?? 1,
         requestedItemId: item.id,
+        ...(preferred?.index === index ? { preferredProductId: preferred.productId } : {}),
       }));
       console.info("[Cartiva] Comparison request", {
         sent: true,
@@ -1269,6 +1273,8 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
         const event = decodeCartivaSearchEvent(JSON.parse(line), requestItems.length, location.locationId);
         checkedAt = event.checkedAt;
         if (event.type !== "item") return;
+        if (event.phase === "verification" && event.correction) setProductFeedback(current => current.runId === runId
+          ? { runId, items: { ...current.items, [event.index]: event.correction! } } : current);
         results[event.index] = event.result;
         if (event.phase === "verification" || event.result.error) completed.add(event.index);
         setComparison({
@@ -1848,6 +1854,12 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                   onCompare={runComparison}
                 />
                 <CartivaComparison
+                  productFeedback={productFeedback.runId === comparisonRunRef.current ? productFeedback.items : undefined}
+                  onChooseProduct={(index, productId) => {
+                    if (productFeedback.runId !== comparisonRunRef.current || comparison.phase !== "complete"
+                      || !productFeedback.items[index]?.offers.some(p => p.productId === productId && p.canChoose)) return;
+                    void runComparison({ index, productId });
+                  }}
                   items={interpretation.items}
                   quantities={effectiveQuantities}
                   comparison={comparison}

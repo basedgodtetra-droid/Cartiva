@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "source": "DETERMINISTIC_FIXTURE_ONLY",
+  "description": "Explicit query-string oracle. Catalog response depends on query text, not search stage. Never trains production.",
+  "cases": [
+    {"input":"Kroger 2% milk 1 gallon","query":"2% milk","product":"milk-2pct-gallon","quantity":1},
+    {"input":"Vitamin D whole milk 1 gallon","query":"Whole milk","product":"milk-whole-gallon","quantity":1},
+    {"input":"Plain Greek yogurt 32 oz","query":"Greek yogurt Plain","product":"yogurt-greek-plain-32","quantity":1},
+    {"input":"Kroger large white eggs 18 count","query":"Large white Eggs","product":"eggs-white-18","quantity":1},
+    {"input":"Boneless skinless chicken breast 4 lb","query":"Chicken","product":"chicken-breast-boneless-1lb","quantity":4},
+    {"input":"Ground beef 93/7 3 lb","query":"93 7 Ground Meat","product":"ground-beef-93-1lb","quantity":3},
+    {"input":"Kroger fresh chicken wings 2 lb","query":"Chicken wings Fresh","product":"chicken-wings-2lb","quantity":1},
+    {"input":"Fresh apples","query":"fresh Produce","product":"apples-each","quantity":1},
+    {"input":"Fresh onions","query":"fresh Produce","product":"onions-each","quantity":1},
+    {"input":"6 cans red kidney beans","query":"Kidney beans","product":"beans-kidney-can","quantity":6},
+    {"input":"3 cans low sodium black beans","query":"Black beans","product":"beans-black-low-sodium-can","quantity":3},
+    {"input":"Coke Zero 12 pack","query":"Coca-Cola Zero sugar Soda","product":"coke-zero-12","quantity":1},
+    {"input":"White rice 5 lb","query":"Rice","product":"rice-white-5lb","quantity":1},
+    {"input":"Light coconut milk 3 cans","query":"Milk","product":"coconut-light-can","quantity":3},
+    {"input":"Kroger toilet paper","query":"toilet paper","product":"toilet-paper-12roll","quantity":1}
+  ]
+}

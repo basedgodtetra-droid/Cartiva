@@ -39,7 +39,7 @@ export async function sharedCommand<T>(command: SharedCommand): Promise<T> {
         "X-Cartiva-State-Time": timestamp, "X-Cartiva-State-Nonce": nonce,
         "X-Cartiva-State-Signature": bridgeSignature(body, timestamp, nonce),
       }, body,
-    }, 12_000);
+    }, command.op.startsWith("knowledge.") ? 4_000 : 12_000);
     if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) throw new SharedStateError("unavailable");
     const value = await response.json();
     if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== 1 || !("result" in value)) throw new SharedStateError("unavailable");

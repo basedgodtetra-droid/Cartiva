@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 import "./server-only-guard";
+import { validKnowledgeCommand, type KnowledgeCommand } from "./knowledge/protocol";
 
 export const SHARED_PATH = "/api/internal/kroger-state";
 export const OWNER_PATTERN = /^web2:[a-f0-9]{64}$/;
@@ -30,6 +31,7 @@ export interface SharedCart {
 type Owned = { owner: string };
 type Leased = Owned & { lease: string; version: number };
 export type SharedCommand =
+  | KnowledgeCommand
   | ({ op: "session.ensure" | "session.read" } & Owned)
   | ({ op: "session.acquire"; lease: string } & Owned)
   | ({ op: "session.assert" | "session.release" } & Leased)
@@ -90,6 +92,7 @@ export function equalSignature(expected: string, supplied: string) {
 export function validSharedCommand(value: unknown): value is SharedCommand {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
+  if (typeof v.op === "string" && v.op.startsWith("knowledge.")) return validKnowledgeCommand(value);
   const fields: Record<string, string[]> = {
     "session.ensure": ["owner"], "session.read": ["owner"],
     "session.acquire": ["owner", "lease"], "session.assert": ["owner", "lease", "version"],

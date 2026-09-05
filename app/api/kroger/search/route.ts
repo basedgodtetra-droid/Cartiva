@@ -1,4 +1,10 @@
 import { siteConfig } from "@/config/site";
+import { after } from "next/server";
+import { conceptForIntent } from "@/lib/knowledge/foundations";
+import { lookupKnowledge, discoverWithKnowledge, learningForResult, rememberResults } from "@/lib/knowledge/pipeline";
+import type { KnowledgeLearning } from "@/lib/knowledge/protocol";
+import { prepareFeedbackBrowser, issueFeedbackEvidence } from "@/lib/knowledge/feedback";
+import { knowledgeId } from "@/lib/knowledge/foundations";
 import {
   enforceRateLimit,
   hasOnlyKeys,
@@ -8,6 +14,7 @@ import {
 } from "@/lib/api-security";
 import {
   KrogerProviderError,
+  refreshKrogerProductIdentity,
 } from "@/lib/kroger-provider";
 import { krogerAdapter } from "@/lib/retailers/kroger-adapter";
 import {
@@ -21,7 +28,6 @@ import {
   isPlausibleDiscoveryCandidate,
   logDiscoveryDecision,
   parseProductIntent,
-  retrieveCandidatesProgressively,
 } from "@/lib/product-search-intent";
 import type { ProductIntent } from "@/lib/product-search-intent";
 import { extractMeasurement, extractPackOnlyCount } from "@/lib/measurements";
@@ -49,6 +55,7 @@ import type {
   KrogerSearchPerformanceStreamEvent,
   RetailFulfillmentMode,
   SearchPerformanceDiagnostics,
+  ProductFeedback,
 } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -65,6 +72,7 @@ interface KrogerSearchBody {
 }
 
 interface KrogerSearchReadOptions {
+  feedbackBrowser?: { owner: string; cookie?: string } | null;
   anonymousReadOnly?: boolean;
   comparisonOwnerId?: string;
   requireComparisonReceipt?: boolean;
@@ -413,7 +421,7 @@ export async function POST(request: Request) {
   if (limited) return limited;
   const parsed = await readValidatedJson<unknown>(request);
   if (!parsed.ok) return parsed.response;
-  return handleKrogerSearchRead(parsed.value);
+  return handleKrogerSearchRead(parsed.value, { feedbackBrowser: await prepareFeedbackBrowser(request) });
 }
 
 /** Shared read implementation for validated server-side API boundaries. */
@@ -493,6 +501,14 @@ export async function handleKrogerSearchRead(
 
   const encoder = new TextEncoder();
   const requestStartedAt = performance.now();
+  const memory = await lookupKnowledge(items.map(item => item.intent));
+  const learning: KnowledgeLearning[] = [];
+  let finishLearning!: () => void;
+  const finished = new Promise<void>(resolve => { finishLearning = resolve; });
+  // Registered in request scope; Next/Vinext keeps bounded work alive after
+  // the NDJSON response. Direct unit callers have no request lifecycle.
+  try { after(async () => { await finished; await rememberResults(learning, ![...memory.values()].some(context => context.foundationsReady)); }); }
+  catch { /* No detached background writes outside a supported lifecycle. */ }
   const cartAutomation = options.anonymousReadOnly
     ? {
         enabled: false as const,
@@ -501,6 +517,7 @@ export async function handleKrogerSearchRead(
     : { enabled: true as const, requiresCustomerConnection: true as const };
   const stream = new ReadableStream({
     async start(controller) {
+      try {
       const timings: SearchPerformanceDiagnostics["items"] = items.map(({ index, item }) => ({
         index,
         item,
@@ -509,6 +526,7 @@ export async function handleKrogerSearchRead(
         totalDurationMs: 0,
       }));
       let searchApiCalls = 0;
+      let productApiCalls = 0;
       let cacheHits = 0;
       let deduplicatedRequests = 0;
       const verifiedResults: KrogerMatchResult[] = [];
@@ -518,6 +536,7 @@ export async function handleKrogerSearchRead(
         result: KrogerMatchResult,
         phase: KrogerSearchItemStreamEvent["phase"],
         resultCount: number,
+        correction?: ProductFeedback,
       ) => {
         // The stream contract is bound to the exact normalized request line.
         // Internal facet expansion may add verification terms, but those are
@@ -535,6 +554,7 @@ export async function handleKrogerSearchRead(
           checkedAt: new Date().toISOString(),
           cartAutomation,
           result: responseResult,
+          ...(correction ? { correction } : {}),
           diagnostics: {
             searchResultCount: resultCount,
             selectedProductId: responseResult.recommended?.productId,
@@ -551,11 +571,9 @@ export async function handleKrogerSearchRead(
       await allSettledWithConcurrency(items, siteConfig.searchConcurrency, async (item) => {
         const startedAt = performance.now();
         try {
-          const discovery = await retrieveCandidatesProgressively<KrogerProduct>({
+          const discovery = await discoverWithKnowledge({
             intent: item.intent,
-            maxSearches: 3,
-            maxCandidates: 60,
-            candidateKey: (product) => product.productId || product.upc || product.id,
+            memory: memory.get(conceptForIntent(item.intent)?.id ?? ""),
             search: async (query) => {
               const response = await krogerAdapter.searchProducts(query, {
                 locationId,
@@ -569,14 +587,13 @@ export async function handleKrogerSearchRead(
               deduplicatedRequests += response.diagnostics.deduplicated ? 1 : 0;
               return response.products.slice(0, 20);
             },
-            hasVerifiedMatch: (products) => {
-              const result = verifiedResult(item, products);
-              // A review candidate is useful evidence, but it must not stop the
-              // bounded search before a later query finds a handoff-safe match.
-              return isRetailerHandoffAcceptedMatch(result);
-            },
-            isPlausible: (product) => isPlausibleDiscoveryCandidate(item.intent, product),
+            verify: products => verifiedResult(item, products),
+            plausible: product => isPlausibleDiscoveryCandidate(item.intent, product),
+            refreshIdentity: upc => refreshKrogerProductIdentity(upc, {
+              locationId, locationVerified: true, locationName: location.name, chain: location.chain, fulfillmentMode: mode,
+            }),
           });
+          productApiCalls += discovery.detailCalls;
           const preliminaryResult = verifiedResult(item, discovery.candidates);
           const preliminary: KrogerMatchResult = preliminaryResult.recommended
             ? {
@@ -599,7 +616,22 @@ export async function handleKrogerSearchRead(
           timings[item.index].verificationDurationMs = Math.round(performance.now() - verificationStartedAt);
           timings[item.index].totalDurationMs = timings[item.index].searchDurationMs
             + timings[item.index].verificationDurationMs;
-          enqueue(item, verified, "verification", discovery.candidates.length);
+          let correction: ProductFeedback | undefined;
+          const safeConcept = conceptForIntent(item.intent);
+          if (options.feedbackBrowser && safeConcept) {
+            const offers = [...(verified.recommended ? [verified.recommended] : []), ...verified.alternatives]
+              .filter((p, i, all) => /^\d{12,14}$/.test(p.upc) && all.findIndex(other => other.upc === p.upc) === i).slice(0, 4)
+              .map(p => ({ upc: p.upc, productId: p.productId, title: p.title, package: p.size?.label ?? "Package needs review",
+                canChoose: isRetailerHandoffAcceptedMatch(verifiedResult(item, [p])) }));
+            if (offers.length) correction = { offers, receipt: issueFeedbackEvidence(options.feedbackBrowser.owner, {
+              conceptId: safeConcept.id, intentDigest: knowledgeId(item.intent.verificationText), itemId: item.requestedItemId,
+              quantity: item.quantity, store: locationId, fulfillment: mode, recommendedUpc: verified.recommended?.upc ?? "", offers,
+            }) };
+          }
+          enqueue(item, verified, "verification", discovery.candidates.length, correction);
+          const learned = learningForResult({ intent: item.intent, result: verified, attempts: discovery.attempts,
+            queryOrigins: discovery.queryOrigins, locationId, fulfillment: mode });
+          if (learned) learning.push(learned);
           logDiscoveryDecision({
             intent: item.intent,
             attempts: discovery.attempts,
@@ -652,7 +684,7 @@ export async function handleKrogerSearchRead(
           totalDurationMs: Math.round(performance.now() - requestStartedAt),
           cacheHits,
           searchApiCalls,
-          productApiCalls: 0,
+          productApiCalls,
           deduplicatedRequests,
           upstreamCacheUsed: searchApiCalls === 0 && cacheHits > 0 ? "local cache only" : "unknown",
           outcomeCounts: {
@@ -679,6 +711,7 @@ export async function handleKrogerSearchRead(
       };
       controller.enqueue(encoder.encode(`${JSON.stringify(performanceEvent)}\n`));
       controller.close();
+      } finally { finishLearning(); }
     },
   });
 
@@ -691,6 +724,7 @@ export async function handleKrogerSearchRead(
         ? "unavailable-on-anonymous-mobile-api"
         : "official-kroger-api",
       "X-Cartiva-Kroger-Location": locationId,
+      ...(options.feedbackBrowser?.cookie ? { "Set-Cookie": options.feedbackBrowser.cookie } : {}),
     },
   });
 }

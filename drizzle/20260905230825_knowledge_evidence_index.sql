@@ -1,0 +1,1 @@
+CREATE INDEX `cartiva_observation_query` ON `cartiva_match_observations` (`conceptId`,`query`,`version`,`checkedAt`);

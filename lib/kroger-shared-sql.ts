@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { SESSION_LEASE_MS, STATE_TTL_MS, SharedStateError, validSharedCommand, type SharedCommand } from "./kroger-shared-protocol";
 import "./server-only-guard";
+import { executeKnowledgeCommand } from "./knowledge/sql";
 
 export interface SharedStatement {
   bind(...values: (string | number | null)[]): SharedStatement;
@@ -25,6 +26,9 @@ const CART_COLUMNS = "request_fingerprint, status, payload_encrypted, receipt_en
 export async function executeSharedCommand(database: SharedDatabase, command: SharedCommand, now = Date.now()): Promise<unknown> {
   if (!validSharedCommand(command)) throw new SharedStateError("invalid", 400);
   const db = database.withSession?.("first-primary") ?? database;
+  if (command.op === "knowledge.lookup" || command.op === "knowledge.learn" || command.op === "knowledge.correct" || command.op === "knowledge.seed") {
+    return executeKnowledgeCommand(db, command, now);
+  }
   const q = (sql: string, ...values: (string | number | null)[]) => db.prepare(sql).bind(...values);
   const c = command;
   switch (c.op) {
