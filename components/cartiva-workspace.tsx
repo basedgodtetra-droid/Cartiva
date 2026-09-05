@@ -1856,7 +1856,7 @@ export function CartivaWorkspace({ loadListId, loadBasketId }: CartivaWorkspaceP
                 <CartivaComparison
                   productFeedback={productFeedback.runId === comparisonRunRef.current ? productFeedback.items : undefined}
                   onChooseProduct={(index, productId) => {
-                    if (productFeedback.runId !== comparisonRunRef.current || comparison.phase !== "complete"
+                    if (productFeedback.runId !== comparisonRunRef.current || comparison.phase === "searching" || comparison.phase === "finding-store"
                       || !productFeedback.items[index]?.offers.some(p => p.productId === productId && p.canChoose)) return;
                     void runComparison({ index, productId });
                   }}

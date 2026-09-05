@@ -163,10 +163,13 @@ try {
     }
   }
   results.push('five-item results at320/375/390/430/768/1024: horizontal and vertical containment; handoff focusable and scrollable');
-  await evaluate('qa.feedback=true');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await evaluate("qa.feedback=true;qa.failure='partial'");
   await click('Compare again');
   await until("document.querySelectorAll('details').length>0 && document.body.innerText.includes('Product subtotal')",'feedback comparison');
   await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Choose & recheck')",'candidate recovery controls');
+  await until("document.body.innerText.includes('stopped before')",'partial stream preserves offered candidates');
+  await evaluate("qa.failure=''");
   await evaluate("document.querySelector('details').open=true");
   const beforeChoice=await evaluate('qa.lastSearch');
   await click('Choose & recheck');
