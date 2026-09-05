@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { stripDiscoveryPackageTerms, type ProductIntent } from "../product-search-intent";
+import { inferProductCategory } from "../product-knowledge";
 
 export const KNOWLEDGE_VERSION = 1;
 export const OFFER_TTL_MS = 120_000;
@@ -62,7 +63,9 @@ export function conceptForIntent(intent: ProductIntent): SafeConcept | null {
   if (!safeKnowledgePhrase(core)) return null;
   const curated = CURATED_CONCEPTS.find(c => [c.canonical, ...c.aliases].some(a => normalizeKnowledgeText(a) === core));
   const canonical = curated?.canonical ?? core;
-  const category = curated?.category ?? (intent.category || "pantry");
+  const inferred = inferProductCategory(core);
+  const category = curated?.category ?? intent.category ?? (["paper towels", "toilet paper"].includes(inferred ?? "")
+    ? "paper products" : inferred && inferred in CATEGORY_RULES ? inferred : "pantry");
   // Only structured, reviewed vocabulary. Never retain originalText or recipes.
   const attributes = intent.identityConstraints.map(c => normalizeKnowledgeText(c.searchText)).filter(safeKnowledgePhrase).sort();
   return { id: knowledgeId(canonical), canonical, alias: core, category, attributes, curated: Boolean(curated) };

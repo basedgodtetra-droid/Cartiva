@@ -61,6 +61,12 @@ describe("persistent product knowledge", () => {
     const plan = sqlite.prepare("EXPLAIN QUERY PLAN SELECT * FROM cartiva_match_observations WHERE conceptId=? AND query=? AND version=? AND checkedAt>?").all("x", "milk", 1, 0);
     expect(JSON.stringify(plan)).toContain("USING INDEX cartiva_observation_query");
   });
+  it("learns retailer vocabulary as provisional evidence and recognizes paper-product semantics", async () => {
+    const { db, sqlite } = open();
+    await executeSharedCommand(db, { op: "knowledge.learn", records: [learning({ product: { upc: "0004900000012", title: "Coca-Cola Zero Sugar Soda Cans", brand: "Coca-Cola", package: "12 count" } })] });
+    expect(sqlite.prepare("SELECT source,stage FROM cartiva_product_aliases WHERE alias='coca cola zero sugar soda cans'").get()).toEqual({ source: "RETAILER_METADATA", stage: "PROVISIONAL" });
+    expect(conceptForIntent(parseProductIntent("paper towels"))?.category).toBe("paper products");
+  });
   it("survives close/reopen and applies migrations twice without modifying existing OAuth rows", async () => {
     const directory = mkdtempSync(join(tmpdir(), "cartiva-knowledge-test-"));
     const path = join(directory, "knowledge.sqlite");

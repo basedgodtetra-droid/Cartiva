@@ -1,5 +1,6 @@
 import type { SharedDatabase, SharedStatement } from "../kroger-shared-sql";
-import { CATEGORY_RULES, CURATED_CONCEPTS, CURATED_CONTRADICTIONS, KNOWLEDGE_VERSION, OFFER_TTL_MS, knowledgeId, normalizeKnowledgeText } from "./foundations";
+import { CATEGORY_RULES, CURATED_CONCEPTS, CURATED_CONTRADICTIONS, KNOWLEDGE_VERSION, OFFER_TTL_MS, knowledgeId, normalizeKnowledgeText, safeKnowledgePhrase } from "./foundations";
+import { stripDiscoveryPackageTerms } from "../product-search-intent";
 import type { KnowledgeCommand, KnowledgeContext } from "./protocol";
 
 /** Server-only named operations; no runtime schema creation, no auth-table writes. */
@@ -42,11 +43,11 @@ export async function executeKnowledgeCommand(db: SharedDatabase, c: KnowledgeCo
       VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET updatedAt=MAX(updatedAt,excluded.updatedAt),lastConfirmedAt=MAX(lastConfirmedAt,excluded.lastConfirmedAt)`,
     id, canonical, category, JSON.stringify(attributes), curated ? "CURATED" : "RETAILER_METADATA", curated ? 1 : 0.8, curated ? "TRUSTED" : "PROVISIONAL", KNOWLEDGE_VERSION, now, now, now));
   };
-  const alias = (id: string, value: string, curated: boolean) => {
+  const alias = (id: string, value: string, curated: boolean, retailerMetadata = false) => {
     statements.push(q(`INSERT INTO cartiva_product_aliases
       (id,conceptId,alias,source,confidence,stage,version,createdAt,updatedAt,lastConfirmedAt)
       VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET lastConfirmedAt=MAX(lastConfirmedAt,excluded.lastConfirmedAt),updatedAt=MAX(updatedAt,excluded.updatedAt)`,
-    knowledgeId(`${id}:alias:${value}`), id, value, curated ? "CURATED" : "INFERRED", curated ? 1 : 0.6, curated ? "TRUSTED" : "PROVISIONAL", KNOWLEDGE_VERSION, now, now, now));
+    knowledgeId(`${id}:alias:${value}`), id, value, curated ? "CURATED" : retailerMetadata ? "RETAILER_METADATA" : "INFERRED", curated ? 1 : retailerMetadata ? 0.8 : 0.6, curated ? "TRUSTED" : "PROVISIONAL", KNOWLEDGE_VERSION, now, now, now));
   };
   if (c.op === "knowledge.seed") {
     for (const rule of CURATED_CONCEPTS) {
@@ -76,6 +77,10 @@ export async function executeKnowledgeCommand(db: SharedDatabase, c: KnowledgeCo
       concept(r.concept.id, r.concept.canonical, r.concept.category, r.concept.attributes, curated);
       alias(r.concept.id, r.concept.alias, curated && CURATED_CONCEPTS.some(x => x.canonical === r.concept.canonical && [x.canonical, ...x.aliases].map(normalizeKnowledgeText).includes(r.concept.alias)));
       const p = r.product;
+      if (p) {
+        const retailerWording = normalizeKnowledgeText(stripDiscoveryPackageTerms(p.title));
+        if (safeKnowledgePhrase(retailerWording) && retailerWording !== r.concept.alias) alias(r.concept.id, retailerWording, false, true);
+      }
       const productId = p ? knowledgeId(`kroger:${p.upc}:${r.concept.id}`) : "";
       if (p) statements.push(q(`INSERT INTO cartiva_retailer_products
         (id,retailer,upc,conceptId,title,brand,package,source,version,createdAt,lastObservedAt)
