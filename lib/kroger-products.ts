@@ -312,6 +312,25 @@ export function rankKrogerProducts(
     preferredIdentity,
   );
 
+  // A retailer's per-pound offer is not proof of a count of loose produce.
+  // Preserve identity as a recovery choice, without a recommended line total
+  // or fulfillment quantity that could be mistaken for two individual items.
+  if (intent.requestedContainer === "each" && inferProductCategory(intent.verificationText) === "produce") {
+    const weightedProduce = products.filter((product) => hasMatchEligibleStoreEvidence(product)
+      && product.size?.kind === "weight"
+      && !/\b(?:bags?|box(?:es)?|clamshells?|packs?|diced|sliced|chopped)\b/i.test(`${product.title} ${product.size.label}`));
+    const choices = rankEligibleKrogerProducts(intent.verificationText, weightedProduce, effectiveConstraints, preferredIdentity);
+    if (choices.recommended && !exact.recommended) {
+      return {
+        retailer: "kroger", requestedItem: request, recommended: null,
+        alternatives: [choices.recommended, ...choices.alternatives].slice(0, 4),
+        confidence: "low", status: "review", resolution: "needs_choice",
+        clarification: "1 quick choice: choose an amount by weight",
+        explanation: "Kroger lists this produce by weight, not by individual count. Cartiva cannot convert each into pounds. Edit the item to enter a weight or choose another package before handoff.",
+      };
+    }
+  }
+
   if (exact.recommended) {
     const fulfillment = packageFulfillmentForProduct(
       intent,

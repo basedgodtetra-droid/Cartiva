@@ -773,14 +773,17 @@ const EXPLICIT_PRODUCE_FORM_RULES: Array<{ form: Exclude<ProduceForm, "fresh">; 
 const FRESH_PRODUCE_SIGNAL = /\b(?:fresh|fresh produce|fresh vegetables?|raw|whole|bunch(?:es)?|each|heads?|stalks?|crowns?|loose|bundles?|clamshell|bagged?)\b/i;
 const FRESH_PRODUCE_TAXONOMY = /\b(?:fresh\s+)?(?:produce|fruits?|vegetables?)\b/i;
 const PREPARED_PRODUCE_SIGNAL = /\b(?:roasted|grilled|seasoned|breaded|fried|ready[ -]?to[ -]?eat|prepared meal|casserole)\b/i;
-const STRONG_PROCESSED_PRODUCE_SIGNAL = /\b(?:fruit\s+snacks?|baby\s+foods?|puree|pouches?|pudding|desserts?|chips?|bars?|sauces?|seasonings?|supplements?|powders?|drink\s+mix)\b/i;
+const STRONG_PROCESSED_PRODUCE_SIGNAL = /\b(?:fruit\s+snacks?|(?:baby|toddler|infant)\s+foods?|pur[eé]e(?:d|s)?|pouch(?:es)?|pudding|desserts?|chips?|bars?|soups?|dips?|spreads?|creamed|sauces?|seasonings?|supplements?|powders?|drink\s+mix)\b/i;
 const AMBIGUOUS_PRODUCE_NAME_SIGNAL = /\b(?:juices?|smoothies?|cand(?:y|ies))\b/i;
 
 const PREPARED_PRODUCE_FAMILIES = [
   { label: "fruit snack", pattern: /\bfruit\s+snacks?\b/i },
-  { label: "baby food", pattern: /\bbaby\s+foods?\b/i },
-  { label: "puree", pattern: /\bpuree\b/i },
-  { label: "pouch", pattern: /\bpouches?\b/i },
+  { label: "baby food", pattern: /\b(?:baby|toddler|infant)\s+foods?\b/i },
+  { label: "puree", pattern: /\bpur[eé]e(?:d|s)?\b/i },
+  { label: "soup", pattern: /\bsoups?\b/i },
+  { label: "dip", pattern: /\bdips?\b/i },
+  { label: "spread", pattern: /\bspreads?\b/i },
+  { label: "creamed", pattern: /\bcreamed\b/i },
   { label: "pudding", pattern: /\bpudding\b/i },
   { label: "dessert", pattern: /\bdesserts?\b/i },
   { label: "juice", pattern: /\bjuices?\b/i },
@@ -789,6 +792,8 @@ const PREPARED_PRODUCE_FAMILIES = [
   { label: "chips", pattern: /\bchips?\b/i },
   { label: "bar", pattern: /\bbars?\b/i },
   { label: "sauce", pattern: /\bsauces?\b/i },
+  // Packaging is only a fallback; it cannot override an explicit food family.
+  { label: "pouch", pattern: /\bpouch(?:es)?\b/i },
 ] as const;
 
 function explicitProduceForm(value: string) {
@@ -797,6 +802,16 @@ function explicitProduceForm(value: string) {
 
 function preparedProduceFamily(value: string) {
   return PREPARED_PRODUCE_FAMILIES.find((family) => family.pattern.test(value))?.label;
+}
+
+function strongProducePreparation(value: string) {
+  // A frozen vegetable may simply be packaged in a pouch. Preparation is a
+  // separate axis from preservation; baby food/puree/soup remain processed
+  // even when frozen or canned. "Baby spinach" is not a baby-food signal.
+  const wording = explicitProduceForm(value)
+    ? value.replace(/\bpouch(?:es)?\b/gi, " ")
+    : value;
+  return STRONG_PROCESSED_PRODUCE_SIGNAL.test(wording) || PREPARED_PRODUCE_SIGNAL.test(wording);
 }
 
 function candidateProduceForm(product: WalmartProduct): ProduceForm | undefined {
@@ -847,6 +862,17 @@ export function assessProduceForm(
 ): ProductVariantAssessment {
   if (inferProductCategory(request) !== "produce") {
     return { rejected: false, scoreAdjustment: 0, reasons: [] };
+  }
+
+  const babyFoodDepartment = /^(?:baby|infant|toddler)(?:\s*(?:&|and)\s*(?:baby|infant|toddler))?(?:\s+foods?)?$/i.test(product.productType?.trim() ?? "");
+  const candidateWording = `${babyFoodDepartment ? "baby food" : product.productType ?? ""} ${product.title}`;
+  const requestedProcessed = strongProducePreparation(request);
+  const candidateProcessed = strongProducePreparation(candidateWording);
+  if (requestedProcessed !== candidateProcessed) {
+    return { rejected: true, scoreAdjustment: 0, reasons: ["whole produce and prepared produce are not interchangeable"] };
+  }
+  if (requestedProcessed && preparedProduceFamily(request) !== preparedProduceFamily(candidateWording)) {
+    return { rejected: true, scoreAdjustment: 0, reasons: ["does not match the requested prepared-produce family"] };
   }
 
   const requestedForm: ProduceForm = explicitProduceForm(request)
@@ -1182,7 +1208,8 @@ const CATEGORY_SPECIALTY_VARIANTS: CategorySpecialtyVariantPolicy[] = [
       { label: "legume-based", pattern: /\b(?:chick\s*peas?|garbanzo|lentils?|black\s+beans?|edamame)\b/i },
       { label: "vegetable-based", pattern: /\b(?:cauliflower|hearts?\s+of\s+palm|zucchini)\b/i },
       { label: "konjac", pattern: /\b(?:konjac|shirataki)\b/i },
-      { label: "alternative-grain", pattern: /\b(?:gluten[ -]?free|rice\s+pasta|corn\s+pasta|quinoa\s+pasta)\b/i },
+      { label: "alternative-grain", pattern: /\b(?:rice\s+pasta|corn\s+pasta|quinoa\s+pasta)\b/i },
+      { label: "gluten-free", pattern: /\bgluten[ -]?free\b/i },
     ],
   },
 ];
@@ -1210,7 +1237,16 @@ function assessCategorySpecialtyVariant(
     };
   }
 
-  const unrequested = candidateVariants.filter((variant) => !requestedVariants.includes(variant));
+  const unrequested = candidateVariants.filter((variant) => !requestedVariants.includes(variant)
+    // Gluten-free describes a dietary property, not a competing ingredient.
+    // A requested lentil/vegetable pasta may truthfully carry this label.
+    && !(policy.category === "pasta" && variant.label === "gluten-free"
+      && requestedVariants.some((requested) => requested.label !== "gluten-free"))
+    // An explicit dietary-only request does not invent a base ingredient.
+    // Specific lentil/rice/etc. requests still enforce their named identity.
+    && !(policy.category === "pasta" && requestedVariants.length === 1
+      && requestedVariants[0].label === "gluten-free"
+      && candidateVariants.some((candidateVariant) => candidateVariant.label === "gluten-free")));
   if (unrequested.length) {
     if (policy.rejectUnrequested) {
       return {

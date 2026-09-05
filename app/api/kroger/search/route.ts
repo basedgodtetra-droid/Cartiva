@@ -595,7 +595,9 @@ export async function handleKrogerSearchRead(
           });
           productApiCalls += discovery.detailCalls;
           const preliminaryResult = verifiedResult(item, discovery.candidates);
-          const preliminary: KrogerMatchResult = preliminaryResult.recommended
+          const preliminary: KrogerMatchResult = preliminaryResult.status === "review"
+            ? preliminaryResult
+            : preliminaryResult.recommended
             ? {
                 ...preliminaryResult,
                 status: "review",
@@ -609,7 +611,7 @@ export async function handleKrogerSearchRead(
           enqueue(item, preliminary, "search", discovery.candidates.length);
           const verificationStartedAt = performance.now();
           const ranked = verifiedResult(item, discovery.candidates);
-          const verified: KrogerMatchResult = ranked.recommended
+          const verified: KrogerMatchResult = ranked.recommended || ranked.status === "review"
             ? ranked
             : { ...ranked, explanation: specificNoMatchExplanation(item, discovery.candidates) };
           verifiedResults[item.index] = verified;

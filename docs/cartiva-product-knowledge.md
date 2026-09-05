@@ -122,7 +122,7 @@ from which to infer general shopper conversion or universal grocery coverage.
 - Isolated browser: 12 scenario groups passed, including six widths
   (320/375/390/430/768/1024), candidate revalidation, feedback failure,
   unchanged quantities/store, saved-list reload and handoff safeguards.
-- Full automated suite: 117 files / 2,173 tests passed, including 33 focused
+- Full automated suite: 118 files / 2,204 tests passed, including 33 focused
   knowledge tests. Both Next.js and Sites builds pass.
 - Deployed Sites and Vercel: the same seven-item live basket passed 7/7 on
   each host, with seven fresh product searches each and no local cache hits.
@@ -140,6 +140,17 @@ only when it is a real identity conflict. This pass discovered and retained
 regressions for a stale query evicting the final fallback and private markers
 being lost during normalization. Gluten-free white bread is valid; color and
 diet are not contradictory categories.
+
+Final live inspection uncovered additional generalized faults, retained in
+`product-knowledge-live-regressions.test.ts`: singular baby-food pouches and
+prepared spinach could pass as whole produce; gluten-free labeling wrongly
+excluded real red-lentil pasta; and modified produce names lost explicit
+`each` quantities. The fixes preserve food identity, preparation, preservation
+and dietary intent independently. A fresh by-weight onion offer now produces
+an actionable weight choice with no invented count-to-pound conversion, no
+recommended subtotal and no cart-eligible fulfillment. The stream preserves
+that specific explanation. Fresh baby spinach and four 8-ounce lentil-pasta
+packages were verified against the actual Kroger catalog during this check.
 
 The architecture supports expanding to CARTIVA 1000 without replacing 100/500.
 This pass does not claim a newly validated 1000-case catalog or 97% real-world

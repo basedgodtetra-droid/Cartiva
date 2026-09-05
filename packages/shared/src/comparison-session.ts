@@ -145,6 +145,9 @@ const TRAILING_CONTAINER_QUANTITY = /^(.+?)[,\s]+(\d{1,2})\s+(cans?|canisters?|c
 const LEADING_VOLUME_QUANTITY = /^(\d{1,2})\s+(gallons?|gal|quarts?|qt|pints?|pt)\s+(?:of\s+)?(.+)$/i;
 const LEADING_EACH_QUANTITY = /^(\d{1,2})\s+(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)$/i;
 const TRAILING_EACH_QUANTITY = /^(bananas?|apples?|oranges?|avocados?|onions?|tomatoes?|potatoes?|lemons?|limes?)[,\s]+(\d{1,2})(?:\s+each)?$/i;
+// An explicit "each" is quantity syntax even when an item has a cultivar or
+// descriptor. Do not broaden bare leading numbers or exact "N count" packs.
+const EXPLICIT_TRAILING_EACH_QUANTITY = /^(.+?)[,\s]+(\d{1,2})\s+each$/i;
 const HOUSEHOLD_ROLL_PACKAGE = /^(?:(?:paper\s+towels?|toilet\s+paper|bath\s+tissue)[,\s]+\d{1,3}\s+rolls?|\d{1,3}\s+rolls?\s+(?:of\s+)?(?:paper\s+towels?|toilet\s+paper|bath\s+tissue))$/i;
 const LEADING_DOZEN_QUANTITY = /^(?:(\d{1,2}|one|two|three|four|a)\s+)?dozen\s+(.+)$/i;
 
@@ -294,7 +297,7 @@ export function parseRetailerPackageQuantity(rawInput: string): RetailerPackageQ
     };
   }
 
-  const trailingEach = input.match(TRAILING_EACH_QUANTITY);
+  const trailingEach = input.match(EXPLICIT_TRAILING_EACH_QUANTITY) ?? input.match(TRAILING_EACH_QUANTITY);
   const trailingEachQuantity = safeQuantity(trailingEach?.[2]);
   if (trailingEach && trailingEachQuantity) {
     return {

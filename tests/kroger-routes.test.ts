@@ -133,6 +133,22 @@ beforeEach(() => {
 });
 
 describe("Kroger extension routes", () => {
+  it("preserves the actionable weight-choice explanation without inventing an each-to-pound conversion", async () => {
+    vi.mocked(searchKrogerProducts).mockResolvedValue(searchResponse([krogerProduct({
+      title: "Jumbo Yellow Onions", productType: "Produce",
+      size: { amount: 1, unit: "lb", kind: "weight", baseAmount: 16, baseUnit: "oz", label: "1 lb" },
+    })]));
+    const response = await searchPost(new Request("http://localhost:3000/api/kroger/search", {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:3000" },
+      body: JSON.stringify({ items: ["yellow onions 2 each"], locationId: "AB12CD34", fulfillmentMode: "pickup" }),
+    }));
+    const events = (await response.text()).trim().split("\n").map(line => JSON.parse(line));
+    const result = events.find(event => event.phase === "verification").result;
+    expect(result).toMatchObject({ status: "review", recommended: null, resolution: "needs_choice" });
+    expect(result.explanation).toMatch(/by weight, not by individual count/);
+    expect(result.fulfillment).toBeUndefined();
+    expect(result.alternatives[0].title).toBe("Jumbo Yellow Onions");
+  });
   it("authenticates receipt replay and binds it to the original authorization", async () => {
     const operationId = "discovery_auth_binding_1234";
     const request = () => new Request("http://localhost:3000/api/kroger/cart", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operationId, locationId: "AB12CD34", fulfillmentMode: "pickup", items: [{ upc: "0001111012345", quantity: 2 }] }) });
